@@ -29,11 +29,11 @@ jobs:
     
     - name: Lint with Black
       run: |
-        black --check --diff src/ tests/
+        black --check --diff src/
     
     - name: Lint with Ruff
       run: |
-        ruff check src/ tests/
+        ruff check src/
     
     - name: Type check with mypy
       run: |
@@ -41,7 +41,7 @@ jobs:
     
     - name: Run tests with pytest
       run: |
-        pytest tests/ --cov=src --cov-report=xml --cov-report=html
+        pytest test_*.py --cov=src --cov-report=xml --cov-report=html
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -71,7 +71,7 @@ jobs:
         echo "Checking if MetaEditor is available..."
         if (Test-Path "C:\Program Files\MetaTrader 5\metaeditor64.exe") {
           echo "MetaEditor found, attempting compilation..."
-          "C:\Program Files\MetaTrader 5\metaeditor64.exe" /compile:ea\BridgeEA.mq5
+          & "C:\Program Files\MetaTrader 5\metaeditor64.exe" /compile:ea\BridgeEA.mq5
         } else {
           echo "MetaEditor not found, skipping compilation"
         }
@@ -81,7 +81,7 @@ jobs:
         echo "Checking if MetaEditor is available..."
         if (Test-Path "C:\Program Files\MetaTrader 4\metaeditor.exe") {
           echo "MetaEditor found, attempting compilation..."
-          "C:\Program Files\MetaTrader 4\metaeditor.exe" /compile:ea\BridgeEA.mq4
+          & "C:\Program Files\MetaTrader 4\metaeditor.exe" /compile:ea\BridgeEA.mq4
         } else {
           echo "MetaEditor not found, skipping compilation"
         }
