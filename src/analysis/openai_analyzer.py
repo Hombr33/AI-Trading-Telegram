@@ -29,7 +29,8 @@ class OpenAIAnalyzer(IAnalyzer):
     def _load_system_prompt(self) -> str:
         """Loads the detailed system prompt from the JSON file."""
         try:
-            with open("app-code-prompt.json", "r") as f:
+            prompt_path = os.path.join(os.path.dirname(__file__), "app-code-prompt.json")
+            with open(prompt_path, "r") as f:
                 prompt_data = json.load(f)
             # We can construct a more targeted system message here if needed
             return json.dumps(prompt_data)
