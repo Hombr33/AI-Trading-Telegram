@@ -314,7 +314,7 @@ bool SendScreenshotToAPI(string filename, string symbol, string timeframe, datet
    
    char postData[];
    // Use StringToUtf8 instead of StringToCharArray for better JSON compatibility
-   int postDataSize = StringToUtf8(jsonPayload, postData);
+   StringToUtf8(jsonPayload, postData);
    
    char response[];
    string response_headers;
