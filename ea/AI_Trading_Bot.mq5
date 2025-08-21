@@ -552,7 +552,14 @@ void ProcessSignals(string signalsJson)
     // Parse the first TP from the array string e.g., "[3336.0, 3330.5]"
     int first_comma = StringFind(tp_arr_str, ",");
     if(first_comma < 0) first_comma = StringFind(tp_arr_str, "]");
-    string tp1_str = StringSubstr(tp_arr_str, 1, first_comma - 1);
+    string tp1_str;
+    if(first_comma >= 0)
+        tp1_str = StringSubstr(tp_arr_str, 1, first_comma - 1);
+    else
+    {
+        int closing_bracket = StringFind(tp_arr_str, "]");
+        tp1_str = StringSubstr(tp_arr_str, 1, closing_bracket - 1);
+    }
     double take_profit = StringToDouble(tp1_str);
 
     // Parse entry zone array e.g., "[1955.0, 1956.0]"
