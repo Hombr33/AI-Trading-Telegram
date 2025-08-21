@@ -54,7 +54,7 @@ async def detailed_health_check():
     db_status = "healthy"
     try:
         with get_db_session() as db:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
     except Exception as e:
         db_status = "unhealthy"
         logger.error("Database health check failed", error=str(e))
