@@ -5,10 +5,175 @@
 - [Technical Debt Preventions](docs/technical-debt-preventions.md)
 - [Code Quality Guidelines](docs/code-quality.md)
 - See `.cursor/rules/` for machine-readable rules for each concern (architecture, technical debt, code quality, etc.)
-## Automated Forex & Crypto Trading Bot
+# telegram-ai-trade
 
-### Overview
-This project is an institutional-grade automated trading bot for Forex & Crypto, powered by OpenAI (GPT-5) for market analysis and precision execution. It is designed for retail platforms (MT4/MT5, major crypto exchanges) and follows strict risk and trade management SOPs.
+## Overview
+
+A sophisticated, AI-powered trading bot for Forex & Crypto markets, leveraging OpenAI GPT-5 for institutional-grade analysis and precision execution.
+
+## Knowledge Base
+
+### Core Documentation
+- [🏗 Project Architecture](docs/project-architecture.md)
+  - System Components & Design
+  - Data Flow & Integration
+  - Performance Requirements
+  - Security Architecture
+  - Deployment Strategy
+
+- [⚙️ Technical Implementation](docs/code-quality.md)
+  - Coding Standards & Style Guide
+  - Testing Strategy
+  - Error Handling
+  - Performance Optimization
+  - Logging Standards
+
+- [🔄 Development Workflow](docs/technical-debt-preventions.md)
+  - Code Review Process
+  - Refactoring Guidelines
+  - Quality Metrics
+  - Debt Management
+  - Maintenance Procedures
+
+- [🔌 API Reference](docs/api-documentation.md)
+  - REST Endpoints
+  - WebSocket API
+  - Authentication
+  - Rate Limits
+  - SDK Usage
+
+### Trading-Specific Guides
+- [📈 Trading Strategy](docs/trading-strategy.md)
+  - Smart Money Concepts (SMC)
+  - Timeframe Analysis
+  - Entry/Exit Rules
+  - Risk Parameters
+  - Performance Metrics
+
+- [⚠️ Risk Management](docs/risk-management.md)
+  - Position Sizing
+  - Drawdown Control
+  - Exposure Limits
+  - Stop-Loss Strategy
+  - Account Protection
+
+- [🤖 AI Implementation](docs/ai-implementation.md)
+  - GPT-5 Integration
+  - Market Analysis
+  - Pattern Recognition
+  - Signal Generation
+  - Backtesting Results
+
+### Platform Integration
+- [💱 Exchange Integration](docs/exchange-integration.md)
+  - MT4/MT5 Setup
+  - Binance API
+  - Bybit API
+  - Order Types
+  - Error Handling
+
+- [📱 Telegram Bot](docs/telegram-integration.md)
+  - Command Reference
+  - Signal Format
+  - Alert Configuration
+  - User Management
+  - Security Settings
+
+### Operations
+- [🚀 Deployment Guide](docs/deployment.md)
+  - System Requirements
+  - Installation Steps
+  - Configuration
+  - Monitoring Setup
+  - Backup Procedures
+
+- [🛠 Maintenance](docs/maintenance.md)
+  - Regular Tasks
+  - Troubleshooting
+  - Updates & Patches
+  - Performance Tuning
+  - Emergency Procedures
+
+### Contributing
+- [👥 Contribution Guide](docs/contributing.md)
+  - Development Setup
+  - Coding Standards
+  - Pull Request Process
+  - Testing Requirements
+  - Documentation Rules
+
+## Quick Start
+
+1. Clone the repository
+2. Install dependencies: `poetry install`
+3. Configure environment variables
+4. Run the bot: `poetry run python src/main.py`
+
+## Key Features
+
+### 1. AI-Powered Analysis
+- Advanced market analysis using GPT-5
+- Multi-timeframe analysis (H4, H1, M15, M5, M1)
+- Pattern recognition and market structure analysis
+- Sentiment analysis integration
+
+### 2. Smart Money Concepts (SMC)
+- Liquidity pool identification
+- Order block detection
+- Break of structure (BOS) recognition
+- Quasimodo pattern detection
+- Fair value gap (FVG) analysis
+
+### 3. Risk Management
+- Position sizing based on account risk
+- Dynamic stop-loss management
+- Drawdown control
+- Multi-level take-profit strategy
+
+### 4. Multi-Platform Support
+- MetaTrader 4/5 integration
+- Major crypto exchanges (Binance, Bybit)
+- Real-time execution
+- Smart order routing
+
+### 5. Telegram Integration
+- Real-time trade signals
+- Position updates
+- Performance metrics
+- Command interface
+
+## Features
+
+### 1. AI-Powered Analysis
+- Advanced market analysis using GPT-5
+- Multi-timeframe analysis (H4, H1, M15, M5, M1)
+- Pattern recognition and market structure analysis
+- Sentiment analysis integration
+
+### 2. Smart Money Concepts (SMC)
+- Liquidity pool identification
+- Order block detection
+- Break of structure (BOS) recognition
+- Quasimodo pattern detection
+- Fair value gap (FVG) analysis
+
+### 3. Risk Management
+- Position sizing based on account risk
+- Dynamic stop-loss management
+- Drawdown control
+- Multi-level take-profit strategy
+
+### 4. Multi-Platform Support
+- MetaTrader 4/5 integration
+- Major crypto exchanges (Binance, Bybit)
+- Real-time execution
+- Smart order routing
+
+### 5. Telegram Integration
+- Real-time trade signals
+- Position updates
+- Performance metrics
+- Command interface
 
 ---
 
