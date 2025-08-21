@@ -28,7 +28,7 @@ class Session(Base):
     @property
     def is_expired(self) -> bool:
         """Check if the session is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     def __repr__(self) -> str:
         return f"<Session(user_id={self.user_id}, expires_at={self.expires_at})>"
