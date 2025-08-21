@@ -8,43 +8,41 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# --- Global State (for simplicity, will be replaced by a proper data store) ---
+latest_signal: SignalResponse | None = None
+analyzer: IAnalyzer | None = None
+
+
 app = FastAPI(
     title="AI Trading Bot API",
     version="1.0.0",
     description="API for the AI Trading Bot system, integrating with MT5 and OpenAI.",
 )
 
-# --- Pydantic Models for Data Validation ---
+@app.on_event("startup")
+async def startup_event():
+    """
+    On startup, create the analyzer instance.
+    This makes it available for the lifetime of the application.
+    """
+    global analyzer
+    try:
+        from .analysis.openai_analyzer import OpenAIAnalyzer
+        from .common.interfaces import IAnalyzer as IAnalyzer_ # prevent name clash
+        analyzer = OpenAIAnalyzer()
+        logger.info("OpenAIAnalyzer initialized successfully.")
+    except (ValueError, ImportError) as e:
+        logger.error(f"Failed to initialize OpenAIAnalyzer: {e}")
+        # The app will run, but analysis endpoints will fail.
+        analyzer = None
 
-class MarketContext(BaseModel):
-    current_price: float
-    session: str
-    volatility_level: str
-    news_impact: str
-
-class ScreenshotPayload(BaseModel):
-    symbol: str
-    timeframe: str
-    timestamp: str  # MQL5 sends a string timestamp
-    image_data: str = Field(..., description="Base64 encoded screenshot data")
-    market_context: MarketContext
-
-class SignalSetup(BaseModel):
-    type: str  # "BUY" or "SELL"
-    entry_zone: list[float]
-    entry_style: str
-    sl: float
-    tp: list[float]
-    confidence: int
-    notes: str
-
-class SignalResponse(BaseModel):
-    symbol: str
-    bias: str
-    setups: list[SignalSetup]
-
-class SignalListResponse(BaseModel):
-    signals: list[SignalResponse]
+from .api.models import (
+    ScreenshotPayload,
+    SignalListResponse,
+    SignalResponse,
+)
+from .common.interfaces import IAnalyzer
 
 
 @app.get("/health", status_code=200)
@@ -57,71 +55,55 @@ async def health_check():
     return {"status": "ok"}
 
 
-@app.post("/api/v1/market-analysis/screenshot", status_code=201)
+@app.post("/api/v1/market-analysis/screenshot", status_code=202)
 async def receive_screenshot(payload: ScreenshotPayload):
     """
-    Receives a screenshot from the MT5 EA, decodes it, and saves it.
-    This is the primary endpoint for the EA to submit market data for analysis.
+    Receives a screenshot and market context, then triggers AI analysis.
     """
+    global latest_signal
     logger.info(f"Received screenshot for {payload.symbol} on timeframe {payload.timeframe}")
 
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="Analyzer service is not available.")
+
     try:
-        # Decode the Base64 image data
         image_bytes = base64.b64decode(payload.image_data)
 
-        # Generate a unique filename
-        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"uploads/{payload.symbol}_{payload.timeframe}_{now}.png"
+        # Asynchronously run the analysis
+        signal = await analyzer.analyze(image_bytes, payload.market_context.dict())
 
-        # Save the image file
-        with open(filename, "wb") as f:
-            f.write(image_bytes)
-
-        logger.info(f"Successfully saved screenshot to {filename}")
-
-        # In the next phase, this will trigger the AI analysis
-        # For now, we just confirm receipt and save the file.
-        return {
-            "message": "Screenshot received and saved successfully",
-            "filename": filename,
-        }
+        if signal:
+            latest_signal = signal
+            logger.info(f"New signal generated and stored for {signal.symbol}")
+            return {"message": "Analysis complete. Signal generated."}
+        else:
+            logger.info("Analysis complete. No signal generated.")
+            return {"message": "Analysis complete. No signal generated."}
 
     except base64.binascii.Error as e:
         logger.error(f"Failed to decode Base64 image: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid Base64 data: {e}")
+        raise HTTPException(status_code=400, detail="Invalid Base64 data.")
     except Exception as e:
-        logger.error(f"An unexpected error occurred while processing the screenshot: {e}")
-        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {e}")
+        logger.error(f"An unexpected error occurred during analysis trigger: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
 
 @app.get("/api/v1/market-analysis/signals", response_model=SignalListResponse)
 async def get_signals():
     """
-    Provides trading signals to the MT5 EA.
-    For now, it returns a hardcoded mock signal for testing purposes.
-    The EA will poll this endpoint periodically.
+    Provides the latest generated trading signal to the MT5 EA.
     """
+    global latest_signal
     logger.info("Signal endpoint was called by a client.")
 
-    # This is a mock signal. In the future, this will come from a database
-    # or a live signal generation process.
-    mock_signal = {
-        "signals": [
-            {
-                "symbol": "XAUUSD",
-                "bias": "BEARISH",
-                "setups": [
-                    {
-                        "type": "SELL",
-                        "entry_zone": [1955.0, 1956.0],
-                        "entry_style": "limit",
-                        "sl": 1960.0,
-                        "tp": [1950.0, 1945.0],
-                        "confidence": 75,
-                        "notes": "Mock signal for testing."
-                    }
-                ]
-            }
-        ]
-    }
-    return mock_signal
+    if latest_signal:
+        # The EA expects a list of signals.
+        response_data = {"signals": [latest_signal.dict()]}
+        # Clear the signal after it has been fetched to avoid re-execution.
+        latest_signal = None
+        logger.info(f"Signal for {response_data['signals'][0]['symbol']} was provided and cleared.")
+        return response_data
+    else:
+        # Return an empty list if there are no new signals.
+        logger.info("No new signal available.")
+        return {"signals": []}

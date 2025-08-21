@@ -535,14 +535,18 @@ void ProcessSignals(string signalsJson)
     if(StringLen(signal_object) < 10) return; // Not a real object
 
     string signal_symbol = ParseJsonValue(signal_object, "symbol");
-    string signal_type = ParseJsonValue(signal_object, "type");
 
     // Only process signals for the current chart symbol
     if(signal_symbol != Symbol()) return;
 
+    // Extract all required fields from the signal
+    string signal_type = ParseJsonValue(signal_object, "type");
+    string entry_style = ParseJsonValue(signal_object, "entry_style");
+    string entry_zone_str = ParseJsonValue(signal_object, "entry_zone");
     string sl_str = ParseJsonValue(signal_object, "sl");
     string tp_arr_str = ParseJsonValue(signal_object, "tp");
 
+    // --- Parse numeric and array values ---
     double stop_loss = StringToDouble(sl_str);
 
     // Parse the first TP from the array string e.g., "[3336.0, 3330.5]"
@@ -551,72 +555,124 @@ void ProcessSignals(string signalsJson)
     string tp1_str = StringSubstr(tp_arr_str, 1, first_comma - 1);
     double take_profit = StringToDouble(tp1_str);
 
+    // Parse entry zone array e.g., "[1955.0, 1956.0]"
+    int zone_comma = StringFind(entry_zone_str, ",");
+    string ez1_str = StringSubstr(entry_zone_str, 1, zone_comma - 1);
+    string ez2_str = StringSubstr(entry_zone_str, zone_comma + 1, StringFind(entry_zone_str, "]") - zone_comma - 1);
+    double entry_zone_low = StringToDouble(ez1_str);
+    double entry_zone_high = StringToDouble(ez2_str);
+
+
     if(signal_type == "BUY")
     {
-        ExecuteBuySignal(stop_loss, take_profit);
+        ExecuteBuySignal(entry_style, entry_zone_low, entry_zone_high, stop_loss, take_profit);
     }
     else if(signal_type == "SELL")
     {
-        ExecuteSellSignal(stop_loss, take_profit);
+        ExecuteSellSignal(entry_style, entry_zone_low, entry_zone_high, stop_loss, take_profit);
     }
 }
 
 //+------------------------------------------------------------------+
 //| Execute buy signal with parsed data                              |
 //+------------------------------------------------------------------+
-void ExecuteBuySignal(double stopLoss, double takeProfit)
+void ExecuteBuySignal(string style, double ez_low, double ez_high, double stopLoss, double takeProfit)
 {
-   if(!CanOpenNewPosition()) return;
-   if(stopLoss <= 0 || takeProfit <= 0) return;
+    if(!CanOpenNewPosition()) return;
+    if(stopLoss <= 0 || takeProfit <= 0 || ez_high <= 0) return;
 
-   double entryPrice = SymbolInfoDouble(Symbol(), SYMBOL_ASK);
-   double lotSize = CalculateLotSize(stopLoss);
-   
-   if(lotSize > 0)
-   {
-      if(trade.Buy(lotSize, Symbol(), entryPrice, stopLoss, takeProfit, "AI Signal"))
-      {
-         Print("Buy order executed: Lot: ", lotSize, " SL: ", stopLoss, " TP: ", takeProfit);
-         dailyTradeCount++;
-         lastTradeTime = TimeCurrent();
-         
-         if(ENABLE_TELEGRAM_ALERTS)
-            SendTelegramAlert("BUY", entryPrice, stopLoss, takeProfit, lotSize);
-      }
-      else
-      {
-         Print("Buy order failed: ", trade.ResultRetcodeDescription());
-      }
-   }
+    double lotSize = CalculateLotSize(stopLoss);
+    if(lotSize <= 0) return;
+
+    string result_msg = "";
+    bool success = false;
+
+    if(style == "market")
+    {
+        double price = SymbolInfoDouble(Symbol(), SYMBOL_ASK);
+        success = trade.Buy(lotSize, Symbol(), price, stopLoss, takeProfit, "AI Market Buy");
+        result_msg = "Market Buy order placed.";
+    }
+    else if(style == "limit")
+    {
+        // For a Buy Limit, we want to buy at a price lower than current market price.
+        // We use the lower of the two entry zone prices.
+        double price = MathMin(ez_low, ez_high);
+        success = trade.BuyLimit(lotSize, price, Symbol(), stopLoss, takeProfit, 0, 0, "AI Limit Buy");
+        result_msg = "Buy Limit order placed at " + DoubleToString(price, _Digits);
+    }
+    else if(style == "stop")
+    {
+        // For a Buy Stop, we want to buy at a price higher than current market price.
+        // We use the higher of the two entry zone prices.
+        double price = MathMax(ez_low, ez_high);
+        success = trade.BuyStop(lotSize, price, Symbol(), stopLoss, takeProfit, 0, 0, "AI Stop Buy");
+        result_msg = "Buy Stop order placed at " + DoubleToString(price, _Digits);
+    }
+
+    if(success)
+    {
+        Print(result_msg);
+        dailyTradeCount++;
+        lastTradeTime = TimeCurrent();
+        if(ENABLE_TELEGRAM_ALERTS)
+            SendTelegramAlert("BUY " + style, trade.ResultPrice(), stopLoss, takeProfit, lotSize);
+    }
+    else
+    {
+        Print("Buy order failed: ", trade.ResultRetcodeDescription());
+    }
 }
 
 //+------------------------------------------------------------------+
 //| Execute sell signal with parsed data                             |
 //+------------------------------------------------------------------+
-void ExecuteSellSignal(double stopLoss, double takeProfit)
+void ExecuteSellSignal(string style, double ez_low, double ez_high, double stopLoss, double takeProfit)
 {
-   if(!CanOpenNewPosition()) return;
-   if(stopLoss <= 0 || takeProfit <= 0) return;
+    if(!CanOpenNewPosition()) return;
+    if(stopLoss <= 0 || takeProfit <= 0 || ez_high <= 0) return;
 
-   double entryPrice = SymbolInfoDouble(Symbol(), SYMBOL_BID);
-   double lotSize = CalculateLotSize(stopLoss);
-   
-   if(lotSize > 0)
-   {
-      if(trade.Sell(lotSize, Symbol(), entryPrice, stopLoss, takeProfit, "AI Signal"))
-      {
-         Print("Sell order executed: Lot: ", lotSize, " SL: ", stopLoss, " TP: ", takeProfit);
-         dailyTradeCount++;
-         lastTradeTime = TimeCurrent();
-         
-         if(ENABLE_TELEGRAM_ALERTS)
-            SendTelegramAlert("SELL", entryPrice, stopLoss, takeProfit, lotSize);
-      }
-      else
-      {
-         Print("Sell order failed: ", trade.ResultRetcodeDescription());
-      }
-   }
+    double lotSize = CalculateLotSize(stopLoss);
+    if(lotSize <= 0) return;
+
+    string result_msg = "";
+    bool success = false;
+
+    if(style == "market")
+    {
+        double price = SymbolInfoDouble(Symbol(), SYMBOL_BID);
+        success = trade.Sell(lotSize, Symbol(), price, stopLoss, takeProfit, "AI Market Sell");
+        result_msg = "Market Sell order placed.";
+    }
+    else if(style == "limit")
+    {
+        // For a Sell Limit, we want to sell at a price higher than current market price.
+        // We use the higher of the two entry zone prices.
+        double price = MathMax(ez_low, ez_high);
+        success = trade.SellLimit(lotSize, price, Symbol(), stopLoss, takeProfit, 0, 0, "AI Limit Sell");
+        result_msg = "Sell Limit order placed at " + DoubleToString(price, _Digits);
+    }
+    else if(style == "stop")
+    {
+        // For a Sell Stop, we want to sell at a price lower than current market price.
+        // We use the lower of the two entry zone prices.
+        double price = MathMin(ez_low, ez_high);
+        success = trade.SellStop(lotSize, price, Symbol(), stopLoss, takeProfit, 0, 0, "AI Stop Sell");
+        result_msg = "Sell Stop order placed at " + DoubleToString(price, _Digits);
+    }
+
+    if(success)
+    {
+        Print(result_msg);
+        dailyTradeCount++;
+        lastTradeTime = TimeCurrent();
+        if(ENABLE_TELEGRAM_ALERTS)
+            SendTelegramAlert("SELL " + style, trade.ResultPrice(), stopLoss, takeProfit, lotSize);
+    }
+    else
+    {
+        Print("Sell order failed: ", trade.ResultRetcodeDescription());
+    }
 }
 
 //+------------------------------------------------------------------+
