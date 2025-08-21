@@ -5,7 +5,6 @@ Base model class with common fields and methods.
 from datetime import datetime
 from typing import Any, Dict
 from sqlalchemy import Column, DateTime, String, Text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
