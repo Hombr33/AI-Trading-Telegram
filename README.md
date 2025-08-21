@@ -1,260 +1,384 @@
+# AI Trading Bot - Automated Trading with Institutional Intelligence
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![MT5](https://img.shields.io/badge/MT5-Integration-orange.svg)](https://www.metatrader5.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## 🚀 Overview
+
+An advanced AI-powered automated trading bot that combines institutional-grade market analysis with precision execution through MetaTrader 5. Built with a focus on SMC/liquidity patterns, Quasimodo formations, and scalping strategies for retail traders.
+
+## ✨ Key Features
+
+- **🤖 AI-Powered Analysis**: Multi-timeframe analysis with institutional-grade intelligence
+- **📊 SMC/Liquidity Focus**: Advanced pattern recognition for institutional-level trading
+- **🎯 Quasimodo Patterns**: Break of structure and change of character detection
+- **⚡ Real-Time Execution**: MT5 integration with sub-100ms execution latency
+- **🛡️ Advanced Risk Management**: Position sizing, drawdown controls, correlation management
+- **📱 Telegram Integration**: Real-time signal distribution and bot management
+- **📈 Multi-Source Data**: MT5, Binance, Bybit, News APIs, and sentiment analysis
+- **🔍 Comprehensive Monitoring**: Performance metrics, health checks, and alerting
+
+## 🏗️ Architecture
+
+The system follows a modular, event-driven architecture with clear separation of concerns:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Data Sources  │    │  AI Analysis    │    │   Execution     │
+│                 │    │                 │    │                 │
+│ • MT5           │───▶│ • SMC Patterns  │───▶│ • MT5 Orders    │
+│ • Binance       │    │ • Quasimodo     │    │ • Risk Mgmt     │
+│ • News APIs     │    │ • Multi-TF      │    │ • Position Mgmt │
+│ • Sentiment     │    │ • Confidence    │    │ • Monitoring    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Data Storage   │    │  Signal Bridge  │    │  Risk Engine    │
+│                 │    │                 │    │                 │
+│ • SQLite        │    │ • Telegram Bot  │    │ • Position Size │
+│ • Redis Cache   │    │ • JSON Schema   │    │ • User Mgmt     │
+│ • Parquet Files │    │ • Drawdown Ctrl │    │ • Correlation   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 🎯 Trading Strategy
+
+### Multi-Timeframe Analysis
+- **H4**: Big picture trend and major supply/demand zones
+- **H1**: Market structure and minor liquidity pools
+- **M15**: Entry zone refinement and FVG validation
+- **M5**: Execution timing and candle rejection patterns
+- **M1**: Immediate entry triggers and confirmation
+
+### SMC/Liquidity Focus
+- **Liquidity Zones**: Equal highs/lows, round numbers, previous swings
+- **Order Blocks**: Bullish/bearish order blocks and mitigation zones
+- **Fair Value Gaps**: Imbalance detection and inefficiency fills
+- **Stop Hunt Areas**: Inducement zones and liquidity sweeps
+
+### Risk Management
+- **Position Sizing**: 2% risk per trade based on SL distance
+- **Daily Limits**: 6% maximum drawdown, $25 maximum loss
+- **Consecutive Losses**: Progressive risk reduction (2→1%, 3→0.5%, 4→stop)
+- **Correlation Control**: Maximum 70% correlation exposure
+
+## 🛠️ Technology Stack
+
+### Backend & Framework
+- **Python 3.11+**: Core application language
+- **FastAPI**: High-performance web framework
+- **SQLAlchemy**: Database ORM and migrations
+- **Pydantic**: Data validation and settings management
+
+### Trading & Data
+- **MetaTrader 5**: Primary trading platform integration
+- **Binance/Bybit APIs**: Crypto market data
+- **News APIs**: Economic calendar and sentiment
+- **Pandas/NumPy**: Data processing and analysis
+
+### AI & Machine Learning
+- **scikit-learn**: Pattern recognition and analysis
+- **Technical Analysis**: Advanced indicator calculations
+- **Sentiment Analysis**: News and social media processing
+
+### Infrastructure
+- **SQLite**: Portable, lightweight database
+- **Redis**: Caching and real-time data
+- **Docker**: Containerization and deployment
+- **Prometheus/Grafana**: Monitoring and visualization
+
+## 📦 Installation
+
+### Prerequisites
+- Python 3.11+
+- Docker and Docker Compose
+- MetaTrader 5 (for live trading)
+- Telegram Bot Token
+
+### Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/telegram-ai-trade.git
+   cd telegram-ai-trade
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Start with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Access the application**
+   - Trading Bot API: http://localhost:8000
+   - Grafana Dashboard: http://localhost:3000 (admin/admin123)
+   - Prometheus: http://localhost:9090
+   - SQLite Database: ./database/trading_bot.db
+
+### Manual Installation
+
+1. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Set up database**
+   ```bash
+   # SQLite database will be created automatically
+   # Database file: ./database/trading_bot.db
+   
+   # Run migrations (if using Alembic)
+   alembic upgrade head
+   ```
+
+3. **Configure MT5 connection**
+   ```bash
+   # Set environment variables
+   export MT5_LOGIN=your_login
+   export MT5_PASSWORD=your_password
+   export MT5_SERVER=your_server
+   ```
+
+4. **Start the application**
+   ```bash
+   python src/main.py
+   ```
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+```bash
+# Trading Configuration
+TRADING_ENV=development
+RISK_PER_TRADE_PCT=2.0
+MAX_DAILY_DRAWDOWN_PCT=6.0
+MAX_DAILY_LOSS_USD=25
+
+# MT5 Configuration
+MT5_LOGIN=your_login
+MT5_PASSWORD=your_password
+MT5_SERVER=your_server
+
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+
+# Database Configuration
+DATABASE_URL=sqlite:///./database/trading_bot.db
+REDIS_URL=redis://localhost:6379
+
+# API Keys
+BINANCE_API_KEY=your_binance_key
+BINANCE_SECRET_KEY=your_binance_secret
+NEWS_API_KEY=your_news_api_key
+```
+
+### Trading Parameters
+
+```yaml
+# config/trading.yaml
+risk_management:
+  risk_per_trade_pct: 2.0
+  max_daily_drawdown_pct: 6.0
+  max_consecutive_losses: 4
+  
+position_sizing:
+  method: "risk_based_on_sl_distance"
+  min_position_size: 0.01
+  max_position_size: 10.0
+  
+execution:
+  magic_number: 1001
+  slippage_points: 10
+  prefer_limit_orders: true
+  
+session_filters:
+  avoid_high_impact_news: true
+  prefer_london_ny_overlap: true
+  timezone: "Asia/Jakarta"
+```
+
+## 📱 Usage
+
+### Telegram Commands
+
+- `/start` - Initialize the bot and show welcome message
+- `/status` - Check bot status and current performance
+- `/trades` - View recent trades and open positions
+- `/performance` - Get performance statistics and reports
+- `/settings` - Configure risk parameters and preferences
+
+### Signal Format
+
+The bot generates signals in the following format:
+
+```json
+{
+  "id": "xau-2025-01-21-0901",
+  "symbol": "XAUUSD",
+  "bias": "BEARISH",
+  "setups": [
+    {
+      "type": "SELL",
+      "entry_zone": [3343.0, 3345.0],
+      "entry_style": "limit",
+      "sl": 3348.0,
+      "tp": [3336.0, 3330.5],
+      "confidence": 82,
+      "notes": "Retest H1 supply + liquidity sweep; M5 rejection confirmed."
+    }
+  ],
+  "risk": {"risk_per_trade_pct": 2.0},
+  "management": {"move_to_BE_at_R1": true, "partial_tp": {"tp1_close_pct": 0.5}}
+}
+```
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Unit tests
+pytest tests/unit/
+
+# Integration tests
+pytest tests/integration/
+
+# End-to-end tests
+pytest tests/e2e/
+
+# All tests with coverage
+pytest --cov=src --cov-report=html
+```
+
+### Test Coverage
+
+- **Unit Tests**: >80% coverage target
+- **Integration Tests**: Critical paths 100% coverage
+- **Performance Tests**: Load testing and stress testing
+- **Security Tests**: Authentication and authorization
+
+## 📊 Monitoring
+
+### Performance Metrics
+
+- **Trading Performance**: Win rate, profit factor, drawdown
+- **System Performance**: Latency, throughput, error rates
+- **Risk Metrics**: Position correlation, exposure levels
+- **Business Metrics**: Daily P&L, trade frequency
+
+### Alerting
+
+- **Risk Alerts**: Drawdown warnings, correlation breaches
+- **System Alerts**: Connection failures, high error rates
+- **Performance Alerts**: Low win rates, excessive losses
+- **Maintenance Alerts**: Scheduled maintenance, updates
+
+## 🔒 Security
+
+### Security Features
+
+- **Authentication**: API key and OAuth2 support
+- **Authorization**: Role-based access control
+- **Data Protection**: Encryption in transit and at rest
+- **Audit Logging**: Complete action history tracking
+- **Input Validation**: Comprehensive input sanitization
+
+### Best Practices
+
+- Store sensitive data in environment variables
+- Use HTTPS for all communications
+- Implement rate limiting and DDoS protection
+- Regular security audits and updates
+- Follow OWASP security guidelines
+
+## 🚀 Deployment
+
+### Production Deployment
+
+1. **Environment Setup**
+   ```bash
+   # Set production environment
+   export TRADING_ENV=production
+   export LOG_LEVEL=INFO
+   ```
+
+2. **Database Migration**
+   ```bash
+   alembic upgrade head
+   ```
+
+3. **Service Deployment**
+   ```bash
+   # Using Docker Compose
+   docker-compose -f docker-compose.prod.yml up -d
+   
+   # Using Kubernetes
+   kubectl apply -f k8s/
+   ```
+
+### Scaling
+
+- **Horizontal Scaling**: Multiple bot instances
+- **Load Balancing**: Round-robin distribution
+- **Database Scaling**: Read replicas and connection pooling
+- **Cache Scaling**: Redis cluster for high availability
+
+## 🤝 Contributing
+
+### Development Setup
+
+1. **Fork the repository**
+2. **Create a feature branch**
+3. **Follow coding standards**
+   - Use Black for code formatting
+   - Follow PEP 8 guidelines
+   - Write comprehensive tests
+4. **Submit a pull request**
+
+### Code Standards
+
+- **Python**: PEP 8, Black formatting, type hints
+- **Testing**: pytest, >80% coverage
+- **Documentation**: Google style docstrings
+- **Security**: Input validation, secure defaults
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+**This software is for educational and research purposes only. Trading involves substantial risk of loss and is not suitable for all investors. Past performance does not guarantee future results. Always consult with a qualified financial advisor before making investment decisions.**
+
+## 🆘 Support
+
+### Documentation
+
+Please see our comprehensive [Documentation Guide](docs/README.md) that covers:
+
+- Core System Documentation (architecture, quality, monitoring)
+- Trading Documentation (strategy, implementation, risk)
+- Machine-Readable Rules (in `.cursor/rules/`)
+
+### Community
+- [GitHub Issues](https://github.com/yourusername/telegram-ai-trade/issues)
+- [Discord Server](https://discord.gg/your-invite)
+- [Telegram Group](https://t.me/your-group)
+
+### Professional Support
+- Email: support@yourcompany.com
+- Priority support for enterprise customers
+
 ---
 
-### Documentation & Rules
-- [Project Architecture](docs/project-architecture.md)
-- [Technical Debt Preventions](docs/technical-debt-preventions.md)
-- [Code Quality Guidelines](docs/code-quality.md)
-- See `.cursor/rules/` for machine-readable rules for each concern (architecture, technical debt, code quality, etc.)
-# telegram-ai-trade
-
-## Overview
-
-A sophisticated, AI-powered trading bot for Forex & Crypto markets, leveraging OpenAI GPT-5 for institutional-grade analysis and precision execution.
-
-## Knowledge Base
-
-### Core Documentation
-- [🏗 Project Architecture](docs/project-architecture.md)
-  - System Components & Design
-  - Data Flow & Integration
-  - Performance Requirements
-  - Security Architecture
-  - Deployment Strategy
-
-- [⚙️ Technical Implementation](docs/code-quality.md)
-  - Coding Standards & Style Guide
-  - Testing Strategy
-  - Error Handling
-  - Performance Optimization
-  - Logging Standards
-
-- [🔄 Development Workflow](docs/technical-debt-preventions.md)
-  - Code Review Process
-  - Refactoring Guidelines
-  - Quality Metrics
-  - Debt Management
-  - Maintenance Procedures
-
-- [🔌 API Reference](docs/api-documentation.md)
-  - REST Endpoints
-  - WebSocket API
-  - Authentication
-  - Rate Limits
-  - SDK Usage
-
-### Trading-Specific Guides
-- [📈 Trading Strategy](docs/trading-strategy.md)
-  - Smart Money Concepts (SMC)
-  - Timeframe Analysis
-  - Entry/Exit Rules
-  - Risk Parameters
-  - Performance Metrics
-
-- [⚠️ Risk Management](docs/risk-management.md)
-  - Position Sizing
-  - Drawdown Control
-  - Exposure Limits
-  - Stop-Loss Strategy
-  - Account Protection
-
-- [🤖 AI Implementation](docs/ai-implementation.md)
-  - GPT-5 Integration
-  - Market Analysis
-  - Pattern Recognition
-  - Signal Generation
-  - Backtesting Results
-
-### Platform Integration
-- [💱 Exchange Integration](docs/exchange-integration.md)
-  - MT4/MT5 Setup
-  - Binance API
-  - Bybit API
-  - Order Types
-  - Error Handling
-
-- [📱 Telegram Bot](docs/telegram-integration.md)
-  - Command Reference
-  - Signal Format
-  - Alert Configuration
-  - User Management
-  - Security Settings
-
-### Operations
-- [🚀 Deployment Guide](docs/deployment.md)
-  - System Requirements
-  - Installation Steps
-  - Configuration
-  - Monitoring Setup
-  - Backup Procedures
-
-- [🛠 Maintenance](docs/maintenance.md)
-  - Regular Tasks
-  - Troubleshooting
-  - Updates & Patches
-  - Performance Tuning
-  - Emergency Procedures
-
-### Contributing
-- [👥 Contribution Guide](docs/contributing.md)
-  - Development Setup
-  - Coding Standards
-  - Pull Request Process
-  - Testing Requirements
-  - Documentation Rules
-
-## Quick Start
-
-1. Clone the repository
-2. Install dependencies: `poetry install`
-3. Configure environment variables
-4. Run the bot: `poetry run python src/main.py`
-
-## Key Features
-
-### 1. AI-Powered Analysis
-- Advanced market analysis using GPT-5
-- Multi-timeframe analysis (H4, H1, M15, M5, M1)
-- Pattern recognition and market structure analysis
-- Sentiment analysis integration
-
-### 2. Smart Money Concepts (SMC)
-- Liquidity pool identification
-- Order block detection
-- Break of structure (BOS) recognition
-- Quasimodo pattern detection
-- Fair value gap (FVG) analysis
-
-### 3. Risk Management
-- Position sizing based on account risk
-- Dynamic stop-loss management
-- Drawdown control
-- Multi-level take-profit strategy
-
-### 4. Multi-Platform Support
-- MetaTrader 4/5 integration
-- Major crypto exchanges (Binance, Bybit)
-- Real-time execution
-- Smart order routing
-
-### 5. Telegram Integration
-- Real-time trade signals
-- Position updates
-- Performance metrics
-- Command interface
-
-## Features
-
-### 1. AI-Powered Analysis
-- Advanced market analysis using GPT-5
-- Multi-timeframe analysis (H4, H1, M15, M5, M1)
-- Pattern recognition and market structure analysis
-- Sentiment analysis integration
-
-### 2. Smart Money Concepts (SMC)
-- Liquidity pool identification
-- Order block detection
-- Break of structure (BOS) recognition
-- Quasimodo pattern detection
-- Fair value gap (FVG) analysis
-
-### 3. Risk Management
-- Position sizing based on account risk
-- Dynamic stop-loss management
-- Drawdown control
-- Multi-level take-profit strategy
-
-### 4. Multi-Platform Support
-- MetaTrader 4/5 integration
-- Major crypto exchanges (Binance, Bybit)
-- Real-time execution
-- Smart order routing
-
-### 5. Telegram Integration
-- Real-time trade signals
-- Position updates
-- Performance metrics
-- Command interface
-
----
-
-### Architecture
-
-**Main Components:**
-1. **AI Analysis Engine**: Uses OpenAI with a custom prompt for market analysis and signal generation.
-2. **Market Data Collector**: Fetches real-time/historical data from brokers and exchanges.
-3. **Trade Executor**: Places and manages trades on MT4/MT5 and crypto exchanges.
-4. **Risk & Trade Management**: Enforces SOPs for risk, drawdown, and trade lifecycle.
-5. **Telegram Bridge**: Sends signals and updates to Telegram, receives commands.
-6. **Scheduler & Automation**: Orchestrates analysis, trading cycles, and session filters.
-7. **Logging & Monitoring**: Tracks all actions, trades, and AI decisions.
-
----
-
-### Data Flow
-1. Market Data → AI Analysis Engine
-2. AI Output (Signal JSON) → Trade Executor
-3. Trade Executor → Broker/Exchange
-4. Trade Updates → Telegram Bridge
-5. All actions → Logging/Monitoring
-
----
-
-### Technology Stack
-- **Backend:** Python
-- **AI Integration:** OpenAI API (GPT-5)
-- **Trading APIs:** MetaTrader (MT4/MT5 bridge), CCXT (crypto)
-- **Messaging:** python-telegram-bot
-- **Database:** SQLite/PostgreSQL
-- **Scheduler:** APScheduler
-- **Deployment:** Docker, Linux
-
----
-
-### Modules & Responsibilities
-- `ai_analysis.py`: Loads prompt, sends data to OpenAI, receives/validates signals
-- `data_collector.py`: Fetches OHLCV, news, sentiment
-- `trade_executor.py`: Parses signals, places/manages orders
-- `risk_manager.py`: Monitors drawdown, losses, enforces SOP
-- `telegram_bridge.py`: Sends/receives Telegram messages
-- `scheduler.py`: Runs analysis/trading cycles
-- `logger.py`: Logs all actions
-
----
-
-### Example Workflow
-1. Scheduler triggers analysis
-2. Data Collector fetches market data
-3. AI Analysis Engine generates signals
-4. Trade Executor places trades
-5. Risk Manager manages trades
-6. Telegram Bridge sends updates
-7. Logger records events
-
----
-
-### Security & Compliance
-- Secure API keys
-- Trade logs for audit
-- Signal deduplication and TTL
-
----
-
-### Extensibility
-- Add new exchanges/brokers
-- Update AI prompt for new strategies
-- Modular for future features
-
----
-
-### Project Setup
-1. Clone repo & install dependencies
-2. Configure API keys and broker/exchange settings
-3. Set up Telegram bot
-4. Run with Docker or Python
-
----
-
-### Rules & SOPs
-See `.cursor/rules/` for detailed rules and responsibilities in JSON (.mdc) format.
-# telegram-ai-trade
-Trading bot using OpenAI and notify to Telegram
+**Built with ❤️ for the trading community**

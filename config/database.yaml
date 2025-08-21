@@ -1,0 +1,50 @@
+# Database Configuration for AI Trading Bot
+# Using SQLite for portability and easy distribution
+
+database:
+  # SQLite Configuration
+  sqlite:
+    main_database: "./database/trading_bot.db"
+    test_database: "./database/trading_bot_test.db"
+    backup_directory: "./database/backups/"
+    journal_mode: "WAL"  # Write-Ahead Logging for better concurrency
+    synchronous: "NORMAL"  # Balance between safety and performance
+    cache_size: -64000  # 64MB cache
+    temp_store: "MEMORY"  # Store temp tables in memory
+    mmap_size: 268435456  # 256MB memory mapping
+  
+  # Connection Settings
+  connection:
+    timeout: 30
+    check_same_thread: false  # Allow multiple threads
+    isolation_level: null  # Use autocommit mode
+  
+  # Migration Settings
+  migrations:
+    directory: "./database/migrations/"
+    version_table: "alembic_version"
+    auto_generate: true
+  
+  # Backup Settings
+  backup:
+    enabled: true
+    frequency: "daily"
+    retention_days: 30
+    compression: true
+  
+  # Performance Settings
+  performance:
+    pragma_optimize: true
+    analyze_on_startup: true
+    vacuum_on_startup: false
+    wal_autocheckpoint: 1000
+
+# Redis Configuration (for caching)
+redis:
+  host: "localhost"
+  port: 6379
+  password: "redis_password"
+  database: 0
+  max_connections: 10
+  connection_timeout: 5
+  retry_on_timeout: true
