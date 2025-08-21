@@ -261,7 +261,8 @@ async def _store_order_request(request: OrderRequest, normalized: dict):
     """Store order request in database."""
     # This would store the order request for tracking
     # Implement as needed
-    pass
+    # TODO: Implement order request storage
+    raise NotImplementedError("TODO: Implement order request storage")
 
 
 async def _store_execution_report(request: OrderExecutionReport):
