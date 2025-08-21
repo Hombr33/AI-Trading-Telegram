@@ -80,7 +80,7 @@ async def receive_screenshot(payload: ScreenshotPayload):
             logger.info("Analysis complete. No signal generated.")
             return {"message": "Analysis complete. No signal generated."}
 
-    except base64.binascii.Error as e:
+    except binascii.Error as e:
         logger.error(f"Failed to decode Base64 image: {e}")
         raise HTTPException(status_code=400, detail="Invalid Base64 data.")
     except Exception as e:
