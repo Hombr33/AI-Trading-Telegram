@@ -158,7 +158,7 @@ async def ready():
         # Check database connection
         db_conn = get_database_connection()
         with db_conn.get_session() as session:
-            session.execute("SELECT 1")
+            session.execute(text("SELECT 1"))
         
         return {"status": "ready"}
     except Exception as e:
