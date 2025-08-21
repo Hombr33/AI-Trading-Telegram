@@ -277,6 +277,12 @@ bool SendScreenshotToAPI(string filename, string symbol, string timeframe, datet
    
    // Get file size
    long fileSize = FileGetSize(fileHandle);
+   if(fileSize == 0)
+   {
+      lastError = "Screenshot file is empty";
+      FileClose(fileHandle);
+      return false;
+   }
    
    // Read file content
    uchar fileContent[];
@@ -284,8 +290,16 @@ bool SendScreenshotToAPI(string filename, string symbol, string timeframe, datet
    FileReadArray(fileHandle, fileContent);
    FileClose(fileHandle);
    
-   // Convert to base64
-   string base64Data = Base64Encode(fileContent);
+   // Convert to base64 using the native CryptEncode function
+   uchar base64Result[];
+   if(CryptEncode(CRYPT_BASE64, fileContent, NULL, base64Result) <= 0)
+   {
+      lastError = "Base64 encoding failed. Error: " + IntegerToString(GetLastError());
+      return false;
+   }
+
+   // Convert the uchar array result to a string
+   string base64Data = CharArrayToString(base64Result);
    
    // Prepare market context
    string marketContext = GetMarketContext(symbol);
@@ -299,9 +313,14 @@ bool SendScreenshotToAPI(string filename, string symbol, string timeframe, datet
       headers += "Authorization: Bearer " + API_KEY + "\r\n";
    
    char postData[];
-   StringToCharArray(jsonPayload, postData);
+   // Use StringToUtf8 instead of StringToCharArray for better JSON compatibility
+   int postDataSize = StringToUtf8(jsonPayload, postData);
    
-   int result = WebRequest("POST", API_ENDPOINT, headers, 5000, postData, postData, headers);
+   char response[];
+   string response_headers;
+
+   ResetLastError();
+   int result = WebRequest("POST", API_ENDPOINT, headers, 5000, postData, response, response_headers);
    
    if(result == 200)
    {
@@ -309,7 +328,7 @@ bool SendScreenshotToAPI(string filename, string symbol, string timeframe, datet
    }
    else
    {
-      lastError = "HTTP request failed with code: " + IntegerToString(result);
+      lastError = "HTTP request failed. Code: " + IntegerToString(result) + ", LastError: " + IntegerToString(GetLastError());
       return false;
    }
 }
@@ -445,34 +464,112 @@ string PollForSignals()
 }
 
 //+------------------------------------------------------------------+
-//| Process incoming signals                                         |
+//| A simple helper to find a value for a key in a JSON string.      |
+//| This is not a full JSON parser. It's for a specific structure.   |
 //+------------------------------------------------------------------+
-void ProcessSignals(string signalsJson)
+string ParseJsonValue(string json, string key)
 {
-   // Parse JSON signals and execute trades
-   // This is a simplified implementation
-   
-   if(StringFind(signalsJson, "BUY") >= 0)
-   {
-      ExecuteBuySignal(signalsJson);
-   }
-   else if(StringFind(signalsJson, "SELL") >= 0)
-   {
-      ExecuteSellSignal(signalsJson);
-   }
+    string search_key = "\"" + key + "\":";
+    int key_pos = StringFind(json, search_key);
+    if(key_pos < 0) return "";
+
+    int value_start = key_pos + StringLen(search_key);
+    int value_end = -1;
+    string value = "";
+
+    // Trim leading spaces
+    while(StringGetCharacter(json, value_start) == ' ' || StringGetCharacter(json, value_start) == '\n')
+        value_start++;
+
+    // Check if value is a string (starts with ")
+    if(StringGetCharacter(json, value_start) == '"')
+    {
+        value_start++;
+        value_end = StringFind(json, "\"", value_start);
+        if(value_end < 0) return "";
+        value = StringSubstr(json, value_start, value_end - value_start);
+    }
+    // Check if value is an array or object (starts with [ or {)
+    else if(StringGetCharacter(json, value_start) == '[' || StringGetCharacter(json, value_start) == '{')
+    {
+        char open_char = StringGetCharacter(json, value_start);
+        char close_char = (open_char == '[') ? ']' : '}';
+        int bracket_level = 1;
+        for(int i = value_start + 1; i < StringLen(json); i++)
+        {
+            if(StringGetCharacter(json, i) == open_char) bracket_level++;
+            if(StringGetCharacter(json, i) == close_char) bracket_level--;
+            if(bracket_level == 0)
+            {
+                value_end = i;
+                break;
+            }
+        }
+        if(value_end < 0) return "";
+        value = StringSubstr(json, value_start, value_end - value_start + 1);
+    }
+    // Otherwise, assume it's a number or boolean
+    else
+    {
+        value_end = StringFind(json, ",", value_start);
+        int brace_end = StringFind(json, "}", value_start);
+        if (value_end < 0 || (brace_end >= 0 && brace_end < value_end)) value_end = brace_end;
+        if (value_end < 0) return "";
+        value = StringSubstr(json, value_start, value_end - value_start);
+    }
+
+    return StringTrim(value);
 }
 
 //+------------------------------------------------------------------+
-//| Execute buy signal                                               |
+//| Process incoming signals using the custom JSON parser            |
 //+------------------------------------------------------------------+
-void ExecuteBuySignal(string signalData)
+void ProcessSignals(string signalsJson)
 {
-   if(!CanOpenNewPosition())
-      return;
-   
+    string signals_array_str = ParseJsonValue(signalsJson, "signals");
+    if(signals_array_str == "") return;
+
+    // This is a simplified loop for one signal in the array for now
+    string signal_object = StringSubstr(signals_array_str, 1, StringLen(signals_array_str) - 2); // Strip [ and ]
+
+    if(StringLen(signal_object) < 10) return; // Not a real object
+
+    string signal_symbol = ParseJsonValue(signal_object, "symbol");
+    string signal_type = ParseJsonValue(signal_object, "type");
+
+    // Only process signals for the current chart symbol
+    if(signal_symbol != Symbol()) return;
+
+    string sl_str = ParseJsonValue(signal_object, "sl");
+    string tp_arr_str = ParseJsonValue(signal_object, "tp");
+
+    double stop_loss = StringToDouble(sl_str);
+
+    // Parse the first TP from the array string e.g., "[3336.0, 3330.5]"
+    int first_comma = StringFind(tp_arr_str, ",");
+    if(first_comma < 0) first_comma = StringFind(tp_arr_str, "]");
+    string tp1_str = StringSubstr(tp_arr_str, 1, first_comma - 1);
+    double take_profit = StringToDouble(tp1_str);
+
+    if(signal_type == "BUY")
+    {
+        ExecuteBuySignal(stop_loss, take_profit);
+    }
+    else if(signal_type == "SELL")
+    {
+        ExecuteSellSignal(stop_loss, take_profit);
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Execute buy signal with parsed data                              |
+//+------------------------------------------------------------------+
+void ExecuteBuySignal(double stopLoss, double takeProfit)
+{
+   if(!CanOpenNewPosition()) return;
+   if(stopLoss <= 0 || takeProfit <= 0) return;
+
    double entryPrice = SymbolInfoDouble(Symbol(), SYMBOL_ASK);
-   double stopLoss = ParseStopLoss(signalData);
-   double takeProfit = ParseTakeProfit(signalData);
    double lotSize = CalculateLotSize(stopLoss);
    
    if(lotSize > 0)
@@ -494,16 +591,14 @@ void ExecuteBuySignal(string signalData)
 }
 
 //+------------------------------------------------------------------+
-//| Execute sell signal                                              |
+//| Execute sell signal with parsed data                             |
 //+------------------------------------------------------------------+
-void ExecuteSellSignal(string signalData)
+void ExecuteSellSignal(double stopLoss, double takeProfit)
 {
-   if(!CanOpenNewPosition())
-      return;
-   
+   if(!CanOpenNewPosition()) return;
+   if(stopLoss <= 0 || takeProfit <= 0) return;
+
    double entryPrice = SymbolInfoDouble(Symbol(), SYMBOL_BID);
-   double stopLoss = ParseStopLoss(signalData);
-   double takeProfit = ParseTakeProfit(signalData);
    double lotSize = CalculateLotSize(stopLoss);
    
    if(lotSize > 0)
@@ -603,25 +698,7 @@ double CalculateLotSize(double stopLoss)
    return 0;
 }
 
-//+------------------------------------------------------------------+
-//| Parse stop loss from signal                                      |
-//+------------------------------------------------------------------+
-double ParseStopLoss(string signalData)
-{
-   // Simplified parsing - in production, use proper JSON parsing
-   // For now, return a default stop loss
-   return SymbolInfoDouble(Symbol(), SYMBOL_BID) - (100 * SymbolInfoDouble(Symbol(), SYMBOL_POINT));
-}
-
-//+------------------------------------------------------------------+
-//| Parse take profit from signal                                    |
-//+------------------------------------------------------------------+
-double ParseTakeProfit(string signalData)
-{
-   // Simplified parsing - in production, use proper JSON parsing
-   // For now, return a default take profit
-   return SymbolInfoDouble(Symbol(), SYMBOL_BID) + (150 * SymbolInfoDouble(Symbol(), SYMBOL_POINT));
-}
+// Obsolete parsing functions removed. Logic is now handled in ProcessSignals.
 
 //+------------------------------------------------------------------+
 //| Send Telegram alert                                              |
@@ -881,18 +958,5 @@ void TestAPIConnection()
    }
 }
 
-//+------------------------------------------------------------------+
-//| Base64 encoding function                                         |
-//+------------------------------------------------------------------+
-string Base64Encode(uchar &data[])
-{
-   // Simplified base64 encoding - in production, use proper implementation
-   string result = "";
-   
-   for(int i = 0; i < ArraySize(data); i++)
-   {
-      result += StringFormat("%02X", data[i]);
-   }
-   
-   return result;
-}
+// The incorrect Base64Encode function has been removed.
+// The native MQL5 CryptEncode(CRYPT_BASE64,...) is now used instead.
