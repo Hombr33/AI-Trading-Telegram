@@ -30,7 +30,7 @@ class APIKey(Base):
         """Check if the API key is expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     def __repr__(self) -> str:
         return f"<APIKey(name='{self.name}', user_id={self.user_id})>"
