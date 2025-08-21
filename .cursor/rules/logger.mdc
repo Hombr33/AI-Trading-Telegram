@@ -1,0 +1,11 @@
+---
+description: Rules for logging and monitoring, including audit, error tracking, and compliance.
+glob: logger.py
+alwaysApply: true
+---
+{
+  "log_types": ["actions", "errors", "trades", "AI_decisions"],
+  "storage": ["SQLite", "PostgreSQL"],
+  "retention": "90 days",
+  "constraints": ["No personal data", "Audit-ready"]
+}

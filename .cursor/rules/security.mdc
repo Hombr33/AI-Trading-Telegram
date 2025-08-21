@@ -1,0 +1,10 @@
+---
+description: Rules for security and compliance, including API key management and audit.
+glob: "*"
+alwaysApply: true
+---
+{
+  "api_keys": "Store in environment variables or vault",
+  "audit_logs": true,
+  "constraints": ["No hardcoded secrets", "Audit trail for all actions"]
+}

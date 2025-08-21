@@ -1,0 +1,14 @@
+---
+description: Rules for trade execution, including order types, position sizing, and broker/exchange integration.
+glob: trade_executor.py
+alwaysApply: true
+---
+{
+  "order_types": ["limit", "market", "stop"],
+  "platforms": ["MT4", "MT5", "Binance", "Bybit"],
+  "position_sizing": "risk_percent_of_equity_based_on_SL_distance",
+  "slippage": 10,
+  "magic_number": 1001,
+  "execution": ["Never widen stop", "Move to BE at R1", "Partial TP at RR 1.5/3.0"],
+  "constraints": ["Retail-feasible execution", "No manual intervention"]
+}

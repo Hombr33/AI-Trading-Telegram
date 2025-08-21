@@ -1,0 +1,12 @@
+---
+description: Rules for Telegram bridge, including signal delivery, deduplication, and TTL.
+glob: telegram_bridge.py
+alwaysApply: true
+---
+{
+  "signal_format": "JSON (normalized)",
+  "dedupe_by_id": true,
+  "ttl_expiry_minutes": 90,
+  "commands": ["pause", "resume", "manual_override"],
+  "constraints": ["No personal data", "No guaranteed returns"]
+}

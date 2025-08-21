@@ -1,0 +1,15 @@
+---
+description: Rules for AI analysis engine, including prompt usage, output validation, and signal schema.
+glob: ai_analysis.py
+alwaysApply: true
+---
+{
+  "input": ["OHLCV data", "news", "sentiment", "session info"],
+  "prompt": "Use app-code-prompt.json for all analysis.",
+  "output": {
+    "format": "JSON",
+    "schema": "outputs_contract.signal_schema from app-code-prompt.json"
+  },
+  "validation": ["Must match schema", "Confidence > 60%", "Absolute dates only"],
+  "constraints": ["No vague claims", "No guaranteed returns"]
+}

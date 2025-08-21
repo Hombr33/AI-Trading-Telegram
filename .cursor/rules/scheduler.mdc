@@ -1,0 +1,10 @@
+---
+description: Rules for scheduler and automation, including analysis cycles and session filters.
+glob: scheduler.py
+alwaysApply: true
+---
+{
+  "cycles": ["analysis", "trade_check", "session_filter"],
+  "session_filters": ["avoid_high_impact_news", "prefer_London_NY_overlap"],
+  "constraints": ["No trading during high-impact news", "Timezone: Asia/Jakarta"]
+}
