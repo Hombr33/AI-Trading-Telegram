@@ -26,6 +26,7 @@ from .execution.order_manager import OrderManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
 from .telegram_bot.bot import TelegramBot
+from .execution.aiomql_executor import AioMQLExecutor
 
 # Import API routes
 from .api.routes import health, v1, bridge, trading
@@ -57,7 +58,8 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize MT5 executor
         logger.info("Initializing MT5 executor...")
-        mt5_executor = MT5Executor(config.trading)
+        # Prefer AioMQLExecutor (uses aiomql if available), fallback to MT5Executor behaviors
+        mt5_executor = AioMQLExecutor(config.trading)
 
         # Connect to MT5
         logger.info("Connecting to MT5...")
