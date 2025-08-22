@@ -3,6 +3,7 @@
 from typing import Dict, List, Any
 from datetime import datetime, timezone, timedelta
 import random
+import sys
 
 
 def get_mock_system_status() -> Dict[str, Any]:
@@ -178,6 +179,24 @@ def get_mock_system_info() -> Dict[str, Any]:
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "processes": random.randint(5, 15),
     }
+
+
+def get_system_status() -> Dict[str, Any]:
+    """Get system status data.
+    
+    Returns:
+        Dict: System status data.
+    """
+    return get_mock_system_status()
+
+
+def get_system_info() -> Dict[str, Any]:
+    """Get system information data.
+    
+    Returns:
+        Dict: System information data.
+    """
+    return get_mock_system_info()
 
 
 def get_all_mock_data() -> Dict[str, Any]:
