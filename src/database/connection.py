@@ -1,110 +1,151 @@
 """
-Database connection management for the AI Trading Bot system.
+Database connection management.
 """
 
-import os
-from typing import Optional
+import logging
+from contextlib import contextmanager
+from typing import Generator
+
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker, Session
+
 from .config import DatabaseConfig
-from ..models import Base
+from src.models import Base
+
+logger = logging.getLogger(__name__)
+
+# Global engine and session factory
+_engine = None
+_session_factory = None
 
 
 class DatabaseConnection:
     """Database connection manager."""
-    
+
     def __init__(self, config: DatabaseConfig):
         """Initialize database connection."""
         self.config = config
         self.engine = None
-        self.SessionLocal = None
-        self._setup_engine()
-        self._setup_session_factory()
-    
-    def _setup_engine(self) -> None:
-        """Set up the database engine."""
-        if self.config.url.startswith("sqlite"):
-            # SQLite specific configuration
+        self.session_factory = None
+
+    def connect(self) -> None:
+        """Create database engine and session factory."""
+        try:
+            # Create engine with SQLite-specific configuration
             self.engine = create_engine(
                 self.config.url,
                 echo=self.config.echo,
-                connect_args={
-                    "check_same_thread": False,
-                    "timeout": 30,
-                },
-                poolclass=StaticPool,
+                pool_pre_ping=True,
+                pool_recycle=3600,
             )
-            
-            # Set up SQLite PRAGMA statements
+
+            # Configure SQLite pragmas
             @event.listens_for(self.engine, "connect")
-            def set_sqlite_pragmas(dbapi_connection, connection_record):
+            def set_sqlite_pragma(dbapi_connection, connection_record):
                 cursor = dbapi_connection.cursor()
-                pragmas = self.config.get_sqlite_pragmas()
-                for pragma, value in pragmas.items():
-                    cursor.execute(f"PRAGMA {pragma}={value}")
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.execute("PRAGMA cache_size=10000")
+                cursor.execute("PRAGMA temp_store=MEMORY")
                 cursor.close()
-        else:
-            # Other database types
-            self.engine = create_engine(
-                self.config.url,
-                echo=self.config.echo,
-                pool_size=self.config.pool_size,
-                max_overflow=self.config.max_overflow,
-                pool_timeout=self.config.pool_timeout,
-                pool_recycle=self.config.pool_recycle,
+
+            # Create session factory
+            self.session_factory = sessionmaker(
+                bind=self.engine,
+                autocommit=False,
+                autoflush=False,
             )
-    
-    def _setup_session_factory(self) -> None:
-        """Set up the session factory."""
-        self.SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=self.engine,
-        )
-    
+
+            logger.info("Database connection established successfully")
+        except Exception as e:
+            logger.error(f"Failed to establish database connection: {e}")
+            raise
+
     def create_tables(self) -> None:
-        """Create all database tables."""
-        Base.metadata.create_all(bind=self.engine)
-    
+        """Create all tables."""
+        try:
+            Base.metadata.create_all(self.engine)
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create database tables: {e}")
+            raise
+
     def drop_tables(self) -> None:
-        """Drop all database tables."""
-        Base.metadata.drop_all(bind=self.engine)
-    
-    def get_session(self):
+        """Drop all tables."""
+        try:
+            Base.metadata.drop_all(self.engine)
+            logger.info("Database tables dropped successfully")
+        except Exception as e:
+            logger.error(f"Failed to drop database tables: {e}")
+            raise
+
+    def get_session(self) -> Session:
         """Get a new database session."""
-        return self.SessionLocal()
-    
+        if not self.session_factory:
+            raise RuntimeError("Database not connected. Call connect() first.")
+        return self.session_factory()
+
+    @contextmanager
+    def session_scope(self) -> Generator[Session, None, None]:
+        """Provide a transactional scope around a series of operations."""
+        session = self.get_session()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
     def close(self) -> None:
-        """Close the database connection."""
+        """Close database connection."""
         if self.engine:
             self.engine.dispose()
-    
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
-
-
-# Global database connection instance
-_db_connection: Optional[DatabaseConnection] = None
+            logger.info("Database connection closed")
 
 
 def get_database_connection() -> DatabaseConnection:
-    """Get the global database connection instance."""
-    global _db_connection
-    if _db_connection is None:
+    """Get database connection instance."""
+    global _engine, _session_factory
+    
+    if _engine is None:
         config = DatabaseConfig.from_env()
-        _db_connection = DatabaseConnection(config)
-    return _db_connection
+        db_conn = DatabaseConnection(config)
+        db_conn.connect()
+        _engine = db_conn.engine
+        _session_factory = db_conn.session_factory
+        return db_conn
+    
+    # Return existing connection
+    config = DatabaseConfig.from_env()
+    db_conn = DatabaseConnection(config)
+    db_conn.engine = _engine
+    db_conn.session_factory = _session_factory
+    return db_conn
 
 
 def close_database_connection() -> None:
-    """Close the global database connection."""
-    global _db_connection
-    if _db_connection:
-        _db_connection.close()
-        _db_connection = None
+    """Close database connection."""
+    global _engine, _session_factory
+    
+    if _engine:
+        _engine.dispose()
+        _engine = None
+        _session_factory = None
+        logger.info("Database connection closed")
+
+
+@contextmanager
+def get_db_session() -> Generator[Session, None, None]:
+    """Get database session context manager."""
+    db_conn = get_database_connection()
+    with db_conn.session_scope() as session:
+        yield session
+
+
+def get_db_session_direct() -> Session:
+    """Get database session directly (caller must manage lifecycle)."""
+    db_conn = get_database_connection()
+    return db_conn.get_session()

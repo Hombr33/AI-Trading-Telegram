@@ -1,15 +1,12 @@
 """
-Core utilities and configuration for the AI Trading Bot system.
+Core module for the AI Trading Bot.
 """
 
-from .config import get_settings
-from .security import verify_bridge_token, hash_password, verify_password
-from .logging import setup_logging
+from .config import config
+from .logging import get_logger, setup_logging
 
 __all__ = [
-    "get_settings",
-    "verify_bridge_token",
-    "hash_password", 
-    "verify_password",
-    "setup_logging",
+    "config",
+    "get_logger",
+    "setup_logging"
 ]

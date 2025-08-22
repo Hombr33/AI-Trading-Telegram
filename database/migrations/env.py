@@ -36,7 +36,7 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    """Get database URL from environment or config."""
+    """Get database URL from environment."""
     db_config = DatabaseConfig.from_env()
     return db_config.url
 

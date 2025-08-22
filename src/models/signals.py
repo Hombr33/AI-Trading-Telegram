@@ -1,34 +1,34 @@
 """
-Signal model for AI trading signals.
+Signal model for trading signals.
 """
 
-from sqlalchemy import Column, String, Boolean, Integer, Float, Text, ForeignKey, JSON
+from sqlalchemy import Column, String, Boolean, Integer, Float, Text, ForeignKey, JSON, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from .base import Base
 
 
 class Signal(Base):
-    """Signal model for AI trading signals."""
+    """Signal model for trading signals."""
     
     __tablename__ = "signals"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     signal_id = Column(String(50), unique=True, nullable=False, index=True)
-    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False)
+    symbol = Column(String(20), nullable=False, index=True)
     bias = Column(String(20), nullable=False)  # BULLISH, BEARISH, NEUTRAL
-    confidence = Column(Integer, nullable=False)  # 0-100
-    timeframe = Column(String(10), nullable=False)  # H4, H1, M15, M5, M1
+    timeframes = Column(JSON, nullable=True)  # Array of timeframes analyzed
+    setups = Column(JSON, nullable=False)  # Array of setup configurations
+    confidence = Column(Float, nullable=False)  # 0-100 confidence score
     analysis_data = Column(JSON, nullable=True)  # Full analysis data
-    setups = Column(JSON, nullable=False)  # Trading setups array
-    risk_parameters = Column(JSON, nullable=True)  # Risk management parameters
-    management_rules = Column(JSON, nullable=True)  # Position management rules
-    is_active = Column(Boolean, default=True, nullable=False)
-    expires_at = Column(String(50), nullable=True)  # ISO8601 string
-    source = Column(String(50), nullable=False)  # AI_ANALYSIS, MANUAL, etc.
+    status = Column(String(20), nullable=False, default="ACTIVE")  # ACTIVE, EXECUTED, EXPIRED, CANCELLED
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    executed_at = Column(DateTime(timezone=True), nullable=True)
     
     # Relationships
-    instrument = relationship("Instrument", back_populates="signals")
-    orders = relationship("Order", back_populates="signal", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="signal")
+    trades = relationship("Trade", back_populates="signal")
     
     def __repr__(self) -> str:
-        return f"<Signal(signal_id='{self.signal_id}', symbol='{self.instrument.symbol if self.instrument else 'N/A'}', bias='{self.bias}')>"
+        return f"<Signal(signal_id='{self.signal_id}', symbol='{self.symbol}', bias='{self.bias}', confidence={self.confidence})>"

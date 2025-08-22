@@ -7,8 +7,8 @@ from typing import Any
 import openai
 from pydantic import ValidationError
 
-from ..common.interfaces import IAnalyzer
-from ..api.models import SignalResponse
+from src.common.interfaces import IAnalyzer
+from src.api.models import SignalResponse
 
 # Configure logging
 logger = logging.getLogger(__name__)

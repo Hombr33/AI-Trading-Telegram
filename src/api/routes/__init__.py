@@ -1,12 +1,13 @@
 """
-API routes package.
+API routes initialization.
 """
 
-from . import bridge, health, metrics, v1
+from . import bridge, health, metrics, v1, trading
 
 __all__ = [
     "bridge",
-    "health",
-    "metrics", 
+    "health", 
+    "metrics",
     "v1",
+    "trading"
 ]

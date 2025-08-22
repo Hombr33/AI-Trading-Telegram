@@ -1,116 +1,237 @@
 """
-Logging configuration for the AI Trading Bot system.
+Logging configuration using loguru and rich for better output formatting.
 """
 
-import logging
 import sys
-from typing import Optional
-import structlog
-from .config import get_settings
+import os
+from pathlib import Path
+from typing import Optional, Dict, Any
 
+from loguru import logger
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.traceback import install as install_rich_traceback
+from rich.panel import Panel
+from rich.text import Text
 
-def setup_logging() -> None:
-    """Set up structured logging configuration."""
-    settings = get_settings()
+# Install rich traceback handler
+install_rich_traceback()
+
+# Create rich console
+console = Console()
+
+# Remove default loguru handler
+logger.remove()
+
+def setup_logging(
+    level: str = "INFO",
+    format_type: str = "rich",
+    file_path: Optional[str] = None,
+    enable_console: bool = True,
+    enable_file: bool = True
+) -> None:
+    """
+    Setup logging with loguru and rich.
     
-    # Configure structlog
-    structlog.configure(
-        processors=[
-            structlog.stdlib.filter_by_level,
-            structlog.stdlib.add_logger_name,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer() if settings.logging.format == "json" else structlog.dev.ConsoleRenderer(),
-        ],
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
-    )
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        format_type: Output format type ('rich', 'json', 'simple')
+        file_path: Path to log file
+        enable_console: Enable console logging
+        enable_file: Enable file logging
+    """
     
-    # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, settings.logging.level.upper()),
-    )
+    # Configure loguru logger
+    loguru_config = {
+        "handlers": [],
+        "levels": [
+            {"name": "TRADE", "no": 25, "color": "<green>"},
+            {"name": "SIGNAL", "no": 26, "color": "<blue>"},
+            {"name": "RISK", "no": 27, "color": "<yellow>"},
+            {"name": "SYSTEM", "no": 28, "color": "<cyan>"},
+        ]
+    }
     
-    # Set specific logger levels
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
-    logging.getLogger("fastapi").setLevel(logging.INFO)
-    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    # Add console handler
+    if enable_console:
+        if format_type == "rich":
+            # Rich console handler with colors and formatting
+            console_handler = {
+                "sink": RichHandler(
+                    console=console,
+                    show_time=True,
+                    show_path=False,
+                    markup=True,
+                    rich_tracebacks=True
+                ),
+                "format": "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+                "level": level,
+                "colorize": True
+            }
+        elif format_type == "json":
+            # JSON format for structured logging
+            console_handler = {
+                "sink": sys.stdout,
+                "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
+                "level": level,
+                "serialize": True
+            }
+        else:
+            # Simple format
+            console_handler = {
+                "sink": sys.stdout,
+                "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
+                "level": level
+            }
+        
+        loguru_config["handlers"].append(console_handler)
     
-    # Create logger
-    logger = structlog.get_logger()
-    logger.info("Logging system initialized", level=settings.logging.level)
+    # Add file handler
+    if enable_file and file_path:
+        # Ensure log directory exists
+        log_dir = Path(file_path).parent
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_handler = {
+            "sink": file_path,
+            "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
+            "level": level,
+            "rotation": "10 MB",
+            "retention": "30 days",
+            "compression": "gz"
+        }
+        loguru_config["handlers"].append(file_handler)
+    
+    # Apply configuration
+    for handler in loguru_config["handlers"]:
+        logger.add(**handler)
+    
+    # Add custom levels
+    for level_config in loguru_config["levels"]:
+        logger.level(level_config["name"], level_config["no"], color=level_config["color"])
 
+def get_logger(name: str):
+    """Get a logger instance with the given name."""
+    return logger.bind(name=name)
 
-def get_logger(name: Optional[str] = None) -> structlog.BoundLogger:
-    """Get a structured logger instance."""
-    return structlog.get_logger(name)
-
-
-def log_function_call(func_name: str, **kwargs):
-    """Decorator to log function calls."""
-    def decorator(func):
-        def wrapper(*args, **func_kwargs):
-            logger = get_logger()
-            logger.info(
-                "Function called",
-                function=func_name,
-                args=args,
-                kwargs=func_kwargs,
-                **kwargs
-            )
-            try:
-                result = func(*args, **func_kwargs)
-                logger.info(
-                    "Function completed successfully",
-                    function=func_name,
-                    result=result
-                )
-                return result
-            except Exception as e:
-                logger.error(
-                    "Function failed",
-                    function=func_name,
-                    error=str(e),
-                    exc_info=True
-                )
-                raise
-        return wrapper
-    return decorator
-
-
-def log_trade_event(event_type: str, **kwargs):
-    """Log trading events."""
-    logger = get_logger("trading")
-    logger.info(
-        "Trade event",
-        event_type=event_type,
+def log_system_event(component: str, action: str, message: str, level: str = "INFO", **kwargs):
+    """Log a system event with structured data."""
+    extra_data = {
+        "component": component,
+        "action": action,
+        "event_type": "system_event",
         **kwargs
-    )
-
-
-def log_risk_event(event_type: str, severity: str, **kwargs):
-    """Log risk management events."""
-    logger = get_logger("risk")
+    }
     
-    if severity.upper() == "CRITICAL":
-        logger.critical("Risk event", event_type=event_type, severity=severity, **kwargs)
-    elif severity.upper() == "ERROR":
-        logger.error("Risk event", event_type=event_type, severity=severity, **kwargs)
-    elif severity.upper() == "WARNING":
-        logger.warning("Risk event", event_type=event_type, severity=severity, **kwargs)
+    if level == "TRADE":
+        logger.bind(**extra_data).log("TRADE", message)
+    elif level == "SIGNAL":
+        logger.bind(**extra_data).log("SIGNAL", message)
+    elif level == "RISK":
+        logger.bind(**extra_data).log("RISK", message)
+    elif level == "SYSTEM":
+        logger.bind(**extra_data).log("SYSTEM", message)
     else:
-        logger.info("Risk event", event_type=event_type, severity=severity, **kwargs)
+        logger.bind(**extra_data).log(level, message)
 
+def log_trade_event(symbol: str, action: str, details: Dict[str, Any], level: str = "INFO"):
+    """Log a trade-related event."""
+    extra_data = {
+        "symbol": symbol,
+        "action": action,
+        "event_type": "trade_event",
+        **details
+    }
+    logger.bind(**extra_data).log("TRADE", f"Trade {action} for {symbol}")
 
-def log_system_event(event_type: str, **kwargs):
-    """Log system events."""
-    logger = get_logger("system")
-    logger.info("System event", event_type=event_type, **kwargs)
+def log_signal_event(symbol: str, bias: str, confidence: float, details: Dict[str, Any]):
+    """Log a trading signal event."""
+    extra_data = {
+        "symbol": symbol,
+        "bias": bias,
+        "confidence": confidence,
+        "event_type": "signal_event",
+        **details
+    }
+    logger.bind(**extra_data).log("SIGNAL", f"Signal generated for {symbol}: {bias} (confidence: {confidence}%)")
+
+def log_risk_event(event_type: str, details: Dict[str, Any], level: str = "WARNING"):
+    """Log a risk management event."""
+    extra_data = {
+        "event_type": "risk_event",
+        "risk_type": event_type,
+        **details
+    }
+    logger.bind(**extra_data).log("RISK", f"Risk event: {event_type}")
+
+def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwargs):
+    """Log a performance metric."""
+    extra_data = {
+        "metric_name": metric_name,
+        "value": value,
+        "unit": unit,
+        "event_type": "performance_metric",
+        **kwargs
+    }
+    logger.bind(**extra_data).info(f"Performance: {metric_name} = {value}{unit}")
+
+def log_error_with_context(error: Exception, context: Dict[str, Any], level: str = "ERROR"):
+    """Log an error with additional context."""
+    extra_data = {
+        "error_type": type(error).__name__,
+        "error_message": str(error),
+        "event_type": "error",
+        **context
+    }
+    logger.bind(**extra_data).log(level, f"Error occurred: {error}")
+
+def print_banner(title: str, subtitle: str = "", color: str = "cyan"):
+    """Print a rich banner to the console."""
+    banner_text = Text()
+    banner_text.append(title, style=f"bold {color}")
+    if subtitle:
+        banner_text.append(f"\n{subtitle}", style=f"dim {color}")
+    
+    panel = Panel(
+        banner_text,
+        border_style=color,
+        padding=(1, 2),
+        title="AI Trading Bot"
+    )
+    console.print(panel)
+
+def print_status_table(status_data: Dict[str, Any]):
+    """Print a status table using rich."""
+    from rich.table import Table
+    
+    table = Table(title="System Status")
+    table.add_column("Component", style="cyan", no_wrap=True)
+    table.add_column("Status", style="green")
+    table.add_column("Details", style="white")
+    
+    for component, info in status_data.items():
+        status = info.get("status", "unknown")
+        details = info.get("details", "")
+        
+        # Color code the status
+        if status == "running" or status == "connected":
+            status_style = "green"
+        elif status == "stopped" or status == "disconnected":
+            status_style = "red"
+        elif status == "warning":
+            status_style = "yellow"
+        else:
+            status_style = "white"
+        
+        table.add_row(component, f"[{status_style}]{status}[/{status_style}]", details)
+    
+    console.print(table)
+
+# Initialize logging with default settings
+setup_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format_type="rich",
+    file_path=os.getenv("LOG_FILE", "logs/ai_trading_bot.log"),
+    enable_console=True,
+    enable_file=True
+)

@@ -2,11 +2,5 @@
 API package for the AI Trading Bot system.
 """
 
-from . import bridge, health, metrics, v1
-
-__all__ = [
-    "bridge",
-    "health", 
-    "metrics",
-    "v1",
-]
+# This file is intentionally left mostly empty to avoid circular imports
+# Routes are imported directly in app.py where they are needed

@@ -7,8 +7,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import structlog
 
-from ...database.session import get_db_session
-from ...core.config import get_settings
+from ...core.config import config
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -84,13 +83,11 @@ async def get_instruments():
 @router.get("/status")
 async def get_status():
     """Get system status."""
-    settings = get_settings()
-    
     return {
         "status": "running",
-        "version": settings.app.version,
-        "environment": settings.app.environment,
-        "timezone": settings.app.timezone,
+        "version": "1.0.0",
+        "environment": config.environment,
+        "timezone": "UTC",
         "database": "connected",
         "api": "running",
         "bridge": "active",

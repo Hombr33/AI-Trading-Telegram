@@ -1,5 +1,5 @@
 """
-Database models for the AI Trading Bot system.
+Database models package.
 """
 
 from .base import Base
@@ -21,7 +21,7 @@ from .audits import Audit
 __all__ = [
     "Base",
     "User",
-    "APIKey", 
+    "APIKey",
     "Session",
     "Instrument",
     "Signal",

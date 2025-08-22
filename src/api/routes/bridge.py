@@ -3,17 +3,28 @@ Bridge API routes for MT4/MT5 communication.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 import structlog
 
-from ...core.logging import log_trade_event, log_system_event
-from ...database.session import get_db_session
-from ...models import Instrument, Signal, Order, Trade, Position
+from src.core.logging import log_trade_event, log_system_event
+from src.database.session import get_db_session
+from src.models import Instrument, Signal, Order, Trade, Position
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
+
+# Global instances (will be set by main.py)
+order_manager = None
+telegram_bot = None
+
+
+def set_global_instances(ord_mgr, tg_bot):
+    """Set global instances from main.py."""
+    global order_manager, telegram_bot
+    order_manager = order_manager
+    telegram_bot = tg_bot
 
 
 # Request/Response Models
@@ -98,182 +109,71 @@ class PositionSnapshotRequest(BaseModel):
     timestamp: str = Field(..., description="ISO8601 timestamp")
 
 
-class PositionSnapshotResponse(BaseModel):
-    """Position snapshot response to EA."""
-    ok: bool = Field(..., description="Success status")
+# Bridge endpoints for HTTP fallback communication
+@router.post("/order")
+async def bridge_order(order_data: Dict[str, Any]):
+    """Handle order via HTTP bridge."""
+    try:
+        if not order_manager:
+            raise HTTPException(status_code=503, detail="Order manager not initialized")
+        
+        result = await order_manager.execute_signal(order_data, None)
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        logger.error(f"Error processing bridge order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route Handlers
-@router.post("/heartbeat", response_model=HeartbeatResponse)
-async def heartbeat(request: HeartbeatRequest):
-    """Handle EA heartbeat."""
-    log_system_event(
-        "ea_heartbeat",
-        terminal_id=request.terminal_id,
-        platform=request.platform,
-        account=request.account
-    )
-    
-    return HeartbeatResponse(
-        ok=True,
-        server_time=datetime.utcnow().isoformat()
-    )
+@router.post("/signal")
+async def bridge_signal(signal_data: Dict[str, Any]):
+    """Handle signal via HTTP bridge."""
+    try:
+        if not order_manager:
+            raise HTTPException(status_code=503, detail="Order manager not initialized")
+        
+        result = await order_manager.execute_signal(signal_data, None)
+        
+        # Send notification via Telegram
+        if telegram_bot and telegram_bot.notification_manager:
+            await telegram_bot.notification_manager.send_signal_notification(signal_data)
+        
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        logger.error(f"Error processing bridge signal: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/tick", response_model=TickResponse)
-async def tick(request: TickRequest):
-    """Handle tick data from EA."""
-    log_trade_event(
-        "tick_received",
-        symbol=request.symbol,
-        bid=request.bid,
-        ask=request.ask
-    )
-    
-    # Store tick data (implement as needed)
-    # This could be used for real-time analysis
-    
-    return TickResponse(ok=True)
+@router.post("/position_update")
+async def bridge_position_update(update_data: Dict[str, Any]):
+    """Handle position update via HTTP bridge."""
+    try:
+        # Send notification via Telegram
+        if telegram_bot and telegram_bot.notification_manager:
+            action = update_data.get('action', 'modified')
+            await telegram_bot.notification_manager.send_position_notification(update_data, action)
+        
+        return {"success": True}
+        
+    except Exception as e:
+        logger.error(f"Error processing bridge position update: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/order_request", response_model=OrderResponse)
-async def order_request(request: OrderRequest):
-    """Handle order request from EA."""
-    log_trade_event(
-        "order_request",
-        request_id=request.request_id,
-        action=request.action,
-        symbol=request.symbol,
-        type=request.type,
-        volume=request.volume
-    )
-    
-    # Validate order parameters
-    if not _validate_order_request(request):
-        return OrderResponse(
-            ok=True,
-            decision="REJECT",
-            reason="Invalid order parameters",
-            normalized={}
-        )
-    
-    # Check risk management rules
-    if not _check_risk_rules(request):
-        return OrderResponse(
-            ok=True,
-            decision="REJECT",
-            reason="Risk management rules violated",
-            normalized={}
-        )
-    
-    # Normalize order parameters
-    normalized = _normalize_order(request)
-    
-    # Store order request
-    await _store_order_request(request, normalized)
-    
-    return OrderResponse(
-        ok=True,
-        decision="APPROVE",
-        reason=None,
-        normalized=normalized
-    )
-
-
-@router.post("/order_exec_report", response_model=dict)
-async def order_exec_report(request: OrderExecutionReport):
-    """Handle order execution report from EA."""
-    log_trade_event(
-        "order_execution",
-        request_id=request.request_id,
-        ticket=request.ticket,
-        status=request.status,
-        fill_price=request.fill_price
-    )
-    
-    # Store execution report
-    await _store_execution_report(request)
-    
-    return {"ok": True}
-
-
-@router.post("/position_snapshot", response_model=PositionSnapshotResponse)
-async def position_snapshot(request: PositionSnapshotRequest):
-    """Handle position snapshot from EA."""
-    log_trade_event(
-        "position_snapshot",
-        position_count=len(request.positions),
-        timestamp=request.timestamp
-    )
-    
-    # Store position snapshot
-    await _store_position_snapshot(request)
-    
-    return PositionSnapshotResponse(ok=True)
-
-
-# Helper Functions
-def _validate_order_request(request: OrderRequest) -> bool:
-    """Validate order request parameters."""
-    # Basic validation
-    if request.volume <= 0:
-        return False
-    
-    if request.action not in ["OPEN", "CLOSE", "MODIFY"]:
-        return False
-    
-    if request.type not in ["BUY", "SELL", "BUYLIMIT", "SELLLIMIT", "BUYSTOP", "SELLSTOP"]:
-        return False
-    
-    return True
-
-
-def _check_risk_rules(request: OrderRequest) -> bool:
-    """Check risk management rules."""
-    # Implement risk management checks
-    # This is a placeholder - implement actual risk logic
-    
-    # Check if symbol is allowed
-    # Check if volume is within limits
-    # Check if risk per trade is acceptable
-    # Check daily limits
-    
-    return True
-
-
-def _normalize_order(request: OrderRequest) -> dict:
-    """Normalize order parameters."""
-    normalized = {
-        "price": request.price,
-        "sl": request.sl,
-        "tp": request.tp,
-        "volume": request.volume
-    }
-    
-    # Round volume to appropriate lot size
-    # Validate price levels
-    # Ensure stop loss and take profit are reasonable
-    
-    return normalized
-
-
-async def _store_order_request(request: OrderRequest, normalized: dict):
-    """Store order request in database."""
-    # This would store the order request for tracking
-    # Implement as needed
-    # TODO: Implement order request storage
-    raise NotImplementedError("TODO: Implement order request storage")
-
-
-async def _store_execution_report(request: OrderExecutionReport):
-    """Store execution report in database."""
-    # This would store the execution details
-    # Implement as needed
-    pass
-
-
-async def _store_position_snapshot(request: PositionSnapshotRequest):
-    """Store position snapshot in database."""
-    # This would update the current positions
-    # Implement as needed
-    pass
+@router.post("/risk_alert")
+async def bridge_risk_alert(alert_data: Dict[str, Any]):
+    """Handle risk alert via HTTP bridge."""
+    try:
+        # Send notification via Telegram
+        if telegram_bot and telegram_bot.notification_manager:
+            alert_type = alert_data.get('alert_type', 'general')
+            message = alert_data.get('message', 'Risk alert received')
+            data = alert_data.get('data', {})
+            await telegram_bot.notification_manager.send_risk_alert(alert_type, message, data)
+        
+        return {"success": True}
+        
+    except Exception as e:
+        logger.error(f"Error processing bridge risk alert: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
