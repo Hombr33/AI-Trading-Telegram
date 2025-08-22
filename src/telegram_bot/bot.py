@@ -48,12 +48,6 @@ class TelegramBot:
 
         # Initialize bot
         self._setup_bot()
-        
-        # Initialize command handler
-        self.command_handler = CommandHandler(self)
-        
-        # Setup callback query handler
-        self.application.add_handler(CallbackQueryHandler(self._handle_callback))
 
     def _setup_bot(self):
         """Setup the Telegram bot."""
@@ -65,21 +59,6 @@ class TelegramBot:
 
             # Setup notification manager and command handler
             self.notification_manager = NotificationManager(self.config)
-            self.command_handler = CommandHandler(self.notification_manager)
-
-            # Register command handlers
-            self.application.add_handler(TGCommandHandler("start", self.command_handler.start_command))
-            self.application.add_handler(TGCommandHandler("help", self.command_handler.help_command))
-            self.application.add_handler(TGCommandHandler("status", self.command_handler.status_command))
-            self.application.add_handler(TGCommandHandler("positions", self.command_handler.positions_command))
-            self.application.add_handler(TGCommandHandler("signals", self.command_handler.signals_command))
-            self.application.add_handler(TGCommandHandler("risk", self.command_handler.risk_command))
-            self.application.add_handler(TGCommandHandler("settings", self.command_handler.settings_command))
-            
-            # Register callback query handler
-            self.application.add_handler(CallbackQueryHandler(self.command_handler.handle_callback))
-
-            # Setup command handler
             self.command_handler = CommandHandler(self.notification_manager)
 
             # Register handlers
@@ -96,33 +75,28 @@ class TelegramBot:
         if not self.application:
             return
 
-        # Command handlers
-        self.application.add_handler(TGCommandHandler("start", self._start_command))
-        self.application.add_handler(TGCommandHandler("help", self._help_command))
-        self.application.add_handler(TGCommandHandler("status", self._status_command))
-        self.application.add_handler(
-            TGCommandHandler("positions", self._positions_command)
-        )
-        self.application.add_handler(TGCommandHandler("orders", self._orders_command))
-        self.application.add_handler(
-            TGCommandHandler("performance", self._performance_command)
-        )
-        self.application.add_handler(TGCommandHandler("risk", self._risk_command))
-        self.application.add_handler(
-            TGCommandHandler("settings", self._settings_command)
-        )
-        self.application.add_handler(TGCommandHandler("journal", self._journal_command))
-
+        # Command handlers - use command_handler methods
+        self.application.add_handler(TGCommandHandler("start", self.command_handler.start_command))
+        self.application.add_handler(TGCommandHandler("help", self.command_handler.help_command))
+        self.application.add_handler(TGCommandHandler("status", self.command_handler.status_command))
+        self.application.add_handler(TGCommandHandler("positions", self.command_handler.positions_command))
+        self.application.add_handler(TGCommandHandler("signals", self.command_handler.signals_command))
+        self.application.add_handler(TGCommandHandler("orders", self.command_handler.orders_command))
+        self.application.add_handler(TGCommandHandler("performance", self.command_handler.performance_command))
+        self.application.add_handler(TGCommandHandler("risk", self.command_handler.risk_command))
+        self.application.add_handler(TGCommandHandler("settings", self.command_handler.settings_command))
+        self.application.add_handler(TGCommandHandler("journal", self.command_handler.journal_command))
+        
         # Callback query handler for inline buttons
-        self.application.add_handler(CallbackQueryHandler(self._button_callback))
-
+        self.application.add_handler(CallbackQueryHandler(self.command_handler.handle_callback))
+        
         # Message handler for general messages
         self.application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, self._message_handler)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self.command_handler.message_handler)
         )
-
+        
         # Error handler
-        self.application.add_error_handler(self._error_handler)
+        self.application.add_error_handler(self.command_handler.error_handler)
 
     async def start(self):
         """Start the Telegram bot."""
@@ -144,28 +118,7 @@ class TelegramBot:
             logger.error(f"Failed to start Telegram bot: {e}")
             raise
 
-    async def _handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle callback queries from inline buttons."""
-        query = update.callback_query
-        try:
-            # Show the user we're processing their action
-            await query.answer("Processing...")
-            
-            if query.data == "refresh_status":
-                await self.command_handler.status_command(update, context)
-            elif query.data == "settings":
-                await self.command_handler.settings_command(update, context)
-            elif query.data == "positions":
-                await self.command_handler.positions_command(update, context)
-            elif query.data == "risk":
-                await self.command_handler.risk_command(update, context)
-            else:
-                logger.warning(f"Unknown callback data: {query.data}")
-                await query.edit_message_text("Sorry, this action is not available.")
-                
-        except Exception as e:
-            logger.error(f"Error handling callback query: {e}")
-            await query.edit_message_text("Sorry, an error occurred while processing your request.")
+    # Removed _handle_callback method as we're using command_handler.handle_callback instead
 
     async def stop(self):
         """Stop the Telegram bot."""
@@ -181,242 +134,29 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error stopping Telegram bot: {e}")
 
-    async def _start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /start command."""
-        try:
-            user = update.effective_user
-            welcome_message = (
-                f"🚀 Welcome to AI Trading Bot, {user.first_name}!\n\n"
-                "I'm your personal trading assistant. Here's what I can do:\n\n"
-                "📊 **Monitoring & Alerts**\n"
-                "• Real-time trading signals\n"
-                "• Position updates and P&L\n"
-                "• Risk alerts and warnings\n\n"
-                "📈 **Trading Commands**\n"
-                "• Check positions and orders\n"
-                "• View performance metrics\n"
-                "• Monitor risk levels\n\n"
-                "⚙️ **Settings**\n"
-                "• Customize notifications\n"
-                "• Set risk preferences\n"
-                "• Configure alerts\n\n"
-                "Use /help to see all available commands."
-            )
+    # Removed _start_command method as we're using command_handler.start_command instead
 
-            keyboard = [
-                [InlineKeyboardButton("📊 Status", callback_data="status")],
-                [InlineKeyboardButton("📈 Positions", callback_data="positions")],
-                [InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
-                [InlineKeyboardButton("❓ Help", callback_data="help")],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+    # Removed _help_command method as we're using command_handler.help_command instead
 
-            await update.message.reply_text(welcome_message, reply_markup=reply_markup)
+    # Removed _status_command method as we're using command_handler.status_command instead
 
-        except Exception as e:
-            logger.error(f"Error in start command: {e}")
-            await update.message.reply_text(
-                "❌ Sorry, something went wrong. Please try again."
-            )
+    # Removed _positions_command method as we're using command_handler.positions_command instead
 
-    async def _help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /help command."""
-        try:
-            help_message = (
-                "🤖 **AI Trading Bot Commands**\n\n"
-                "📊 **Status & Monitoring**\n"
-                "/status - Bot and system status\n"
-                "/positions - Current open positions\n"
-                "/orders - Pending orders\n"
-                "/performance - Trading performance\n"
-                "/risk - Risk metrics and alerts\n\n"
-                "📈 **Trading Operations**\n"
-                "/journal - Trading journal\n"
-                "/signals - Recent trading signals\n"
-                "/analysis - Market analysis\n\n"
-                "⚙️ **Configuration**\n"
-                "/settings - Bot settings\n"
-                "/notifications - Notification preferences\n"
-                "/risk_limits - Risk management settings\n\n"
-                "❓ **Support**\n"
-                "/help - This help message\n"
-                "/contact - Support contact\n\n"
-                "💡 **Tips**\n"
-                "• Use inline buttons for quick access\n"
-                "• Set up notifications for important events\n"
-                "• Monitor risk levels regularly"
-            )
+    # Removed _orders_command method as we're using command_handler.orders_command instead
 
-            await update.message.reply_text(help_message)
+    # Removed _performance_command method as we're using command_handler.performance_command instead
 
-        except Exception as e:
-            logger.error(f"Error in help command: {e}")
-            await update.message.reply_text(
-                "❌ Sorry, something went wrong. Please try again."
-            )
+    # Removed _risk_command method as we're using command_handler.risk_command instead
 
-    async def _status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /status command."""
-        try:
-            status = await self.command_handler.get_system_status()
-            await update.message.reply_text(status)
+    # Removed _settings_command method as we're using command_handler.settings_command instead
 
-        except Exception as e:
-            logger.error(f"Error in status command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get system status. Please try again."
-            )
+    # Removed _journal_command method as we're using command_handler.journal_command instead
 
-    async def _positions_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle /positions command."""
-        try:
-            positions = await self.command_handler.get_positions()
-            await update.message.reply_text(positions)
+    # Removed _button_callback method as we're using command_handler.handle_callback instead
 
-        except Exception as e:
-            logger.error(f"Error in positions command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get positions. Please try again."
-            )
+    # Removed _message_handler method as we're using command_handler.message_handler instead
 
-    async def _orders_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /orders command."""
-        try:
-            orders = await self.command_handler.get_orders()
-            await update.message.reply_text(orders)
-
-        except Exception as e:
-            logger.error(f"Error in orders command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get orders. Please try again."
-            )
-
-    async def _performance_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle /performance command."""
-        try:
-            performance = await self.command_handler.get_performance()
-            await update.message.reply_text(performance)
-
-        except Exception as e:
-            logger.error(f"Error in performance command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get performance data. Please try again."
-            )
-
-    async def _risk_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /risk command."""
-        try:
-            risk = await self.command_handler.get_risk_metrics()
-            await update.message.reply_text(risk)
-
-        except Exception as e:
-            logger.error(f"Error in risk command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get risk metrics. Please try again."
-            )
-
-    async def _settings_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle /settings command."""
-        try:
-            settings = await self.command_handler.get_settings()
-            await update.message.reply_text(settings)
-
-        except Exception as e:
-            logger.error(f"Error in settings command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get settings. Please try again."
-            )
-
-    async def _journal_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle /journal command."""
-        try:
-            journal = await self.command_handler.get_trading_journal()
-            await update.message.reply_text(journal)
-
-        except Exception as e:
-            logger.error(f"Error in journal command: {e}")
-            await update.message.reply_text(
-                "❌ Failed to get trading journal. Please try again."
-            )
-
-    async def _button_callback(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle inline button callbacks."""
-        try:
-            query = update.callback_query
-            await query.answer()
-
-            data = query.data
-
-            if data == "status":
-                status = await self.command_handler.get_system_status()
-                await query.edit_message_text(status)
-            elif data == "positions":
-                positions = await self.command_handler.get_positions()
-                await query.edit_message_text(positions)
-            elif data == "settings":
-                settings = await self.command_handler.get_settings()
-                await query.edit_message_text(settings)
-            elif data == "help":
-                await self._help_command(update, context)
-
-        except Exception as e:
-            logger.error(f"Error in button callback: {e}")
-            await query.edit_message_text(
-                "❌ Sorry, something went wrong. Please try again."
-            )
-
-    async def _message_handler(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
-        """Handle general text messages."""
-        try:
-            message = update.message.text.lower()
-
-            if "hello" in message or "hi" in message:
-                await update.message.reply_text(
-                    "👋 Hello! How can I help you today? Use /help to see available commands."
-                )
-            elif "how are you" in message:
-                await update.message.reply_text(
-                    "🤖 I'm running perfectly! Ready to help with your trading needs."
-                )
-            elif "thank" in message:
-                await update.message.reply_text(
-                    "🙏 You're welcome! Is there anything else you need?"
-                )
-            else:
-                await update.message.reply_text(
-                    "💬 I didn't understand that. Use /help to see available commands or ask me something specific about trading."
-                )
-
-        except Exception as e:
-            logger.error(f"Error in message handler: {e}")
-            await update.message.reply_text(
-                "❌ Sorry, something went wrong. Please try again."
-            )
-
-    async def _error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle bot errors."""
-        try:
-            logger.error(f"Update {update} caused error {context.error}")
-
-            if update and update.effective_message:
-                await update.effective_message.reply_text(
-                    "❌ Sorry, something went wrong. Please try again or contact support."
-                )
-
-        except Exception as e:
-            logger.error(f"Error in error handler: {e}")
+    # Removed _error_handler method as we're using command_handler.error_handler instead
 
     async def send_message(self, chat_id: int, message: str, **kwargs):
         """Send a message to a specific chat."""

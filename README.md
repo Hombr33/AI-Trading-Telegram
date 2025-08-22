@@ -54,6 +54,33 @@ An institutional-grade AI-powered automated trading bot that integrates OpenAI G
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
+## 🔄 Library Integrations & Fallback Mechanisms
+
+The system implements robust fallback mechanisms to ensure reliability:
+
+### 🔌 MetaTrader 5 Integration
+
+- **MT5Executor**: Primary integration with MetaTrader 5 using the official Python package
+- **Multiple terminal paths** are tried during connection, with automatic launching if needed
+- **Login retry mechanism** with up to 3 attempts and 10-second delays
+- **Comprehensive error handling** with detailed logging
+
+### ⚡ Asynchronous MT5 Integration (AioMQL)
+
+- **AioMQLExecutor**: Extends MT5Executor with asynchronous operations using aiomql
+- **Graceful fallback** to standard MT5Executor if aiomql is unavailable or fails
+- **All trading operations** attempt to use aiomql first, then fall back to MT5Executor
+- **Data transformation** between aiomql and standard formats
+
+### 📱 Telegram Bot Integration
+
+- **BaseTelegramBot**: Foundation for Telegram bot functionality using python-telegram-bot
+- **Fully asynchronous implementation** with asyncio
+- **TradingBot**: Extends BaseTelegramBot with trading-specific commands
+- **NotificationManager**: Handles various types of notifications with priority levels
+
+For detailed documentation on library integrations and fallback mechanisms, see [docs/integrations.md](docs/integrations.md).
+
 ## 📋 Requirements
 
 ### Python Dependencies

@@ -25,7 +25,7 @@ from .execution.mt5_executor import MT5Executor
 from .execution.order_manager import OrderManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
-from .telegram_bot.bot import TelegramBot
+from .telegram_bot.core.trading_bot import TradingBot
 from .execution.aiomql_executor import AioMQLExecutor
 
 # Import API routes
@@ -35,7 +35,7 @@ from .api.routes import health, v1, bridge, trading
 logger = get_logger(__name__)
 
 # Global instances for API routes
-telegram_bot: TelegramBot = None
+telegram_bot: TradingBot = None
 socketio_bridge: SocketIOBridge = None
 mt5_executor: MT5Executor = None
 order_manager: OrderManager = None
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize Telegram bot
         logger.info("Initializing Telegram bot...")
-        telegram_bot = TelegramBot(config.telegram)
+        telegram_bot = TradingBot(config.telegram)
 
         # Set global instances for API routes
         bridge.set_global_instances(order_manager, telegram_bot)
@@ -86,19 +86,27 @@ async def lifespan(app: FastAPI):
         trading.position_manager = position_manager
         trading.telegram_bot = telegram_bot
 
-        # Start all components
-        logger.info("Starting all components...")
+        # Start all components in the correct sequence
+        logger.info("Starting all components in sequence...")
 
-        # Start Socket.IO bridge
+        # 1. Start FastAPI first (happens automatically with the lifespan context)
+        logger.info("FastAPI application initialized")
+
+        # 2. Start Socket.IO bridge
         await socketio_bridge.connect()
+        logger.info("Socket.IO bridge connected successfully")
 
-        # Start Telegram bot
+        # 3. Start managers as background tasks
+        logger.info("Starting trading managers...")
+        position_task = asyncio.create_task(position_manager.start())
+        trailing_task = asyncio.create_task(trailing_manager.start())
+        
+        # Wait a short time to ensure managers are running
+        await asyncio.sleep(1)
+        
+        # 4. Start Telegram bot last (after all other components are ready)
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
-
-        # Start managers as background tasks
-        asyncio.create_task(position_manager.start())
-        asyncio.create_task(trailing_manager.start())
 
         log_system_event(
             "main", "startup", "AI Trading Bot application started successfully"

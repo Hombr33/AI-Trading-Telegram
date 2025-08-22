@@ -1,10 +1,11 @@
-"""
-Command Handler for Telegram bot commands and queries.
-"""
+"""Command Handler for Telegram bot commands and queries."""
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any
+import os
+import sys
+import psutil
+from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone, timedelta
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -31,6 +32,7 @@ class CommandHandler:
             "*Quick Actions:*\n"
             "📊 /status - System Status\n"
             "📈 /positions - Open Positions\n"
+            "💼 /account - Account Info\n"
             "🎯 /signals - Trading Signals\n"
             "⚠️ /risk - Risk Metrics\n"
             "⚙️ /settings - Bot Settings\n\n"
@@ -44,11 +46,18 @@ class CommandHandler:
                 InlineKeyboardButton("📈 Positions", callback_data="positions")
             ],
             [
+                InlineKeyboardButton("💼 Account", callback_data="account"),
+                InlineKeyboardButton("📋 Orders", callback_data="orders")
+            ],
+            [
                 InlineKeyboardButton("🎯 Signals", callback_data="signals"),
                 InlineKeyboardButton("⚠️ Risk", callback_data="risk")
             ],
             [
-                InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+                InlineKeyboardButton("🖥️ Monitor", callback_data="monitor"),
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings")
+            ],
+            [
                 InlineKeyboardButton("❓ Help", callback_data="help")
             ]
         ]
@@ -66,12 +75,16 @@ class CommandHandler:
             "📚 *AI Trading Bot Help*\n\n"
             "*Trading Commands:*\n"
             "📈 /positions - View and manage your open positions\n"
+            "📋 /orders - View pending orders\n"
             "🎯 /signals - Check latest AI-generated trading signals\n"
             "📊 /performance - View your trading performance\n\n"
+            "*Account Commands:*\n"
+            "💼 /account - View account information and balance\n"
+            "📝 /journal - View trading journal entries\n\n"
             "*Monitoring Commands:*\n"
             "🔄 /status - Check all system components\n"
             "⚠️ /risk - Monitor risk metrics and exposure\n"
-            "📝 /journal - View trading journal entries\n\n"
+            "🖥️ /monitor - View system resource usage\n\n"
             "*Settings & Info:*\n"
             "⚙️ /settings - Configure bot preferences\n"
             "ℹ️ /about - Information about the bot\n\n"
@@ -87,6 +100,10 @@ class CommandHandler:
             [
                 InlineKeyboardButton("📈 Open Positions", callback_data="positions"),
                 InlineKeyboardButton("🎯 Latest Signals", callback_data="signals")
+            ],
+            [
+                InlineKeyboardButton("💼 Account", callback_data="account"),
+                InlineKeyboardButton("⚠️ Risk", callback_data="risk")
             ],
             [
                 InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
@@ -313,17 +330,62 @@ class CommandHandler:
     async def handle_callback(self, update, context):
         """Handle callback queries from inline buttons."""
         query = update.callback_query
-        await query.answer()
-
-        if query.data.startswith("risk_"):
-            value = query.data.split("_")[1]
-            await query.message.reply_text(f"Risk limit set to {value}%")
-        elif query.data.startswith("drawdown_"):
-            value = query.data.split("_")[1]
-            await query.message.reply_text(f"Max drawdown limit set to {value}%")
-        elif query.data.startswith("notify_"):
-            option = query.data.split("_")[1]
-            await query.message.reply_text(f"Notifications {option} configured")
+        try:
+            # Show the user we're processing their action
+            await query.answer("Processing...")
+            
+            if query.data == "refresh_status":
+                await self.status_command(update, context)
+            elif query.data == "settings":
+                await self.settings_command(update, context)
+            elif query.data == "positions":
+                await self.positions_command(update, context)
+            elif query.data == "risk":
+                await self.risk_command(update, context)
+            elif query.data == "help":
+                await self.help_command(update, context)
+            elif query.data == "signals":
+                await self.signals_command(update, context)
+            elif query.data == "refresh_positions":
+                await self.positions_command(update, context)
+            elif query.data == "refresh_signals":
+                await self.signals_command(update, context)
+            elif query.data == "performance":
+                await self.performance_command(update, context)
+            elif query.data == "status":
+                await self.status_command(update, context)
+            elif query.data == "orders":
+                await self.orders_command(update, context)
+            elif query.data == "account":
+                await self.account_command(update, context)
+            elif query.data == "refresh_account":
+                await self.account_command(update, context)
+            elif query.data == "account_history":
+                # For now, just show a message that this feature is coming soon
+                await query.edit_message_text(
+                    "📊 *Account History*\n\nThis feature is coming soon in the next update.",
+                    parse_mode='Markdown'
+                )
+            elif query.data == "monitor":
+                await self.monitor_command(update, context)
+            elif query.data == "refresh_monitor":
+                await self.monitor_command(update, context)
+            elif query.data.startswith("risk_"):
+                value = query.data.split("_")[1]
+                await query.edit_message_text(f"Risk limit set to {value}%")
+            elif query.data.startswith("drawdown_"):
+                value = query.data.split("_")[1]
+                await query.edit_message_text(f"Max drawdown limit set to {value}%")
+            elif query.data.startswith("notify_"):
+                option = query.data.split("_")[1]
+                await query.edit_message_text(f"Notifications {option} configured")
+            else:
+                logger.warning(f"Unknown callback data: {query.data}")
+                await query.edit_message_text("Sorry, this action is not available.")
+                
+        except Exception as e:
+            logger.error(f"Error handling callback query: {e}")
+            await query.edit_message_text("Sorry, an error occurred while processing your request.")
 
     def _setup_mock_data(self) -> Dict:
         """Setup mock data for demonstration purposes."""
@@ -732,3 +794,247 @@ class CommandHandler:
         except Exception as e:
             logger.error(f"Error getting market analysis: {e}")
             return "❌ Failed to get market analysis"
+            
+    async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle general text messages."""
+        try:
+            message = update.message.text.lower()
+
+            if "hello" in message or "hi" in message:
+                await update.message.reply_text(
+                    "👋 Hello! How can I help you today? Use /help to see available commands."
+                )
+            elif "how are you" in message:
+                await update.message.reply_text(
+                    "🤖 I'm running perfectly! Ready to help with your trading needs."
+                )
+            elif "thank" in message:
+                await update.message.reply_text(
+                    "🙏 You're welcome! Is there anything else you need?"
+                )
+            else:
+                await update.message.reply_text(
+                    "💬 I didn't understand that. Use /help to see available commands or ask me something specific about trading."
+                )
+
+        except Exception as e:
+            logger.error(f"Error in message handler: {e}")
+            await update.message.reply_text(
+                "❌ Sorry, something went wrong. Please try again."
+            )
+            
+    async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle bot errors."""
+        try:
+            logger.error(f"Update {update} caused error {context.error}")
+
+            if update and update.effective_message:
+                await update.effective_message.reply_text(
+                    "❌ Sorry, something went wrong. Please try again or contact support."
+                )
+
+        except Exception as e:
+            logger.error(f"Error in error handler: {e}")
+            
+    async def performance_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /performance command."""
+        try:
+            performance = await self.get_performance()
+            await update.message.reply_text(performance, parse_mode='Markdown')
+
+        except Exception as e:
+            logger.error(f"Error in performance command: {e}")
+            await update.message.reply_text(
+                "❌ Failed to get performance data. Please try again."
+            )
+            
+    async def journal_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /journal command."""
+        try:
+            journal = await self.get_trading_journal()
+            await update.message.reply_text(journal, parse_mode='Markdown')
+
+        except Exception as e:
+            logger.error(f"Error in journal command: {e}")
+            await update.message.reply_text(
+                "❌ Failed to get trading journal. Please try again."
+            )
+            
+    async def orders_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /orders command."""
+        try:
+            orders = await self.get_orders()
+            await update.message.reply_text(orders, parse_mode='Markdown')
+
+        except Exception as e:
+            logger.error(f"Error in orders command: {e}")
+            await update.message.reply_text(
+                "❌ Failed to get orders. Please try again."
+            )
+            
+    async def account_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /account command to show account information."""
+        try:
+            # Get account info from MT5 executor
+            account_info = await self._get_account_info()
+            
+            if not account_info:
+                await update.message.reply_text(
+                    "⚠️ Unable to retrieve account information. Please check connection to trading terminal.",
+                    parse_mode='Markdown'
+                )
+                return
+            
+            # Format account information
+            account_text = (
+                f"💼 *Account Information*\n\n"
+                f"*Login:* `{account_info.get('login', 'N/A')}`\n"
+                f"*Name:* {account_info.get('name', 'N/A')}\n"
+                f"*Server:* {account_info.get('server', 'N/A')}\n"
+                f"*Company:* {account_info.get('company', 'N/A')}\n\n"
+                f"*Balance:* ${account_info.get('balance', 0):.2f}\n"
+                f"*Equity:* ${account_info.get('equity', 0):.2f}\n"
+                f"*Margin:* ${account_info.get('margin', 0):.2f}\n"
+                f"*Free Margin:* ${account_info.get('free_margin', 0):.2f}\n"
+                f"*Margin Level:* {account_info.get('margin_level', 0):.2f}%\n"
+                f"*Leverage:* 1:{account_info.get('leverage', 0)}\n"
+            )
+            
+            # Create inline keyboard for account actions
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="refresh_account"),
+                    InlineKeyboardButton("📈 Positions", callback_data="positions")
+                ],
+                [
+                    InlineKeyboardButton("📋 Orders", callback_data="orders"),
+                    InlineKeyboardButton("⚠️ Risk", callback_data="risk")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_text(
+                account_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in account_command: {e}")
+            await update.message.reply_text(
+                "⚠️ An error occurred while retrieving account information.",
+                parse_mode='Markdown'
+            )
+    
+    async def _get_account_info(self) -> Optional[Dict[str, Any]]:
+        """Get account information from MT5 executor."""
+        # For now, return mock data
+        return {
+            'login': 12345678,
+            'name': 'Demo Account',
+            'server': 'Demo Server',
+            'company': 'Demo Broker',
+            'balance': 10000.0,
+            'equity': 10250.0,
+            'margin': 500.0,
+            'free_margin': 9750.0,
+            'margin_level': 2050.0,
+            'leverage': 100,
+            'currency': 'USD'
+        }
+        
+    async def monitor_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /monitor command to show system resource usage."""
+        try:
+            # Get system resource information
+            system_info = self._get_system_info()
+            
+            # Format system information
+            monitor_text = (
+                f"🖥️ *System Monitoring*\n\n"
+                f"*CPU Usage:* {system_info['cpu_percent']}%\n"
+                f"*Memory Usage:* {system_info['memory_percent']}%\n"
+                f"*Available Memory:* {system_info['available_memory']} MB\n"
+                f"*Disk Usage:* {system_info['disk_percent']}%\n"
+                f"*Free Disk Space:* {system_info['free_disk']} GB\n\n"
+                f"*System Uptime:* {system_info['uptime']}\n"
+                f"*Bot Uptime:* {system_info['bot_uptime']}\n"
+                f"*Python Version:* {system_info['python_version']}\n"
+            )
+            
+            # Create inline keyboard for monitoring actions
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="refresh_monitor"),
+                    InlineKeyboardButton("📊 Status", callback_data="status")
+                ],
+                [
+                    InlineKeyboardButton("💼 Account", callback_data="account"),
+                    InlineKeyboardButton("⚙️ Settings", callback_data="settings")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.message.reply_text(
+                monitor_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in monitor_command: {e}")
+            await update.message.reply_text(
+                "⚠️ An error occurred while retrieving system information.",
+                parse_mode='Markdown'
+            )
+    
+    def _get_system_info(self) -> Dict[str, Any]:
+        """Get system resource information."""
+        try:
+            # Get CPU usage
+            cpu_percent = psutil.cpu_percent(interval=1)
+            
+            # Get memory usage
+            memory = psutil.virtual_memory()
+            memory_percent = memory.percent
+            available_memory = round(memory.available / (1024 * 1024), 2)  # MB
+            
+            # Get disk usage
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+            free_disk = round(disk.free / (1024 * 1024 * 1024), 2)  # GB
+            
+            # Get system uptime
+            boot_time = datetime.fromtimestamp(psutil.boot_time())
+            uptime = datetime.now() - boot_time
+            uptime_str = f"{uptime.days} days, {uptime.seconds // 3600} hours, {(uptime.seconds % 3600) // 60} minutes"
+            
+            # Get bot uptime (mock for now)
+            bot_uptime = "2 hours, 15 minutes"
+            
+            # Get Python version
+            python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            
+            return {
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory_percent,
+                'available_memory': available_memory,
+                'disk_percent': disk_percent,
+                'free_disk': free_disk,
+                'uptime': uptime_str,
+                'bot_uptime': bot_uptime,
+                'python_version': python_version
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting system info: {e}")
+            return {
+                'cpu_percent': 'N/A',
+                'memory_percent': 'N/A',
+                'available_memory': 'N/A',
+                'disk_percent': 'N/A',
+                'free_disk': 'N/A',
+                'uptime': 'N/A',
+                'bot_uptime': 'N/A',
+                'python_version': 'N/A'
+            }
