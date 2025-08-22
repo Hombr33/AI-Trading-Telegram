@@ -49,7 +49,7 @@ class BridgeConfig(BaseSettings):
 class TelegramConfig(BaseSettings):
     """Telegram configuration."""
     
-    bot_token: str = Field(default="7773625562:AAHx-Nk8OkoBbU7a4mMP6CQ6fQxplBpz3E")
+    bot_token: str = Field(default="7773625662:AAHx-Nk8OkoBbU7a4mMP6CQ6fQxplgBpz3E")
     chat_id: Optional[int] = Field(default=6077091585)
     webhook_url: Optional[str] = Field(default=None)
     webhook_enabled: bool = Field(default=False)

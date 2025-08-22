@@ -13,8 +13,8 @@ from telegram.ext import (
     ContextTypes
 )
 
-from ..core.logging import get_logger
-from ..core.config import TelegramConfig
+from src.core.logging import get_logger
+from src.core.config import TelegramConfig
 from .notifications import NotificationManager
 from .commands import CommandHandler
 

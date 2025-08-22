@@ -8,8 +8,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 from enum import Enum
 
-from ..core.logging import get_logger
-from ..core.config import TelegramConfig
+from src.core.logging import get_logger
+from src.core.config import TelegramConfig
 
 logger = get_logger(__name__)
 

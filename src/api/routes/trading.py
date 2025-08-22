@@ -15,6 +15,7 @@ router = APIRouter()
 # Global instances (will be set by main.py)
 order_manager: OrderManager = None
 position_manager: PositionManager = None
+telegram_bot = None  # Will be set by main.py
 
 
 def get_order_manager() -> OrderManager:
@@ -67,6 +68,15 @@ async def execute_signal(
     """Execute a trading signal."""
     try:
         result = await ord_manager.execute_signal(signal_data, None)
+        
+        # Send notification via Telegram if available
+        if telegram_bot and telegram_bot.notification_manager:
+            try:
+                await telegram_bot.notification_manager.send_signal_notification(signal_data)
+                logger.info("Telegram notification sent for signal execution")
+            except Exception as e:
+                logger.error(f"Failed to send Telegram notification: {e}")
+        
         return {"success": True, "result": result}
         
     except Exception as e:

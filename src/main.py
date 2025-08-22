@@ -73,18 +73,22 @@ async def lifespan(app: FastAPI):
         # Initialize Telegram bot
         logger.info("Initializing Telegram bot...")
         telegram_bot = TelegramBot(config.telegram)
-        # telegram_bot = TelegramBot(config.telegram)  # Temporarily disabled for testing
         
         # Set global instances for API routes
-        bridge.set_global_instances(order_manager, None)  # No telegram bot for now
+        bridge.set_global_instances(order_manager, telegram_bot)
         trading.order_manager = order_manager
         trading.position_manager = position_manager
+        trading.telegram_bot = telegram_bot
         
         # Start all components
         logger.info("Starting all components...")
         
         # Start Socket.IO bridge
         await socketio_bridge.connect()
+        
+        # Start Telegram bot
+        logger.info("Starting Telegram bot...")
+        await telegram_bot.start()
         
         # Start managers as background tasks
         asyncio.create_task(position_manager.start())
@@ -98,7 +102,7 @@ async def lifespan(app: FastAPI):
             "Socket.IO Bridge": {"status": "connecting", "details": "Establishing connection"},
             "Position Manager": {"status": "starting", "details": "Background task started"},
             "Trailing Manager": {"status": "starting", "details": "Background task started"},
-            "Telegram Bot": {"status": "disabled", "details": "Temporarily disabled for testing"}
+            "Telegram Bot": {"status": "starting", "details": "Initializing bot"}
         }
         print_status_table(status_data)
         
@@ -117,6 +121,10 @@ async def lifespan(app: FastAPI):
                 await position_manager.stop()
             if trailing_manager:
                 await trailing_manager.stop()
+            
+            # Stop Telegram bot
+            if telegram_bot:
+                await telegram_bot.stop()
             
             # Disconnect Socket.IO bridge
             if socketio_bridge:

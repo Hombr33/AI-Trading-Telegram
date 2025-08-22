@@ -108,7 +108,11 @@ def setup_logging(
     
     # Add custom levels
     for level_config in loguru_config["levels"]:
-        logger.level(level_config["name"], level_config["no"], color=level_config["color"])
+        try:
+            logger.level(level_config["name"], level_config["no"], color=level_config["color"])
+        except ValueError:
+            # Level already exists, skip
+            pass
 
 def get_logger(name: str):
     """Get a logger instance with the given name."""

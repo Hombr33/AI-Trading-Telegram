@@ -592,6 +592,31 @@ class MT5Executor:
         """Check if connected to MT5."""
         return self.connected
     
+    async def get_account_info(self) -> Dict[str, Any]:
+        """Get account information."""
+        if not self.connected:
+            return None
+            
+        try:
+            account = mt5.account_info()
+            if account:
+                return {
+                    "login": account.login,
+                    "balance": account.balance,
+                    "equity": account.equity,
+                    "margin": account.margin,
+                    "free_margin": account.free_margin,
+                    "leverage": account.leverage,
+                    "currency": account.currency,
+                    "company": account.company,
+                    "name": account.name,
+                    "server": account.server
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting account info: {e}")
+            return None
+    
     async def __aenter__(self):
         """Async context manager entry."""
         await self.connect()

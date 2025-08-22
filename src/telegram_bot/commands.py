@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone, timedelta
 
-from ..core.logging import get_logger
+from src.core.logging import get_logger
 from .notifications import NotificationManager
 
 logger = get_logger(__name__)
