@@ -199,6 +199,15 @@ def get_system_info() -> Dict[str, Any]:
     return get_mock_system_info()
 
 
+def get_positions() -> List[Dict[str, Any]]:
+    """Get positions data.
+    
+    Returns:
+        List[Dict]: Positions data.
+    """
+    return get_mock_positions()
+
+
 def get_all_mock_data() -> Dict[str, Any]:
     """Get all mock data.
     
