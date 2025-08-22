@@ -381,11 +381,25 @@ COPY . .
 CMD ["python", "run.py"]
 ```
 
+## ⚙️ MT5 Connectivity (aiomql Optional)
+
+- The app prefers `AioMQLExecutor` which uses `aiomql` if present and gracefully falls back to `MT5Executor` (with a robust mock when `MetaTrader5` is unavailable). No changes needed in managers or routes.
+- To enable aiomql:
+  - Install `MetaTrader5` and `aiomql` in your environment.
+  - Ensure the MT5 terminal is running and configured.
+  - Restart the app; the executor detects `aiomql` automatically.
+- To disable aiomql: uninstall or omit `aiomql`. The app will continue using the standard executor path with mock fallback.
+
+### Quick verify
+```bash
+python -c "from src.execution.aiomql_executor import AioMQLExecutor; from src.core.config import config; import asyncio; print(asyncio.run(AioMQLExecutor(config.trading).connect()))"
+```
+
 ## 📚 Documentation
 
 - **API Documentation**: Available at `/docs` when running
 - **Code Documentation**: Inline docstrings and type hints
-- **Architecture**: See `.cursor/rules/telegram_ai_trade_rules.mdc`
+- **Architecture**: See `docs/architecture.md` (Executor section covers aiomql)
 - **Configuration**: See `src/core/config.py`
 
 ## 🤝 Contributing
