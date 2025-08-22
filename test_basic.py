@@ -251,7 +251,30 @@ async def test_aiomql_executor_connect_and_place_order():
 	assert isinstance(result, dict)
 	assert result.get("success") in (True, False)
 
-	await executor.disconnect()
+    executor = AioMQLExecutor(config.trading)
+    assert await executor.connect() is True
+
+    # Create a minimal mock order compatible with executor
+    order = type(
+        "MockOrder",
+        (),
+        {
+            "order_id": "test123",
+            "instrument": type("MockInstrument", (), {"symbol": "EURUSD"})(),
+            "order_type": "BUY",
+            "volume": 0.01,
+            "price": None,
+            "stop_loss": 1.1900,
+            "take_profit": 1.2100,
+            "comment": "TEST",
+        },
+    )()
+
+    result = await executor.place_order(order)
+    assert isinstance(result, dict)
+    assert result.get("success") in (True, False)
+
+    await executor.disconnect()
 
 
 def main():
