@@ -92,12 +92,74 @@ rich>=13.7.0
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 📋 Prerequisites
+
+Before running the setup scripts, ensure you have:
+
+- **Windows 10/11** (or compatible Windows version)
+- **Python 3.8+** installed and added to PATH
+- **Git** installed and added to PATH
+- **At least 2GB free disk space**
+- **At least 4GB RAM**
+
+### 🎯 Getting Started
+
+#### 1. Download the Repository
+```bash
+git clone https://github.com/oyi77/telegram-ai-trade
+cd telegram-ai-trade
+```
+
+#### 2. Run the Setup (Recommended for Windows Users)
+Double-click `setup.bat` in the root folder, or run it from command prompt:
+```cmd
+setup.bat
+```
+
+The setup wizard will present you with 8 options:
+
+- **Option 1: Complete Setup** ⭐ (Recommended for first time)
+- **Option 2: Install Dependencies Only**
+- **Option 3: Setup Database**
+- **Option 4: Configure Environment**
+- **Option 5: Test Installation**
+- **Option 6: Run Application**
+- **Option 7: Clean & Reset**
+- **Option 8: Exit**
+
+#### 3. First Time Setup (Recommended)
+1. **Choose Option 1: Complete Setup**
+   - This will install everything automatically
+   - Creates virtual environment
+   - Installs all Python packages
+   - Sets up database
+   - Configures environment
+   - Creates startup scripts
+
+2. **Configure Your API Keys**
+   - Edit `.env.local` file with your actual values:
+     - `OPENAI_API_KEY` - Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+     - `TELEGRAM_BOT_TOKEN` - Get from [@BotFather](https://t.me/BotFather)
+     - `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER` - Your MT5 credentials
+
+3. **Test the Installation**
+   - Choose Option 5 to run comprehensive tests
+   - Ensure all tests pass (80%+ success rate)
+
+4. **Run the Application**
+   - Choose Option 6 to start the trading bot
+   - Access the web interface at http://localhost:8000
+
+### 🔧 Manual Setup (Alternative)
+
+If you prefer to set up components manually or are on non-Windows systems:
+
+#### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+#### 2. Configure Environment
 Create a `.env` file:
 ```bash
 # Telegram Configuration
@@ -116,7 +178,7 @@ OPENAI_API_KEY=your_openai_api_key
 DATABASE_URL=postgresql://user:password@localhost/trading_bot
 ```
 
-### 3. Start the Application
+#### 3. Start the Application
 ```bash
 # Run the FastAPI application
 python run.py
@@ -125,10 +187,56 @@ python run.py
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 4. Test Telegram Bot
+#### 4. Test Telegram Bot
 ```bash
 python test_telegram.py
 ```
+
+### 📁 What Gets Created (Windows Setup)
+
+The setup scripts will create:
+
+- **`venv/`** - Python virtual environment
+- **`runtime/`** - Runtime data, logs, and configuration
+- **`.env`** - Environment template
+- **`.env.local`** - Your actual configuration (edit this!)
+- **`.env.example`** - Example configuration
+- **`scripts/`** - Additional utility scripts
+- **Desktop shortcut** - Quick access to setup
+
+### 🚨 Troubleshooting
+
+#### Common Issues
+
+1. **Python not found**
+   - Install Python 3.8+ from [python.org](https://python.org)
+   - Ensure Python is added to PATH
+
+2. **Git not found**
+   - Install Git from [git-scm.com](https://git-scm.com)
+   - Ensure Git is added to PATH
+
+3. **Port 8000 already in use**
+   - Stop other applications using port 8000
+   - Or change the port in `.env.local`
+
+4. **Database connection failed**
+   - Run "Setup Database" option
+   - Check file permissions
+
+5. **Package installation failed**
+   - Ensure you have internet connection
+   - Try running "Install Dependencies" again
+   - Check Python version compatibility
+
+#### Reset Everything (Windows)
+
+If something goes wrong, use Option 7 to clean and reset:
+```cmd
+scripts\clean_reset.bat
+```
+
+This will remove everything and let you start fresh.
 
 ## 📱 Telegram Bot Commands
 
@@ -258,12 +366,40 @@ telegram-ai-trade/
 │   ├── telegram/       # Telegram bot integration
 │   └── models/         # Data models
 ├── ea/                 # MetaTrader 5 Expert Advisors
-├── scripts/            # Utility scripts
+├── scripts/            # Setup and utility scripts
 ├── tests/              # Test files
 ├── requirements.txt    # Python dependencies
 ├── run.py             # Application startup
+├── setup.bat          # Windows setup wizard (main entry point)
 └── README.md          # This file
 ```
+
+## 🛠️ Setup Scripts (Windows)
+
+The project includes comprehensive Windows batch scripts for easy setup and management:
+
+### **Main Entry Point**
+- **`setup.bat`** - Interactive menu-driven setup wizard
+
+### **Individual Scripts** (in `/scripts` folder)
+- **`complete_setup.bat`** - Full installation from scratch
+- **`install_dependencies.bat`** - Python package installation
+- **`setup_database.bat`** - Database setup and migrations
+- **`configure_environment.bat`** - Environment configuration
+- **`test_installation.bat`** - Comprehensive testing suite
+- **`run_application.bat`** - Application startup
+- **`clean_reset.bat`** - Complete cleanup and reset
+
+### **What the Scripts Do**
+- **System requirement checks** (Python, Git, disk space)
+- **Virtual environment creation** and management
+- **Package installation** with fallback options
+- **Database setup** with SQLite and Alembic
+- **Environment configuration** with templates
+- **Startup script creation** for easy access
+- **Desktop shortcuts** for quick setup access
+- **Comprehensive testing** of all components
+- **Cleanup and reset** capabilities
 
 ## 🔒 Security Features
 
@@ -401,6 +537,34 @@ python -c "from src.execution.aiomql_executor import AioMQLExecutor; from src.co
 - **Code Documentation**: Inline docstrings and type hints
 - **Architecture**: See `docs/architecture.md` (Executor section covers aiomql)
 - **Configuration**: See `src/core/config.py`
+- **Quick Start Guide**: See `docs/QUICK_START.md` for detailed setup instructions
+
+## 🎯 Next Steps After Setup
+
+### 1. **Read the Documentation**
+- Check `docs/` folder for detailed guides
+- Review `docs/architecture.md` for system architecture
+- Read `docs/trading-strategy.md` for trading strategy details
+
+### 2. **Configure Trading Parameters**
+- Edit risk management settings in `.env.local`
+- Adjust position sizing and drawdown limits
+- Configure session filters and volatility adjustments
+
+### 3. **Test with Demo Account**
+- Use demo MT5 account first
+- Verify all connections work correctly
+- Test signal generation and execution
+
+### 4. **Monitor Performance**
+- Check logs in `runtime/logs/`
+- Monitor trading performance metrics
+- Review risk metrics and alerts
+
+### 5. **Customize Notifications**
+- Configure Telegram notification preferences
+- Set up risk alert thresholds
+- Customize performance reporting
 
 ## 🤝 Contributing
 
