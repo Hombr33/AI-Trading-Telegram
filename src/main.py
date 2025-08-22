@@ -79,6 +79,12 @@ async def lifespan(app: FastAPI):
         # Initialize Telegram bot
         logger.info("Initializing Telegram bot...")
         telegram_bot = TradingBot(config.telegram)
+        
+        # Setup Telegram bot (initialize application and handlers)
+        logger.info("Setting up Telegram bot...")
+        if not await telegram_bot.setup():
+            logger.error("Failed to setup Telegram bot")
+            raise RuntimeError("Telegram bot setup failed")
 
         # Set global instances for API routes
         bridge.set_global_instances(order_manager, telegram_bot)

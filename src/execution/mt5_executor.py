@@ -339,94 +339,84 @@ class MT5Executor:
         self.symbols_info = {}
 
     async def connect(self) -> bool:
-        """Connect to MT5 terminal."""
+        """Connect to MT5 terminal using simplified approach."""
         try:
-            import subprocess
             import time
-            import psutil
             
-            logger.info("Checking for existing MT5 instances...")
+            # First, try to initialize MT5 without specifying path (let MT5 find the default installation)
+            logger.info("Initializing MT5 connection...")
             
-            # Kill any existing MT5 instances
-            for proc in psutil.process_iter(['pid', 'name']):
-                try:
-                    if 'terminal64.exe' in proc.info['name'].lower():
-                        logger.info(f"Found existing MT5 instance (PID: {proc.info['pid']}), terminating...")
-                        psutil.Process(proc.info['pid']).terminate()
-                        time.sleep(2)  # Wait for process to terminate
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
-
-            # Wait a moment to ensure all instances are closed
-            time.sleep(3)
-            
-            logger.info("Attempting to start fresh MT5 instance...")
-            
-            # Try EXNESS path first
-            exness_path = "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe"
-            if not mt5.initialize(path=exness_path):
-                logger.warning(f"MT5 initialization with EXNESS path failed: {mt5.last_error()}")
+            if not mt5.initialize():
+                error_code = mt5.last_error()
+                logger.warning(f"Default MT5 initialization failed: {error_code}")
                 
-                # Try IC Markets path
-                ic_path = "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe"
-                if not mt5.initialize(path=ic_path):
-                    logger.warning(f"MT5 initialization with IC Markets path failed: {mt5.last_error()}")
-                    
-                    # Start fresh EXNESS instance
-                    logger.info("Starting fresh MT5 EXNESS instance...")
-                    try:
-                        subprocess.Popen([exness_path])
-                        logger.info("Waiting for MT5 to start...")
-                        time.sleep(30)  # Give more time for MT5 to start properly
-                        
-                        if not mt5.initialize(path=exness_path):
-                            logger.error("Failed to initialize after launching MT5")
-                            return False
-                            
-                        # Try to login after successful initialization
-                        logger.info(f"Attempting to login with account: {self.config.login}")
-                        if not mt5.login(
-                            login=int(self.config.login),
-                            password=self.config.password,
-                            server=self.config.server
-                        ):
-                            logger.error(f"MT5 login failed: {mt5.last_error()}")
-                            mt5.shutdown()  # Clean shutdown on failed login
-                            return False
-                            
-                    except Exception as e:
-                        logger.error(f"Failed to launch MT5: {e}")
-                        return False
-
-            # Allow more time for initialization and handle timeouts
-            logger.info("MT5 initialized successfully, waiting for terminal to be ready...")
-            time.sleep(30)  # Additional wait for terminal readiness
+                # Try common installation paths if default fails
+                paths_to_try = [
+                    "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
+                    "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe",
+                    "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe",
+                    "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe"
+                ]
+                
+                initialized = False
+                for path in paths_to_try:
+                    logger.info(f"Trying MT5 path: {path}")
+                    if mt5.initialize(path=path):
+                        logger.info(f"MT5 initialized successfully with path: {path}")
+                        initialized = True
+                        break
+                    else:
+                        logger.warning(f"Failed to initialize with path {path}: {mt5.last_error()}")
+                
+                if not initialized:
+                    logger.error("Failed to initialize MT5 with any known path")
+                    return False
+            else:
+                logger.info("MT5 initialized successfully with default path")
             
-            # Login with credentials from config
+            # Check if we need to login (skip if using mock or if credentials not provided)
+            if not self.config.is_configured:
+                logger.info("MT5 credentials not configured, using mock mode")
+                self.connected = True
+                self.account_info = mt5.account_info()
+                return True
+            
+            # Wait briefly for terminal readiness
+            time.sleep(2)
+            
+            # Attempt login with configured credentials
             logger.info(f"Attempting to login with account: {self.config.login}")
-            login_attempt_count = 0
-            max_attempts = 3
             
-            while login_attempt_count < max_attempts:
+            max_attempts = self.config.retry_attempts
+            retry_delay = self.config.retry_delay_ms / 1000  # Convert to seconds
+            
+            for attempt in range(max_attempts):
                 try:
-                    if mt5.login(
+                    success = mt5.login(
                         login=int(self.config.login),
                         password=self.config.password,
                         server=self.config.server
-                    ):
+                    )
+                    
+                    if success:
+                        logger.info(f"MT5 login successful on attempt {attempt + 1}")
                         break
-                    login_attempt_count += 1
-                    if login_attempt_count < max_attempts:
-                        logger.warning(f"MT5 login attempt {login_attempt_count} failed, retrying in 10 seconds...")
-                        time.sleep(10)
                     else:
-                        logger.error(f"MT5 login failed after {max_attempts} attempts: {mt5.last_error()}")
+                        error_code = mt5.last_error()
+                        if attempt < max_attempts - 1:
+                            logger.warning(f"MT5 login attempt {attempt + 1} failed (error: {error_code}), retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                        else:
+                            logger.error(f"MT5 login failed after {max_attempts} attempts (error: {error_code})")
+                            mt5.shutdown()
+                            return False
+                            
+                except Exception as e:
+                    logger.error(f"MT5 login error on attempt {attempt + 1}: {e}")
+                    if attempt == max_attempts - 1:
                         mt5.shutdown()
                         return False
-                except Exception as e:
-                    logger.error(f"MT5 login error: {e}")
-                    mt5.shutdown()
-                    return False
+                    time.sleep(retry_delay)
 
             # Connection successful
             self.connected = True
@@ -439,8 +429,14 @@ class MT5Executor:
                 logger.warning("Connected to MT5 but could not get account info")
                 
             return True
+            
         except Exception as e:
             logger.error(f"MT5 connection error: {e}")
+            # Ensure clean shutdown on any error
+            try:
+                mt5.shutdown()
+            except:
+                pass
             return False
 
     async def disconnect(self):
@@ -451,16 +447,6 @@ class MT5Executor:
                 self.connected = False
                 self.account_info = None
                 logger.info("Disconnected from MT5")
-                
-                # Kill MT5 process to ensure clean shutdown
-                import psutil
-                for proc in psutil.process_iter(['pid', 'name']):
-                    try:
-                        if 'terminal64.exe' in proc.info['name'].lower():
-                            logger.info(f"Terminating MT5 process (PID: {proc.info['pid']})")
-                            psutil.Process(proc.info['pid']).terminate()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
         except Exception as e:
             logger.error(f"Error during MT5 disconnect: {e}")
 
