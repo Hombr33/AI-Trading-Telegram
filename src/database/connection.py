@@ -109,7 +109,7 @@ class DatabaseConnection:
 def get_database_connection() -> DatabaseConnection:
     """Get database connection instance."""
     global _engine, _session_factory
-    
+
     if _engine is None:
         config = DatabaseConfig.from_env()
         db_conn = DatabaseConnection(config)
@@ -117,7 +117,7 @@ def get_database_connection() -> DatabaseConnection:
         _engine = db_conn.engine
         _session_factory = db_conn.session_factory
         return db_conn
-    
+
     # Return existing connection
     config = DatabaseConfig.from_env()
     db_conn = DatabaseConnection(config)
@@ -129,7 +129,7 @@ def get_database_connection() -> DatabaseConnection:
 def close_database_connection() -> None:
     """Close database connection."""
     global _engine, _session_factory
-    
+
     if _engine:
         _engine.dispose()
         _engine = None

@@ -2,11 +2,13 @@ from pydantic import BaseModel, Field
 
 # --- Pydantic Models for API Data Validation ---
 
+
 class MarketContext(BaseModel):
     current_price: float
     session: str
     volatility_level: str
     news_impact: str
+
 
 class ScreenshotPayload(BaseModel):
     symbol: str
@@ -14,6 +16,7 @@ class ScreenshotPayload(BaseModel):
     timestamp: str  # MQL5 sends a string timestamp
     image_data: str = Field(..., description="Base64 encoded screenshot data")
     market_context: MarketContext
+
 
 class SignalSetup(BaseModel):
     type: str  # "BUY" or "SELL"
@@ -24,10 +27,12 @@ class SignalSetup(BaseModel):
     confidence: int
     notes: str
 
+
 class SignalResponse(BaseModel):
     symbol: str
     bias: str
     setups: list[SignalSetup]
+
 
 class SignalListResponse(BaseModel):
     signals: list[SignalResponse]

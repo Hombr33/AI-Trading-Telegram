@@ -23,16 +23,17 @@ console = Console()
 # Remove default loguru handler
 logger.remove()
 
+
 def setup_logging(
     level: str = "INFO",
     format_type: str = "rich",
     file_path: Optional[str] = None,
     enable_console: bool = True,
-    enable_file: bool = True
+    enable_file: bool = True,
 ) -> None:
     """
     Setup logging with loguru and rich.
-    
+
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         format_type: Output format type ('rich', 'json', 'simple')
@@ -40,7 +41,7 @@ def setup_logging(
         enable_console: Enable console logging
         enable_file: Enable file logging
     """
-    
+
     # Configure loguru logger
     loguru_config = {
         "handlers": [],
@@ -49,9 +50,9 @@ def setup_logging(
             {"name": "SIGNAL", "no": 26, "color": "<blue>"},
             {"name": "RISK", "no": 27, "color": "<yellow>"},
             {"name": "SYSTEM", "no": 28, "color": "<cyan>"},
-        ]
+        ],
     }
-    
+
     # Add console handler
     if enable_console:
         if format_type == "rich":
@@ -62,11 +63,11 @@ def setup_logging(
                     show_time=True,
                     show_path=False,
                     markup=True,
-                    rich_tracebacks=True
+                    rich_tracebacks=True,
                 ),
                 "format": "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
                 "level": level,
-                "colorize": True
+                "colorize": True,
             }
         elif format_type == "json":
             # JSON format for structured logging
@@ -74,59 +75,65 @@ def setup_logging(
                 "sink": sys.stdout,
                 "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
                 "level": level,
-                "serialize": True
+                "serialize": True,
             }
         else:
             # Simple format
             console_handler = {
                 "sink": sys.stdout,
                 "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
-                "level": level
+                "level": level,
             }
-        
+
         loguru_config["handlers"].append(console_handler)
-    
+
     # Add file handler
     if enable_file and file_path:
         # Ensure log directory exists
         log_dir = Path(file_path).parent
         log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         file_handler = {
             "sink": file_path,
             "format": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
             "level": level,
             "rotation": "10 MB",
             "retention": "30 days",
-            "compression": "gz"
+            "compression": "gz",
         }
         loguru_config["handlers"].append(file_handler)
-    
+
     # Apply configuration
     for handler in loguru_config["handlers"]:
         logger.add(**handler)
-    
+
     # Add custom levels
     for level_config in loguru_config["levels"]:
         try:
-            logger.level(level_config["name"], level_config["no"], color=level_config["color"])
+            logger.level(
+                level_config["name"], level_config["no"], color=level_config["color"]
+            )
         except ValueError:
             # Level already exists, skip
             pass
+
 
 def get_logger(name: str):
     """Get a logger instance with the given name."""
     return logger.bind(name=name)
 
-def log_system_event(component: str, action: str, message: str, level: str = "INFO", **kwargs):
+
+def log_system_event(
+    component: str, action: str, message: str, level: str = "INFO", **kwargs
+):
     """Log a system event with structured data."""
     extra_data = {
         "component": component,
         "action": action,
         "event_type": "system_event",
-        **kwargs
+        **kwargs,
     }
-    
+
     if level == "TRADE":
         logger.bind(**extra_data).log("TRADE", message)
     elif level == "SIGNAL":
@@ -138,35 +145,41 @@ def log_system_event(component: str, action: str, message: str, level: str = "IN
     else:
         logger.bind(**extra_data).log(level, message)
 
-def log_trade_event(symbol: str, action: str, details: Dict[str, Any], level: str = "INFO"):
+
+def log_trade_event(
+    symbol: str, action: str, details: Dict[str, Any], level: str = "INFO"
+):
     """Log a trade-related event."""
     extra_data = {
         "symbol": symbol,
         "action": action,
         "event_type": "trade_event",
-        **details
+        **details,
     }
     logger.bind(**extra_data).log("TRADE", f"Trade {action} for {symbol}")
 
-def log_signal_event(symbol: str, bias: str, confidence: float, details: Dict[str, Any]):
+
+def log_signal_event(
+    symbol: str, bias: str, confidence: float, details: Dict[str, Any]
+):
     """Log a trading signal event."""
     extra_data = {
         "symbol": symbol,
         "bias": bias,
         "confidence": confidence,
         "event_type": "signal_event",
-        **details
+        **details,
     }
-    logger.bind(**extra_data).log("SIGNAL", f"Signal generated for {symbol}: {bias} (confidence: {confidence}%)")
+    logger.bind(**extra_data).log(
+        "SIGNAL", f"Signal generated for {symbol}: {bias} (confidence: {confidence}%)"
+    )
+
 
 def log_risk_event(event_type: str, details: Dict[str, Any], level: str = "WARNING"):
     """Log a risk management event."""
-    extra_data = {
-        "event_type": "risk_event",
-        "risk_type": event_type,
-        **details
-    }
+    extra_data = {"event_type": "risk_event", "risk_type": event_type, **details}
     logger.bind(**extra_data).log("RISK", f"Risk event: {event_type}")
+
 
 def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwargs):
     """Log a performance metric."""
@@ -175,19 +188,23 @@ def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwa
         "value": value,
         "unit": unit,
         "event_type": "performance_metric",
-        **kwargs
+        **kwargs,
     }
     logger.bind(**extra_data).info(f"Performance: {metric_name} = {value}{unit}")
 
-def log_error_with_context(error: Exception, context: Dict[str, Any], level: str = "ERROR"):
+
+def log_error_with_context(
+    error: Exception, context: Dict[str, Any], level: str = "ERROR"
+):
     """Log an error with additional context."""
     extra_data = {
         "error_type": type(error).__name__,
         "error_message": str(error),
         "event_type": "error",
-        **context
+        **context,
     }
     logger.bind(**extra_data).log(level, f"Error occurred: {error}")
+
 
 def print_banner(title: str, subtitle: str = "", color: str = "cyan"):
     """Print a rich banner to the console."""
@@ -195,28 +212,26 @@ def print_banner(title: str, subtitle: str = "", color: str = "cyan"):
     banner_text.append(title, style=f"bold {color}")
     if subtitle:
         banner_text.append(f"\n{subtitle}", style=f"dim {color}")
-    
+
     panel = Panel(
-        banner_text,
-        border_style=color,
-        padding=(1, 2),
-        title="AI Trading Bot"
+        banner_text, border_style=color, padding=(1, 2), title="AI Trading Bot"
     )
     console.print(panel)
+
 
 def print_status_table(status_data: Dict[str, Any]):
     """Print a status table using rich."""
     from rich.table import Table
-    
+
     table = Table(title="System Status")
     table.add_column("Component", style="cyan", no_wrap=True)
     table.add_column("Status", style="green")
     table.add_column("Details", style="white")
-    
+
     for component, info in status_data.items():
         status = info.get("status", "unknown")
         details = info.get("details", "")
-        
+
         # Color code the status
         if status == "running" or status == "connected":
             status_style = "green"
@@ -226,10 +241,11 @@ def print_status_table(status_data: Dict[str, Any]):
             status_style = "yellow"
         else:
             status_style = "white"
-        
+
         table.add_row(component, f"[{status_style}]{status}[/{status_style}]", details)
-    
+
     console.print(table)
+
 
 # Initialize logging with default settings
 setup_logging(
@@ -237,5 +253,5 @@ setup_logging(
     format_type="rich",
     file_path=os.getenv("LOG_FILE", "logs/ai_trading_bot.log"),
     enable_console=True,
-    enable_file=True
+    enable_file=True,
 )

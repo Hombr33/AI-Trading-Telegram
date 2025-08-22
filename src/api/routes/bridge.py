@@ -30,6 +30,7 @@ def set_global_instances(ord_mgr, tg_bot):
 # Request/Response Models
 class HeartbeatRequest(BaseModel):
     """Heartbeat request from EA."""
+
     terminal_id: str = Field(..., description="Terminal identifier")
     platform: str = Field(..., description="MT4 or MT5")
     account: str = Field(..., description="Account number")
@@ -38,12 +39,14 @@ class HeartbeatRequest(BaseModel):
 
 class HeartbeatResponse(BaseModel):
     """Heartbeat response to EA."""
+
     ok: bool = Field(..., description="Success status")
     server_time: str = Field(..., description="Server timestamp")
 
 
 class TickRequest(BaseModel):
     """Tick data from EA."""
+
     symbol: str = Field(..., description="Trading symbol")
     bid: float = Field(..., description="Bid price")
     ask: float = Field(..., description="Ask price")
@@ -52,11 +55,13 @@ class TickRequest(BaseModel):
 
 class TickResponse(BaseModel):
     """Tick response to EA."""
+
     ok: bool = Field(..., description="Success status")
 
 
 class OrderRequest(BaseModel):
     """Order request from EA."""
+
     request_id: str = Field(..., description="Unique request identifier")
     action: str = Field(..., description="OPEN, CLOSE, or MODIFY")
     symbol: str = Field(..., description="Trading symbol")
@@ -71,6 +76,7 @@ class OrderRequest(BaseModel):
 
 class OrderResponse(BaseModel):
     """Order response to EA."""
+
     ok: bool = Field(..., description="Success status")
     decision: str = Field(..., description="APPROVE or REJECT")
     reason: Optional[str] = Field(None, description="Rejection reason")
@@ -79,6 +85,7 @@ class OrderResponse(BaseModel):
 
 class OrderExecutionReport(BaseModel):
     """Order execution report from EA."""
+
     request_id: str = Field(..., description="Original request identifier")
     ticket: str = Field(..., description="MT ticket number")
     status: str = Field(..., description="Execution status")
@@ -90,6 +97,7 @@ class OrderExecutionReport(BaseModel):
 
 class PositionData(BaseModel):
     """Position data from EA."""
+
     ticket: str = Field(..., description="MT ticket number")
     symbol: str = Field(..., description="Trading symbol")
     type: str = Field(..., description="BUY or SELL")
@@ -105,6 +113,7 @@ class PositionData(BaseModel):
 
 class PositionSnapshotRequest(BaseModel):
     """Position snapshot from EA."""
+
     positions: List[PositionData] = Field(..., description="List of positions")
     timestamp: str = Field(..., description="ISO8601 timestamp")
 
@@ -116,10 +125,10 @@ async def bridge_order(order_data: Dict[str, Any]):
     try:
         if not order_manager:
             raise HTTPException(status_code=503, detail="Order manager not initialized")
-        
+
         result = await order_manager.execute_signal(order_data, None)
         return {"success": True, "result": result}
-        
+
     except Exception as e:
         logger.error(f"Error processing bridge order: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -131,15 +140,17 @@ async def bridge_signal(signal_data: Dict[str, Any]):
     try:
         if not order_manager:
             raise HTTPException(status_code=503, detail="Order manager not initialized")
-        
+
         result = await order_manager.execute_signal(signal_data, None)
-        
+
         # Send notification via Telegram
         if telegram_bot and telegram_bot.notification_manager:
-            await telegram_bot.notification_manager.send_signal_notification(signal_data)
-        
+            await telegram_bot.notification_manager.send_signal_notification(
+                signal_data
+            )
+
         return {"success": True, "result": result}
-        
+
     except Exception as e:
         logger.error(f"Error processing bridge signal: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -151,11 +162,13 @@ async def bridge_position_update(update_data: Dict[str, Any]):
     try:
         # Send notification via Telegram
         if telegram_bot and telegram_bot.notification_manager:
-            action = update_data.get('action', 'modified')
-            await telegram_bot.notification_manager.send_position_notification(update_data, action)
-        
+            action = update_data.get("action", "modified")
+            await telegram_bot.notification_manager.send_position_notification(
+                update_data, action
+            )
+
         return {"success": True}
-        
+
     except Exception as e:
         logger.error(f"Error processing bridge position update: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -167,13 +180,15 @@ async def bridge_risk_alert(alert_data: Dict[str, Any]):
     try:
         # Send notification via Telegram
         if telegram_bot and telegram_bot.notification_manager:
-            alert_type = alert_data.get('alert_type', 'general')
-            message = alert_data.get('message', 'Risk alert received')
-            data = alert_data.get('data', {})
-            await telegram_bot.notification_manager.send_risk_alert(alert_type, message, data)
-        
+            alert_type = alert_data.get("alert_type", "general")
+            message = alert_data.get("message", "Risk alert received")
+            data = alert_data.get("data", {})
+            await telegram_bot.notification_manager.send_risk_alert(
+                alert_type, message, data
+            )
+
         return {"success": True}
-        
+
     except Exception as e:
         logger.error(f"Error processing bridge risk alert: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -2,7 +2,7 @@
 Health check API routes.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import structlog
@@ -15,6 +15,7 @@ router = APIRouter()
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     timestamp: str
     version: str
@@ -23,6 +24,7 @@ class HealthResponse(BaseModel):
 
 class DetailedHealthResponse(BaseModel):
     """Detailed health check response."""
+
     status: str
     timestamp: str
     version: str
@@ -36,9 +38,9 @@ async def health_check():
     """Basic health check endpoint."""
     return HealthResponse(
         status="healthy",
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         version="1.0.0",
-        environment=config.environment
+        environment=config.environment,
     )
 
 
@@ -46,21 +48,22 @@ async def health_check():
 async def detailed_health_check():
     """Detailed health check endpoint."""
     # Check other components
-    components = {
-        "api": "healthy",
-        "logging": "healthy"
-    }
-    
+    components = {"api": "healthy", "logging": "healthy"}
+
     # Calculate uptime (placeholder)
     uptime = "0:00:00"  # Implement actual uptime calculation
-    
+
     return DetailedHealthResponse(
-        status="healthy" if all(v == "healthy" for v in components.values()) else "degraded",
-        timestamp=datetime.utcnow().isoformat(),
+        status=(
+            "healthy"
+            if all(v == "healthy" for v in components.values())
+            else "degraded"
+        ),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         version="1.0.0",
         environment=config.environment,
         components=components,
-        uptime=uptime
+        uptime=uptime,
     )
 
 

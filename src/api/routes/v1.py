@@ -15,6 +15,7 @@ router = APIRouter()
 
 class SignalResponse(BaseModel):
     """Trading signal response."""
+
     id: str
     symbol: str
     bias: str
@@ -25,6 +26,7 @@ class SignalResponse(BaseModel):
 
 class SignalListResponse(BaseModel):
     """List of trading signals."""
+
     signals: List[SignalResponse]
 
 

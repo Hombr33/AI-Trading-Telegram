@@ -9,9 +9,9 @@ from .base import Base
 
 class Webhook(Base):
     """Webhook model for webhook management."""
-    
+
     __tablename__ = "webhooks"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     webhook_id = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
@@ -24,9 +24,9 @@ class Webhook(Base):
     success_count = Column(Integer, default=0, nullable=False)
     failure_count = Column(Integer, default=0, nullable=False)
     webhook_data = Column(JSON, nullable=True)  # Additional webhook data
-    
+
     # Relationships
     user = relationship("User")
-    
+
     def __repr__(self) -> str:
         return f"<Webhook(webhook_id='{self.webhook_id}', name='{self.name}', url='{self.url}')>"

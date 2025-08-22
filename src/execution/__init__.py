@@ -7,9 +7,4 @@ from .order_manager import OrderManager
 from .position_manager import PositionManager
 from .trailing_manager import TrailingManager
 
-__all__ = [
-    "MT5Executor",
-    "OrderManager", 
-    "PositionManager",
-    "TrailingManager"
-]
+__all__ = ["MT5Executor", "OrderManager", "PositionManager", "TrailingManager"]

@@ -11,14 +11,21 @@ from sqlalchemy.sql import func
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
-    
+
     # Common columns for all models
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
     created_by = Column(String(255), nullable=True)
     updated_by = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert model instance to dictionary."""
         result = {}
@@ -29,13 +36,13 @@ class Base(DeclarativeBase):
             else:
                 result[column.name] = value
         return result
-    
+
     def update_from_dict(self, data: Dict[str, Any]) -> None:
         """Update model instance from dictionary."""
         for key, value in data.items():
-            if hasattr(self, key) and key not in ['id', 'created_at', 'updated_at']:
+            if hasattr(self, key) and key not in ["id", "created_at", "updated_at"]:
                 setattr(self, key, value)
-    
+
     def __repr__(self) -> str:
         """String representation of the model."""
         return f"<{self.__class__.__name__}(id={getattr(self, 'id', 'N/A')})>"

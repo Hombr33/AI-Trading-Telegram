@@ -2,199 +2,173 @@
 
 ## Overview
 
-Comprehensive monitoring, observability, and logging standards for the telegram-ai-trade system.
-
-## Core Metrics
-
-### 1. Trading Metrics
-```python
-class TradingMetrics:
-    """Core trading performance metrics."""
-    
-    def __init__(self):
-        self.performance_metrics = {
-            "win_rate": {
-                "calculation": "wins / total_trades",
-                "min_acceptable": 0.40,
-                "target": 0.50,
-                "alert_threshold": 0.35
-            },
-            "profit_factor": {
-                "calculation": "gross_profit / gross_loss",
-                "min_acceptable": 1.5,
-                "target": 2.0,
-                "alert_threshold": 1.3
-            },
-            "risk_reward": {
-                "calculation": "average_win / average_loss",
-                "min_acceptable": 1.5,
-                "target": 2.0,
-                "alert_threshold": 1.3
-            }
-        }
-
-class TradingLogger:
-    """Structured logging for trading operations."""
-    
-    def __init__(self):
-        self.logger = logging.getLogger("trading")
-        self.setup_handlers()
-    
-    def log_trade(self, trade: Trade, level: LogLevel = LogLevel.INFO):
-        """Log trade execution details."""
-        self.logger.log(level.value, {
-            "event": "trade_execution",
-            "trade_id": trade.id,
-            "symbol": trade.symbol,
-            "direction": trade.direction,
-            "entry": trade.entry,
-            "stop_loss": trade.stop_loss,
-            "take_profit": trade.take_profit,
-            "timestamp": datetime.utcnow().isoformat()
-        })
-```
-
-## Metrics Collection
-
-### Performance Metrics
-
-```python
-class PerformanceMonitor:
-    """Track trading performance metrics."""
-    
-    def __init__(self):
-        self.metrics = {
-            "win_rate": 0.0,
-            "profit_factor": 0.0,
-            "sharpe_ratio": 0.0,
-            "max_drawdown": 0.0,
-            "avg_trade_duration": timedelta(0)
-        }
-    
-    async def update_metrics(self, trade: Trade):
-        """Update metrics on trade completion."""
-        pass
-    
-    def calculate_risk_metrics(self) -> Dict[str, float]:
-        """Calculate risk-adjusted performance metrics."""
-        pass
-```
-
-### System Metrics
-
-```python
-class SystemMonitor:
-    """Monitor system health and performance."""
-    
-    def __init__(self):
-        self.metrics = {
-            "cpu_usage": 0.0,
-            "memory_usage": 0.0,
-            "network_latency": 0.0,
-            "api_response_times": defaultdict(float)
-        }
-    
-    async def collect_metrics(self):
-        """Collect system performance metrics."""
-        pass
-```
-
-## Alerting System
-
-### Alert Levels
-
-```python
-class AlertPriority(Enum):
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3
-    CRITICAL = 4
-
-class AlertManager:
-    """Manage and distribute system alerts."""
-    
-    def __init__(self):
-        self.handlers = {
-            AlertPriority.LOW: self.handle_low_priority,
-            AlertPriority.MEDIUM: self.handle_medium_priority,
-            AlertPriority.HIGH: self.handle_high_priority,
-            AlertPriority.CRITICAL: self.handle_critical
-        }
-    
-    async def send_alert(self, 
-                        message: str, 
-                        priority: AlertPriority,
-                        data: Optional[Dict] = None):
-        """Send alert through appropriate channels."""
-        await self.handlers[priority](message, data)
-```
+The AI Trading Bot system includes comprehensive monitoring and observability features to ensure reliable operation and provide insights into system performance.
 
 ## Health Checks
 
-### Components
-
-```python
-class HealthChecker:
-    """System health monitoring."""
-    
-    def __init__(self):
-        self.components = {
-            "database": self.check_database,
-            "api_connectivity": self.check_apis,
-            "message_queue": self.check_queue,
-            "trading_engine": self.check_trading
-        }
-    
-    async def run_health_checks(self) -> Dict[str, bool]:
-        """Run health checks on all components."""
-        return {
-            name: await check()
-            for name, check in self.components.items()
-        }
+### Basic Health Check
+```bash
+curl http://127.0.0.1:8000/healthz
 ```
 
-## Dashboard Metrics
-
-### Real-time Monitoring
-
-```python
-class DashboardMetrics:
-    """Real-time dashboard data collection."""
-    
-    def __init__(self):
-        self.metrics = {
-            "active_trades": 0,
-            "daily_pnl": 0.0,
-            "open_positions": [],
-            "recent_signals": deque(maxlen=100)
-        }
-    
-    async def update_dashboard(self):
-        """Update real-time dashboard metrics."""
-        pass
+Response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-01-27T10:30:00.000Z",
+  "version": "1.0.0",
+  "environment": "production"
+}
 ```
 
-## Configuration
+### Detailed Health Check
+```bash
+curl http://127.0.0.1:8000/healthz/detailed
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-01-27T10:30:00.000Z",
+  "version": "1.0.0",
+  "environment": "production",
+  "components": {
+    "api": "healthy",
+    "database": "healthy",
+    "logging": "healthy"
+  },
+  "uptime": "2:15:30"
+}
+```
+
+### Readiness Check
+```bash
+curl http://127.0.0.1:8000/readyz
+```
+
+### Liveness Check
+```bash
+curl http://127.0.0.1:8000/live
+```
+
+## Metrics
+
+### Prometheus Metrics
+```bash
+curl http://127.0.0.1:8000/metrics
+```
+
+### Trading Metrics
+```bash
+curl http://127.0.0.1:8000/metrics/trading
+```
+
+### System Metrics
+```bash
+curl http://127.0.0.1:8000/metrics/system
+```
+
+## Logging
+
+### Log Format
+The system uses structured JSON logging with the following format:
 
 ```json
 {
-    "logging": {
-        "level": "INFO",
-        "file": "/var/log/trading.log",
-        "format": "json",
-        "retention_days": 30
-    },
-    "monitoring": {
-        "metrics_interval": 60,
-        "health_check_interval": 300,
-        "alert_channels": ["telegram", "email"],
-        "dashboard_refresh_rate": 5
-    },
-    "alerts": {
-        "cpu_threshold": 80,
-        "memory_threshold": 85,
-        "latency_threshold_ms": 100,
-        "error_rate_threshold": 0.01
-    }
+  "timestamp": "2025-01-27T10:30:00.000Z",
+  "level": "info",
+  "logger": "trading_bot.api",
+  "message": "Order executed successfully",
+  "order_id": "12345",
+  "symbol": "EURUSD",
+  "action": "buy",
+  "volume": 0.1,
+  "price": 1.0850,
+  "correlation_id": "abc-123-def-456"
 }
 ```
+
+### Log Levels
+- **DEBUG**: Detailed information for debugging
+- **INFO**: General operational information
+- **WARNING**: Potential issues that don't stop operation
+- **ERROR**: Errors that affect functionality
+- **CRITICAL**: Critical errors that may cause system failure
+
+### Log Categories
+- **Trade Logs**: All trading operations and decisions
+- **System Logs**: System events and status changes
+- **Risk Logs**: Risk management events and decisions
+- **Audit Logs**: User actions and system modifications
+
+## Monitoring Dashboard
+
+### Key Metrics to Monitor
+1. **System Health**
+   - API response times
+   - Database connection status
+   - Memory and CPU usage
+
+2. **Trading Performance**
+   - Number of active positions
+   - Win/loss ratio
+   - Daily P&L
+   - Risk exposure
+
+3. **Bridge Communication**
+   - MT4/MT5 connection status
+   - Heartbeat frequency
+   - Data transmission rates
+   - Error rates
+
+### Alerting
+The system can be configured to send alerts for:
+- System health degradation
+- High error rates
+- Risk limit breaches
+- Connection failures
+- Performance issues
+
+## Performance Monitoring
+
+### Response Time Targets
+- **API Endpoints**: < 150ms
+- **Database Queries**: < 50ms
+- **EA Communication**: < 100ms
+
+### Resource Usage Limits
+- **Memory**: < 2GB
+- **CPU**: < 70%
+- **Disk I/O**: < 80%
+
+### Throughput Targets
+- **API Requests**: 50+ requests/second
+- **Tick Processing**: Real-time without delays
+- **Order Execution**: < 100ms latency
+
+## Troubleshooting
+
+### Common Issues
+1. **High Response Times**
+   - Check database performance
+   - Monitor resource usage
+   - Review logging levels
+
+2. **Connection Failures**
+   - Verify MT4/MT5 settings
+   - Check network configuration
+   - Review bridge token
+
+3. **Performance Degradation**
+   - Monitor system resources
+   - Check for memory leaks
+   - Review database queries
+
+### Debug Mode
+Enable debug logging by setting:
+```bash
+export LOG_LEVEL=DEBUG
+```
+
+This will provide detailed information about system operations and help identify issues.

@@ -9,9 +9,9 @@ from .base import Base
 
 class Trade(Base):
     """Trade model for completed trades."""
-    
+
     __tablename__ = "trades"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     trade_id = Column(String(50), unique=True, nullable=False, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
@@ -32,13 +32,15 @@ class Trade(Base):
     status = Column(String(20), nullable=False, default="OPEN")  # OPEN, CLOSED, PARTIAL
     mt_ticket = Column(String(50), nullable=True)  # MetaTrader ticket number
     trade_data = Column(JSON, nullable=True)  # Additional trade data
-    
+
     # Relationships
     order = relationship("Order")
     instrument = relationship("Instrument", back_populates="trades")
     user = relationship("User", back_populates="trades")
     signal = relationship("Signal")
-    positions = relationship("Position", back_populates="trade", cascade="all, delete-orphan")
-    
+    positions = relationship(
+        "Position", back_populates="trade", cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
         return f"<Trade(trade_id='{self.trade_id}', direction='{self.direction}', status='{self.status}')>"

@@ -13,6 +13,7 @@ router = APIRouter()
 
 class MetricsResponse(BaseModel):
     """Metrics response."""
+
     timestamp: str
     metrics: Dict[str, Any]
 
@@ -22,7 +23,7 @@ async def get_metrics():
     """Get system metrics."""
     # This endpoint provides additional metrics beyond Prometheus
     # Prometheus metrics are available at /metrics
-    
+
     metrics = {
         "system": {
             "uptime": "0:00:00",  # Implement actual uptime
@@ -39,12 +40,11 @@ async def get_metrics():
             "requests_per_minute": 0,
             "error_rate": 0.0,
             "average_response_time": 0.0,
-        }
+        },
     }
-    
+
     return MetricsResponse(
-        timestamp="2025-01-21T00:00:00Z",  # Implement actual timestamp
-        metrics=metrics
+        timestamp="2025-01-21T00:00:00Z", metrics=metrics  # Implement actual timestamp
     )
 
 
@@ -101,5 +101,5 @@ async def get_api_metrics():
             "/bridge/heartbeat": {"calls": 0, "avg_time": 0.0},
             "/bridge/tick": {"calls": 0, "avg_time": 0.0},
             "/bridge/order_request": {"calls": 0, "avg_time": 0.0},
-        }
+        },
     }

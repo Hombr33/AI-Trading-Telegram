@@ -9,9 +9,9 @@ from .base import Base
 
 class Audit(Base):
     """Audit model for audit logging."""
-    
+
     __tablename__ = "audits"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     audit_id = Column(String(50), unique=True, nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -25,9 +25,9 @@ class Audit(Base):
     status = Column(String(20), nullable=False)  # SUCCESS, FAILURE, ERROR
     error_message = Column(Text, nullable=True)
     audit_data = Column(JSON, nullable=True)  # Additional audit data
-    
+
     # Relationships
     user = relationship("User")
-    
+
     def __repr__(self) -> str:
         return f"<Audit(audit_id='{self.audit_id}', action='{self.action}', resource_type='{self.resource_type}')>"
