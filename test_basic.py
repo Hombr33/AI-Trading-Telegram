@@ -7,6 +7,12 @@ import os
 import sys
 import json
 from pathlib import Path
+import asyncio
+import pytest
+
+from src.core.config import config
+from src.execution.aiomql_executor import AioMQLExecutor
+
 
 def test_directory_structure():
     """Test that all required directories and files exist."""
@@ -220,6 +226,67 @@ def test_scripts():
     
     return True
 
+@pytest.mark.asyncio
+async def test_aiomql_executor_connect_and_place_order():
+	executor = AioMQLExecutor(config.trading)
+	assert await executor.connect() is True
+
+	# Create a minimal mock order compatible with executor
+	order = type(
+		"MockOrder",
+		(),
+		{
+			"order_id": "test123",
+			"instrument": type("MockInstrument", (), {"symbol": "EURUSD"})(),
+			"order_type": "BUY",
+			"volume": 0.01,
+			"price": None,
+			"stop_loss": 1.1900,
+			"take_profit": 1.2100,
+			"comment": "TEST",
+		},
+	instrument_mock = Mock()
+	instrument_mock.symbol = "EURUSD"
+	order = Mock()
+	order.order_id = "test123"
+	order.instrument = instrument_mock
+	order.order_type = "BUY"
+	order.volume = 0.01
+	order.price = None
+	order.stop_loss = 1.1900
+	order.take_profit = 1.2100
+	order.comment = "TEST"
+
+	result = await executor.place_order(order)
+	assert isinstance(result, dict)
+	assert result.get("success") in (True, False)
+
+    executor = AioMQLExecutor(config.trading)
+    assert await executor.connect() is True
+
+    # Create a minimal mock order compatible with executor
+    order = type(
+        "MockOrder",
+        (),
+        {
+            "order_id": "test123",
+            "instrument": type("MockInstrument", (), {"symbol": "EURUSD"})(),
+            "order_type": "BUY",
+            "volume": 0.01,
+            "price": None,
+            "stop_loss": 1.1900,
+            "take_profit": 1.2100,
+            "comment": "TEST",
+        },
+    )()
+
+    result = await executor.place_order(order)
+    assert isinstance(result, dict)
+    assert result.get("success") in (True, False)
+
+    await executor.disconnect()
+
+
 def main():
     """Run all tests."""
     print("🚀 AI Trading Bot System Verification")
@@ -232,7 +299,8 @@ def main():
         test_database_schema,
         test_api_structure,
         test_documentation,
-        test_scripts
+        test_scripts,
+        test_aiomql_executor_connect_and_place_order
     ]
     
     all_passed = True

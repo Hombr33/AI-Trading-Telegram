@@ -273,3 +273,21 @@ Order Request → Risk Validation → Position Sizing → Execution
 - **Event Streaming**: Apache Kafka integration
 - **Container Orchestration**: Kubernetes deployment
 - **Service Mesh**: Istio for service communication
+
+## MT5 Connectivity (Executor Layer)
+
+- Executor selection: the app prefers `src/execution/AioMQLExecutor` which uses `aiomql` if installed, and gracefully falls back to the existing `MT5Executor` (which itself falls back to a comprehensive mock when the native `MetaTrader5` module is unavailable).
+- Interface stability: both executors expose the same async methods (`connect`, `disconnect`, `place_order`, `modify_order`, `close_position`, `get_positions`, `get_orders`, `get_account_info`), keeping `OrderManager`/`PositionManager` unchanged.
+- Behavior:
+  - With `aiomql` present, the executor establishes a logical async path for future direct MT5 interactions.
+  - Without `aiomql` or native `MetaTrader5`, the system continues to function in mock mode for development/testing.
+- Runtime wiring: `src/main.py` instantiates `AioMQLExecutor(config.trading)`; no other changes are required.
+
+## Enabling/Disabling aiomql
+
+- Enable: install `aiomql` in the environment alongside its `MetaTrader5` dependency and ensure MT5 terminal access is configured. The executor will detect it automatically.
+- Disable: do nothing (or uninstall `aiomql`). The application will continue using the standard `MT5Executor` logic with mock fallback.
+
+## Bridge Interactions
+
+- Socket.IO and HTTP fallbacks remain unchanged (`src/bridge/socketio_bridge.py`, `src/bridge/order_bridge.py`). The executor layer is independent from bridge transport and can be evolved without touching API routes/managers.
