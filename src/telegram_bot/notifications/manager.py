@@ -191,3 +191,107 @@ class NotificationManager:
         await self.send_notification(
             message, notification_type="system", parse_mode="Markdown"
         )
+        
+    async def send_signal_notification(self, signal_data: Dict[str, Any]):
+        """Send signal notification."""
+        try:
+            symbol = signal_data.get("symbol", "Unknown")
+            bias = signal_data.get("bias", "Unknown")
+            confidence = signal_data.get("confidence", 0)
+            
+            message = (
+                f"📊 *Trading Signal*\n\n"
+                f"Symbol: `{symbol}`\n"
+                f"Bias: `{bias}`\n"
+                f"Confidence: `{confidence}%`\n"
+                f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+            )
+            
+            await self.send_notification(
+                message, notification_type="signal", parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error sending signal notification: {e}")
+            
+    async def send_position_notification(self, position_data: Dict[str, Any], action: str):
+        """Send position notification."""
+        try:
+            symbol = position_data.get("symbol", "Unknown")
+            position_type = position_data.get("type", "Unknown")
+            volume = position_data.get("volume", 0)
+            profit = position_data.get("profit", 0)
+            
+            action_emoji = {
+                "opened": "🟢",
+                "closed": "🔴", 
+                "modified": "🔄",
+                "snapshot": "📊"
+            }.get(action, "📍")
+            
+            message = (
+                f"{action_emoji} *Position {action.title()}*\n\n"
+                f"Symbol: `{symbol}`\n"
+                f"Type: `{position_type}`\n"
+                f"Volume: `{volume}`\n"
+                f"Profit: `${profit:.2f}`\n"
+                f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+            )
+            
+            await self.send_notification(
+                message, notification_type="position", parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error sending position notification: {e}")
+            
+    async def send_order_notification(self, order_data: Dict[str, Any]):
+        """Send order notification."""
+        try:
+            symbol = order_data.get("symbol", "Unknown")
+            order_type = order_data.get("order_type", "Unknown")
+            volume = order_data.get("volume", 0)
+            status = order_data.get("status", "Unknown")
+            
+            status_emoji = {
+                "EXECUTED": "✅",
+                "FAILED": "❌",
+                "PENDING": "⏳"
+            }.get(status, "📋")
+            
+            message = (
+                f"{status_emoji} *Order {status}*\n\n"
+                f"Symbol: `{symbol}`\n"
+                f"Type: `{order_type}`\n"
+                f"Volume: `{volume}`\n"
+                f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+            )
+            
+            await self.send_notification(
+                message, notification_type="order", parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error sending order notification: {e}")
+            
+    async def send_risk_alert(self, alert_type: str, message: str, data: Dict[str, Any] = None):
+        """Send risk alert notification."""
+        try:
+            alert_emoji = {
+                "drawdown": "🚨",
+                "margin": "⚠️",
+                "exposure": "📊",
+                "loss": "🔻"
+            }.get(alert_type, "🚨")
+            
+            notification_message = (
+                f"{alert_emoji} *Risk Alert: {alert_type.title()}*\n\n"
+                f"{message}\n\n"
+                f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+            )
+            
+            if data:
+                notification_message += f"\nDetails: `{data}`"
+            
+            await self.send_notification(
+                notification_message, notification_type="risk", parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error sending risk alert: {e}")

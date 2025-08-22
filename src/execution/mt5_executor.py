@@ -341,7 +341,6 @@ class MT5Executor:
     async def connect(self) -> bool:
         """Connect to MT5 terminal using simplified approach."""
         try:
-            import time
             
             # First, try to initialize MT5 without specifying path (let MT5 find the default installation)
             logger.info("Initializing MT5 connection...")
@@ -382,7 +381,7 @@ class MT5Executor:
                 return True
             
             # Wait briefly for terminal readiness
-            time.sleep(2)
+            await asyncio.sleep(2)
             
             # Attempt login with configured credentials
             logger.info(f"Attempting to login with account: {self.config.login}")
@@ -405,7 +404,7 @@ class MT5Executor:
                         error_code = mt5.last_error()
                         if attempt < max_attempts - 1:
                             logger.warning(f"MT5 login attempt {attempt + 1} failed (error: {error_code}), retrying in {retry_delay} seconds...")
-                            time.sleep(retry_delay)
+                            await asyncio.sleep(retry_delay)
                         else:
                             logger.error(f"MT5 login failed after {max_attempts} attempts (error: {error_code})")
                             mt5.shutdown()
@@ -416,7 +415,7 @@ class MT5Executor:
                     if attempt == max_attempts - 1:
                         mt5.shutdown()
                         return False
-                    time.sleep(retry_delay)
+                    await asyncio.sleep(retry_delay)
 
             # Connection successful
             self.connected = True

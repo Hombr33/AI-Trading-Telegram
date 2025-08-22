@@ -87,16 +87,57 @@ class SocketIOBridge:
     async def connect(self) -> bool:
         """Connect to the EA via Socket.IO."""
         try:
-            # Connect to EA on a different port (e.g., 8001 for EA)
-            await self.sio.connect(
-                "http://127.0.0.1:8001",  # EA should run on different port
-                auth={"token": self.config.bridge_token},
-            )
+            # EA connects to Python app, not the other way around
+            # This method just marks bridge as ready to receive connections
+            logger.info("Socket.IO bridge ready for EA connections")
+            self.connected = True
             return True
         except Exception as e:
-            logger.warning(f"Socket.IO connection failed: {e}, enabling fallback mode")
+            logger.warning(f"Socket.IO bridge setup failed: {e}, enabling fallback mode")
             self.fallback_enabled = True
             return False
+            
+    async def handle_client_connect(self, sid: str, environ: dict, auth: dict):
+        """Handle EA client connection."""
+        try:
+            # Validate bridge token
+            token = auth.get('token') if auth else None
+            if token != self.config.bridge_token:
+                logger.error(f"Invalid bridge token from client {sid}")
+                await self.sio.disconnect(sid)
+                return
+                
+            logger.info(f"EA client {sid} connected successfully")
+            self.connected = True
+            
+        except Exception as e:
+            logger.error(f"Error handling client connect: {e}")
+            
+    async def handle_client_disconnect(self, sid: str):
+        """Handle EA client disconnection."""
+        logger.info(f"EA client {sid} disconnected")
+        self.connected = False
+        self.fallback_enabled = True
+        
+    async def handle_order_event(self, sid: str, data: dict):
+        """Handle order events from EA."""
+        logger.info(f"Order event from EA {sid}: {data}")
+        await self._handle_callback("order", data)
+        
+    async def handle_signal_event(self, sid: str, data: dict):
+        """Handle signal events from EA."""
+        logger.info(f"Signal event from EA {sid}: {data}")
+        await self._handle_callback("signal", data)
+        
+    async def handle_position_update(self, sid: str, data: dict):
+        """Handle position update from EA."""
+        logger.info(f"Position update from EA {sid}: {data}")
+        await self._handle_callback("position_update", data)
+        
+    async def handle_risk_alert(self, sid: str, data: dict):
+        """Handle risk alert from EA."""
+        logger.info(f"Risk alert from EA {sid}: {data}")
+        await self._handle_callback("risk_alert", data)
 
     async def disconnect(self):
         """Disconnect from the EA."""

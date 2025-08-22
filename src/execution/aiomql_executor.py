@@ -38,7 +38,7 @@ class AioMQLExecutor(MT5Executor):
         """Connect using aiomql if available; otherwise defer to parent."""
         if _AIOMQL_AVAILABLE and self.config.is_configured:
             try:
-                # Initialize aiomql Account
+                # Initialize aiomql Account with timeout
                 logger.info("Attempting aiomql connection...")
                 
                 # Create account instance
@@ -48,37 +48,67 @@ class AioMQLExecutor(MT5Executor):
                     server=self.config.server
                 )
                 
-                # Initialize terminal connection
+                # Initialize terminal connection with timeout
                 terminal = Terminal()
                 
-                # Attempt to initialize and login
-                if await terminal.initialize():
-                    logger.info("aiomql terminal initialized successfully")
+                # Use asyncio.wait_for for timeout control
+                try:
+                    # Attempt to initialize with timeout
+                    terminal_init = await asyncio.wait_for(
+                        terminal.initialize(), timeout=30.0
+                    )
                     
-                    if await account.login():
-                        logger.info("aiomql login successful")
-                        self._ai_client = account
-                        self._ai_session = terminal
-                        self.connected = True
+                    if terminal_init:
+                        logger.info("aiomql terminal initialized successfully")
                         
-                        # Get account info
-                        try:
-                            self.account_info = await self.get_account_info()
-                            logger.info(f"Connected to aiomql account: {self.account_info.get('login', 'unknown')}")
-                        except Exception as e:
-                            logger.warning(f"Failed to get aiomql account info: {e}")
+                        # Attempt login with timeout
+                        login_success = await asyncio.wait_for(
+                            account.login(), timeout=30.0
+                        )
                         
-                        return True
+                        if login_success:
+                            logger.info("aiomql login successful")
+                            self._ai_client = account
+                            self._ai_session = terminal
+                            self.connected = True
+                            
+                            # Get account info with error handling
+                            try:
+                                self.account_info = await self.get_account_info()
+                                if self.account_info:
+                                    logger.info(f"Connected to aiomql account: {self.account_info.get('login', 'unknown')}")
+                            except Exception as e:
+                                logger.warning(f"Failed to get aiomql account info: {e}")
+                            
+                            return True
+                        else:
+                            logger.warning("aiomql login failed, cleaning up and falling back")
+                            await self._cleanup_aiomql_partial()
                     else:
-                        logger.warning(f"aiomql login failed, falling back to MT5Executor")
-                else:
-                    logger.warning(f"aiomql terminal initialization failed, falling back to MT5Executor")
+                        logger.warning("aiomql terminal initialization failed, falling back")
+                        
+                except asyncio.TimeoutError:
+                    logger.warning("aiomql connection timeout, falling back to MT5Executor")
+                    await self._cleanup_aiomql_partial()
                     
             except Exception as e:
                 logger.warning(f"aiomql connect failed ({e}); falling back to MT5Executor")
+                await self._cleanup_aiomql_partial()
         
         # Fallback to standard MT5Executor logic
         return await super().connect()
+        
+    async def _cleanup_aiomql_partial(self):
+        """Clean up partial aiomql initialization."""
+        try:
+            if self._ai_session and hasattr(self._ai_session, 'shutdown'):
+                await asyncio.wait_for(self._ai_session.shutdown(), timeout=5.0)
+        except Exception as e:
+            logger.warning(f"Error during aiomql partial cleanup: {e}")
+        finally:
+            self._ai_client = None
+            self._ai_session = None
+            self.connected = False
 
     async def disconnect(self):
         """Disconnect from aiomql or fallback executor."""
@@ -106,41 +136,76 @@ class AioMQLExecutor(MT5Executor):
         """Place order via aiomql if available; otherwise fallback to MT5Executor."""
         if _AIOMQL_AVAILABLE and self.connected and self._ai_session:
             try:
-                # Map order parameters to aiomql format
-                order_type = self._map_order_type(order.get('type', 'MARKET'))
-                symbol = order.get('symbol', '')
-                volume = order.get('volume', 0.01)
-                price = order.get('price', 0.0)
-                sl = order.get('sl', 0.0)
-                tp = order.get('tp', 0.0)
-                comment = order.get('comment', 'AioMQL Order')
+                # Validate order data
+                if not isinstance(order, dict):
+                    logger.error("Order must be a dictionary")
+                    return await super().place_order(order)
                 
-                # Execute order through aiomql
-                result = await self._ai_session.trade_action(
-                    action="DEAL",
-                    symbol=symbol,
-                    type=order_type,
-                    volume=volume,
-                    price=price,
-                    sl=sl,
-                    tp=tp,
-                    comment=comment
-                )
+                # Validate required fields
+                symbol = order.get('symbol', '').strip()
+                if not symbol:
+                    logger.error("Order missing symbol")
+                    return await super().place_order(order)
                 
-                if result and hasattr(result, 'order'):
-                    logger.info(f"Order placed successfully via aiomql: {result.order}")
-                    return {
-                        'order_id': result.order,
-                        'symbol': symbol,
-                        'volume': volume,
-                        'price': price,
-                        'sl': sl,
-                        'tp': tp,
-                        'comment': comment,
-                        'status': 'success'
-                    }
-                else:
-                    logger.warning(f"aiomql order placement returned invalid result: {result}")
+                # Map and validate order parameters
+                order_type_raw = order.get('type', 'BUY')
+                order_type = self._map_order_type(order_type_raw)
+                
+                # Validate numeric fields
+                try:
+                    volume = float(order.get('volume', 0.01))
+                    price = float(order.get('price', 0.0))
+                    sl = float(order.get('sl', 0.0)) if order.get('sl') else 0.0
+                    tp = float(order.get('tp', 0.0)) if order.get('tp') else 0.0
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Invalid numeric values in order: {e}")
+                    return await super().place_order(order)
+                
+                if volume <= 0:
+                    logger.error(f"Invalid volume: {volume}")
+                    return await super().place_order(order)
+                
+                comment = str(order.get('comment', 'AioMQL Order'))[:31]  # MT5 comment limit
+                
+                # Execute order through aiomql with timeout
+                try:
+                    result = await asyncio.wait_for(
+                        self._ai_session.trade_action(
+                            action="DEAL",
+                            symbol=symbol,
+                            type=order_type,
+                            volume=volume,
+                            price=price,
+                            sl=sl if sl > 0 else None,
+                            tp=tp if tp > 0 else None,
+                            comment=comment
+                        ),
+                        timeout=30.0
+                    )
+                    
+                    if result and hasattr(result, 'retcode'):
+                        if result.retcode == 10009:  # TRADE_RETCODE_DONE
+                            order_id = getattr(result, 'order', 0)
+                            logger.info(f"Order placed successfully via aiomql: {order_id}")
+                            return {
+                                'order_id': order_id,
+                                'symbol': symbol,
+                                'volume': volume,
+                                'price': price,
+                                'sl': sl,
+                                'tp': tp,
+                                'comment': comment,
+                                'status': 'success',
+                                'retcode': result.retcode
+                            }
+                        else:
+                            logger.warning(f"aiomql order failed with retcode: {result.retcode}")
+                    else:
+                        logger.warning(f"aiomql order placement returned invalid result: {result}")
+                        
+                except asyncio.TimeoutError:
+                    logger.warning("aiomql place_order timeout, using fallback")
+                    
             except Exception as e:
                 logger.warning(f"aiomql place_order failed ({e}); using fallback")
         
@@ -224,32 +289,54 @@ class AioMQLExecutor(MT5Executor):
         """Get positions via aiomql if available; otherwise fallback to MT5Executor."""
         if _AIOMQL_AVAILABLE and self.connected and self._ai_session:
             try:
-                # Get positions through aiomql
-                positions = await self._ai_session.get_positions()
+                # Get positions through aiomql with timeout
+                positions = await asyncio.wait_for(
+                    self._ai_session.get_positions(), timeout=15.0
+                )
                 
                 if positions is not None:
-                    # Transform to standard format
+                    # Transform to standard format with validation
                     result = []
                     for pos in positions:
-                        result.append({
-                            'position_id': getattr(pos, 'ticket', 0),
-                            'symbol': getattr(pos, 'symbol', ''),
-                            'type': "BUY" if getattr(pos, 'type', 0) == 0 else "SELL",
-                            'volume': getattr(pos, 'volume', 0.0),
-                            'open_price': getattr(pos, 'price_open', 0.0),
-                            'current_price': getattr(pos, 'price_current', 0.0),
-                            'sl': getattr(pos, 'sl', 0.0),
-                            'tp': getattr(pos, 'tp', 0.0),
-                            'profit': getattr(pos, 'profit', 0.0),
-                            'swap': getattr(pos, 'swap', 0.0),
-                            'time': getattr(pos, 'time', 0),
-                            'comment': getattr(pos, 'comment', '')
-                        })
+                        try:
+                            # Validate and extract position data
+                            ticket = getattr(pos, 'ticket', None)
+                            symbol = getattr(pos, 'symbol', None)
+                            pos_type = getattr(pos, 'type', None)
+                            
+                            # Skip positions with missing critical data
+                            if ticket is None or symbol is None or pos_type is None:
+                                logger.warning(f"Skipping position with missing data: {pos}")
+                                continue
+                            
+                            position_dict = {
+                                'position_id': int(ticket) if isinstance(ticket, (int, str)) else 0,
+                                'symbol': str(symbol).strip(),
+                                'type': "BUY" if pos_type == 0 else "SELL",
+                                'volume': float(getattr(pos, 'volume', 0.0)),
+                                'open_price': float(getattr(pos, 'price_open', 0.0)),
+                                'current_price': float(getattr(pos, 'price_current', 0.0)),
+                                'sl': float(getattr(pos, 'sl', 0.0)),
+                                'tp': float(getattr(pos, 'tp', 0.0)),
+                                'profit': float(getattr(pos, 'profit', 0.0)),
+                                'swap': float(getattr(pos, 'swap', 0.0)),
+                                'time': int(getattr(pos, 'time', 0)),
+                                'comment': str(getattr(pos, 'comment', '')).strip()
+                            }
+                            
+                            result.append(position_dict)
+                            
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Error processing position {getattr(pos, 'ticket', 'unknown')}: {e}")
+                            continue
                     
                     logger.info(f"Retrieved {len(result)} positions via aiomql")
                     return result
                 else:
                     logger.warning("aiomql get_positions returned None")
+                    
+            except asyncio.TimeoutError:
+                logger.warning("aiomql get_positions timeout, using fallback")
             except Exception as e:
                 logger.warning(f"aiomql get_positions failed ({e}); using fallback")
         
@@ -329,6 +416,8 @@ class AioMQLExecutor(MT5Executor):
     # Helper methods for aiomql integration
     def _map_order_type(self, order_type: str) -> str:
         """Map order type from our format to aiomql format."""
+        order_type = str(order_type).upper().strip()
+        
         type_map = {
             'BUY': 'BUY',
             'SELL': 'SELL',
@@ -336,9 +425,20 @@ class AioMQLExecutor(MT5Executor):
             'SELL_LIMIT': 'SELL_LIMIT',
             'BUY_STOP': 'BUY_STOP',
             'SELL_STOP': 'SELL_STOP',
-            'MARKET': 'BUY'  # Default to BUY for MARKET orders
+            'BUYLIMIT': 'BUY_LIMIT',
+            'SELLLIMIT': 'SELL_LIMIT',
+            'BUYSTOP': 'BUY_STOP',
+            'SELLSTOP': 'SELL_STOP',
+            'MARKET': 'BUY',  # Default to BUY for MARKET orders
+            'LONG': 'BUY',
+            'SHORT': 'SELL'
         }
-        return type_map.get(order_type, 'BUY')
+        
+        mapped_type = type_map.get(order_type)
+        if not mapped_type:
+            logger.warning(f"Unknown order type '{order_type}', defaulting to BUY")
+            return 'BUY'
+        return mapped_type
         
     def _map_order_type_reverse(self, order_type_int: int) -> str:
         """Map order type from aiomql integer format to our string format."""

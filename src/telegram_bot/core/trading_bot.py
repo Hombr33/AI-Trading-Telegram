@@ -52,17 +52,18 @@ class TradingBot(BaseTelegramBot):
         # Register command handlers
         command_handlers = setup_command_handlers(self.notification_manager)
         for command, handler in command_handlers.items():
-            self.register_handler(TGCommandHandler, command, handler)
+            self.application.add_handler(TGCommandHandler(command, handler))
             self.command_handlers[command] = handler
         
         # Register callback query handler
         callback_handler = setup_callback_handler(self.notification_manager)
-        self.register_handler(CallbackQueryHandler, callback_handler)
+        self.application.add_handler(CallbackQueryHandler(callback_handler))
         
         # Register message handler
         message_handler = setup_message_handler(self.notification_manager)
-        self.register_handler(
-            MessageHandler, filters.TEXT & ~filters.COMMAND, message_handler
+        from telegram.ext import MessageHandler
+        self.application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler)
         )
         
         # Register error handler

@@ -23,7 +23,7 @@ telegram_bot = None
 def set_global_instances(ord_mgr, tg_bot):
     """Set global instances from main.py."""
     global order_manager, telegram_bot
-    order_manager = order_manager
+    order_manager = ord_mgr
     telegram_bot = tg_bot
 
 
@@ -191,4 +191,117 @@ async def bridge_risk_alert(alert_data: Dict[str, Any]):
 
     except Exception as e:
         logger.error(f"Error processing bridge risk alert: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/heartbeat")
+async def bridge_heartbeat(heartbeat_data: HeartbeatRequest):
+    """Handle heartbeat from EA."""
+    try:
+        logger.info(f"Heartbeat received from {heartbeat_data.platform} terminal {heartbeat_data.terminal_id}")
+        
+        return HeartbeatResponse(
+            ok=True,
+            server_time=datetime.now().isoformat()
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing heartbeat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tick_data")
+async def bridge_tick_data(tick_data: TickRequest):
+    """Handle tick data from EA."""
+    try:
+        logger.debug(f"Tick data received for {tick_data.symbol}: {tick_data.bid}/{tick_data.ask}")
+        
+        # Store tick data or process as needed
+        # For now, just acknowledge receipt
+        
+        return TickResponse(ok=True)
+
+    except Exception as e:
+        logger.error(f"Error processing tick data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/position_snapshot")
+async def bridge_position_snapshot(snapshot_data: PositionSnapshotRequest):
+    """Handle position snapshot from EA."""
+    try:
+        logger.info(f"Position snapshot received with {len(snapshot_data.positions)} positions")
+        
+        # Process position data - could update local database or send notifications
+        if telegram_bot and telegram_bot.notification_manager:
+            for position in snapshot_data.positions:
+                await telegram_bot.notification_manager.send_position_notification(
+                    position.dict(), "snapshot"
+                )
+        
+        return {"success": True, "positions_received": len(snapshot_data.positions)}
+
+    except Exception as e:
+        logger.error(f"Error processing position snapshot: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/order_confirmation")
+async def bridge_order_confirmation(confirmation_data: Dict[str, Any]):
+    """Handle order confirmation from EA."""
+    try:
+        logger.info(f"Order confirmation received: {confirmation_data}")
+        
+        # Send notification via Telegram
+        if telegram_bot and telegram_bot.notification_manager:
+            await telegram_bot.notification_manager.send_order_notification(
+                confirmation_data
+            )
+        
+        return {"success": True}
+
+    except Exception as e:
+        logger.error(f"Error processing order confirmation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signal_ack")
+async def bridge_signal_ack(ack_data: Dict[str, Any]):
+    """Handle signal acknowledgment from EA."""
+    try:
+        logger.info(f"Signal acknowledgment received: {ack_data}")
+        
+        return {"success": True}
+
+    except Exception as e:
+        logger.error(f"Error processing signal acknowledgment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/pending_orders")
+async def bridge_pending_orders():
+    """Get pending orders for EA to execute."""
+    try:
+        # This would typically return orders queued for execution
+        # For now, return empty list
+        return {"orders": []}
+
+    except Exception as e:
+        logger.error(f"Error getting pending orders: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/screenshot_analysis")
+async def bridge_screenshot_analysis(analysis_data: Dict[str, Any]):
+    """Handle screenshot analysis request from EA."""
+    try:
+        logger.info(f"Screenshot analysis received for {analysis_data.get('symbol', 'unknown')}")
+        
+        # Process screenshot analysis - would typically use AI analyzer
+        # For now, just acknowledge receipt
+        
+        return {"success": True, "analysis": "received"}
+
+    except Exception as e:
+        logger.error(f"Error processing screenshot analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
