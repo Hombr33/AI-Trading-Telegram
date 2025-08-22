@@ -245,7 +245,17 @@ async def test_aiomql_executor_connect_and_place_order():
 			"take_profit": 1.2100,
 			"comment": "TEST",
 		},
-	)()
+	instrument_mock = Mock()
+	instrument_mock.symbol = "EURUSD"
+	order = Mock()
+	order.order_id = "test123"
+	order.instrument = instrument_mock
+	order.order_type = "BUY"
+	order.volume = 0.01
+	order.price = None
+	order.stop_loss = 1.1900
+	order.take_profit = 1.2100
+	order.comment = "TEST"
 
 	result = await executor.place_order(order)
 	assert isinstance(result, dict)
