@@ -6,15 +6,27 @@ import asyncio
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler as TGCommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
+try:
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application,
+        CommandHandler as TGCommandHandler,
+        CallbackQueryHandler,
+        MessageHandler,
+        filters,
+        ContextTypes,
+    )
+except ImportError:
+    # Try alternative imports for different python-telegram-bot versions
+    from telegram.bot import Update
+    from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
+    from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
+    from telegram.ext.application import Application
+    from telegram.ext.commandhandler import CommandHandler as TGCommandHandler
+    from telegram.ext.callbackqueryhandler import CallbackQueryHandler
+    from telegram.ext.messagehandler import MessageHandler
+    from telegram.ext.filters import filters
+    from telegram.ext.contexttypes import ContextTypes
 
 from src.core.logging import get_logger
 from src.core.config import TelegramConfig
@@ -36,6 +48,12 @@ class TelegramBot:
 
         # Initialize bot
         self._setup_bot()
+        
+        # Initialize command handler
+        self.command_handler = CommandHandler(self)
+        
+        # Setup callback query handler
+        self.application.add_handler(CallbackQueryHandler(self._handle_callback))
 
     def _setup_bot(self):
         """Setup the Telegram bot."""
@@ -125,6 +143,29 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Failed to start Telegram bot: {e}")
             raise
+
+    async def _handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle callback queries from inline buttons."""
+        query = update.callback_query
+        try:
+            # Show the user we're processing their action
+            await query.answer("Processing...")
+            
+            if query.data == "refresh_status":
+                await self.command_handler.status_command(update, context)
+            elif query.data == "settings":
+                await self.command_handler.settings_command(update, context)
+            elif query.data == "positions":
+                await self.command_handler.positions_command(update, context)
+            elif query.data == "risk":
+                await self.command_handler.risk_command(update, context)
+            else:
+                logger.warning(f"Unknown callback data: {query.data}")
+                await query.edit_message_text("Sorry, this action is not available.")
+                
+        except Exception as e:
+            logger.error(f"Error handling callback query: {e}")
+            await query.edit_message_text("Sorry, an error occurred while processing your request.")
 
     async def stop(self):
         """Stop the Telegram bot."""
