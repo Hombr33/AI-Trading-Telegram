@@ -208,6 +208,137 @@ def get_positions() -> List[Dict[str, Any]]:
     return get_mock_positions()
 
 
+def get_orders() -> List[Dict[str, Any]]:
+    """Get orders data.
+    
+    Returns:
+        List[Dict]: Orders data.
+    """
+    return get_mock_orders()
+
+
+def get_account_info() -> Dict[str, Any]:
+    """Get account information data.
+    
+    Returns:
+        Dict: Account information data.
+    """
+    return get_mock_account_info()
+
+
+def get_risk_metrics() -> Dict[str, Any]:
+    """Get risk metrics data.
+    
+    Returns:
+        Dict: Risk metrics data.
+    """
+    return get_mock_risk_metrics()
+
+
+def get_performance() -> Dict[str, Any]:
+    """Get performance data.
+    
+    Returns:
+        Dict: Performance data.
+    """
+    return get_mock_performance()
+
+
+def get_recent_signals() -> List[Dict[str, Any]]:
+    """Get recent signals data.
+    
+    Returns:
+        List[Dict]: Recent signals data.
+    """
+    return get_mock_signals()
+
+
+def get_trading_journal() -> List[Dict[str, Any]]:
+    """Get trading journal data.
+    
+    Returns:
+        List[Dict]: Trading journal data.
+    """
+    return [
+        {
+            "symbol": "EURUSD",
+            "type": "BUY",
+            "volume": 0.1,
+            "price_open": 1.08743,
+            "price_close": 1.08921,
+            "profit": 17.8,
+            "profit_pct": 0.16,
+            "duration": "3h 15m",
+            "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "symbol": "GBPUSD",
+            "type": "SELL",
+            "volume": 0.15,
+            "price_open": 1.27432,
+            "price_close": 1.27321,
+            "profit": 16.65,
+            "profit_pct": 0.09,
+            "duration": "2h 30m",
+            "timestamp": (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+        },
+        {
+            "symbol": "USDJPY",
+            "type": "BUY",
+            "volume": 0.2,
+            "price_open": 149.213,
+            "price_close": 148.932,
+            "profit": -37.4,
+            "profit_pct": -0.19,
+            "duration": "4h 45m",
+            "timestamp": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
+        }
+    ]
+
+
+def get_market_analysis() -> Dict[str, Any]:
+    """Get market analysis data.
+    
+    Returns:
+        Dict: Market analysis data.
+    """
+    return {
+        "market_sentiment": "Bullish",
+        "volatility_index": 15.7,
+        "trend_strength": 0.75,
+        "key_assets": [
+            {
+                "symbol": "EURUSD",
+                "price": 1.0892,
+                "change": 0.15,
+                "trend": "bullish",
+                "support": 1.0850,
+                "resistance": 1.0920
+            },
+            {
+                "symbol": "GBPUSD",
+                "price": 1.2735,
+                "change": -0.08,
+                "trend": "bearish",
+                "support": 1.2700,
+                "resistance": 1.2780
+            },
+            {
+                "symbol": "USDJPY",
+                "price": 148.95,
+                "change": -0.12,
+                "trend": "bearish",
+                "support": 148.50,
+                "resistance": 149.30
+            }
+        ],
+        "market_events": [
+            "Fed rate decision expected tomorrow",
+            "ECB policy statement released yesterday"
+        ]
+    }
+
+
 def get_all_mock_data() -> Dict[str, Any]:
     """Get all mock data.
     
@@ -223,4 +354,6 @@ def get_all_mock_data() -> Dict[str, Any]:
         "performance": get_mock_performance(),
         "account_info": get_mock_account_info(),
         "system_info": get_mock_system_info(),
+        "trading_journal": get_trading_journal(),
+        "market_analysis": get_market_analysis(),
     }
