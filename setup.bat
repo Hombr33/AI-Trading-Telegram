@@ -1,35 +1,41 @@
+
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul
 
 :: Set console title
 title Telegram AI Trade - Setup & Installation
 
-:: Set color codes
-set "GREEN=[92m"
-set "YELLOW=[93m"
-set "RED=[91m"
-set "BLUE=[94m"
-set "CYAN=[96m"
-set "WHITE=[97m"
-set "RESET=[0m"
+:: Remove color codes for better compatibility
+set "GREEN="
+set "YELLOW="
+set "RED="
+set "BLUE="
+set "CYAN="
+set "WHITE="
+set "RESET="
 
 :: Clear screen
 cls
 
-echo %CYAN%╔══════════════════════════════════════════════════════════════╗
-echo ║                    TELEGRAM AI TRADE SETUP                        ║
-echo ║                        Installation Wizard                         ║
-echo ╚══════════════════════════════════════════════════════════════╝%RESET%
+echo ================================================================
+echo                  TELEGRAM AI TRADE SETUP
+echo                      Installation Wizard
+echo ================================================================
 echo.
 
-:: Check if Python is installed
+
+:: Check if Python is installed, if not, run auto-installer
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo %RED%❌ Python is not installed or not in PATH%RESET%
-    echo %YELLOW%Please install Python 3.8+ from https://python.org%RESET%
-    echo.
-    pause
-    exit /b 1
+    echo %YELLOW%Attempting to install Python automatically...%RESET%
+    call scripts\install_python.bat
+    if %errorlevel% neq 0 (
+        echo %RED%❌ Python installation failed. Please install Python 3.8+ from https://python.org%RESET%
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 :: Check Python version
@@ -50,16 +56,17 @@ echo %GREEN%✅ Git detected%RESET%
 echo.
 
 :MAIN_MENU
-echo %WHITE%Choose an option:%RESET%
+
+echo Choose an option:
 echo.
-echo %CYAN%1.%RESET% %YELLOW%Complete Setup (Recommended for first time)%RESET%
-echo %CYAN%2.%RESET% %YELLOW%Install Dependencies Only%RESET%
-echo %CYAN%3.%RESET% %YELLOW%Setup Database%RESET%
-echo %CYAN%4.%RESET% %YELLOW%Configure Environment%RESET%
-echo %CYAN%5.%RESET% %YELLOW%Test Installation%RESET%
-echo %CYAN%6.%RESET% %YELLOW%Run Application%RESET%
-echo %CYAN%7.%RESET% %YELLOW%Clean & Reset%RESET%
-echo %CYAN%8.%RESET% %YELLOW%Exit%RESET%
+echo 1. Complete Setup (Recommended for first time)
+echo 2. Install Dependencies Only
+echo 3. Setup Database
+echo 4. Configure Environment
+echo 5. Test Installation
+echo 6. Run Application
+echo 7. Clean & Reset
+echo 8. Exit
 echo.
 
 set /p choice="Enter your choice (1-8): "
@@ -76,15 +83,16 @@ goto INVALID_CHOICE
 
 :COMPLETE_SETUP
 echo.
-echo %CYAN%🚀 Starting Complete Setup...%RESET%
+
+echo Starting Complete Setup...
 echo.
 call scripts\complete_setup.bat
 if %errorlevel% equ 0 (
     echo.
-    echo %GREEN%✅ Complete setup finished successfully!%RESET%
+    echo Complete setup finished successfully!
 ) else (
     echo.
-    echo %RED%❌ Setup failed. Check the logs above.%RESET%
+    echo Setup failed. Check the logs above.
 )
 echo.
 pause
@@ -92,15 +100,16 @@ goto MAIN_MENU
 
 :INSTALL_DEPS
 echo.
-echo %CYAN%📦 Installing Dependencies...%RESET%
+
+echo Installing Dependencies...
 echo.
 call scripts\install_dependencies.bat
 if %errorlevel% equ 0 (
     echo.
-    echo %GREEN%✅ Dependencies installed successfully!%RESET%
+    echo Dependencies installed successfully!
 ) else (
     echo.
-    echo %RED%❌ Dependency installation failed.%RESET%
+    echo Dependency installation failed.
 )
 echo.
 pause
@@ -108,15 +117,16 @@ goto MAIN_MENU
 
 :SETUP_DB
 echo.
-echo %CYAN%🗄️  Setting up Database...%RESET%
+
+echo Setting up Database...
 echo.
 call scripts\setup_database.bat
 if %errorlevel% equ 0 (
     echo.
-    echo %GREEN%✅ Database setup completed!%RESET%
+    echo Database setup completed!
 ) else (
     echo.
-    echo %RED%❌ Database setup failed.%RESET%
+    echo Database setup failed.
 )
 echo.
 pause

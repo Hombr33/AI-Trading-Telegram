@@ -1,7 +1,6 @@
 import base64
 import json
 import logging
-import os
 from typing import Any
 
 import openai
@@ -9,6 +8,7 @@ from pydantic import ValidationError
 
 from src.common.interfaces import IAnalyzer
 from src.api.models import SignalResponse
+from src.core.config import AppConfig
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -19,11 +19,11 @@ class OpenAIAnalyzer(IAnalyzer):
     An analyzer that uses OpenAI's GPT models to analyze market screenshots.
     """
 
-    def __init__(self):
-        # It's better to check for the key during initialization.
-        self.api_key = os.getenv("OPENAI_API_KEY")
+    def __init__(self, config: AppConfig):
+        """Initialize the OpenAI analyzer with configuration."""
+        self.api_key = config.openai.api_key
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set.")
+            raise ValueError("OpenAI API key not configured.")
         self.client = openai.AsyncOpenAI(api_key=self.api_key)
         self.system_prompt = self._load_system_prompt()
 

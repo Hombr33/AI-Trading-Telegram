@@ -1,38 +1,30 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Set color codes
-set "GREEN=[92m"
-set "YELLOW=[93m"
-set "RED=[91m"
-set "BLUE=[94m"
-set "CYAN=[96m"
-set "WHITE=[97m"
-set "RESET=[0m"
-
-echo %CYAN%🚀 Starting Complete Setup for Telegram AI Trade%RESET%
-echo %YELLOW%This will install everything needed to run the application%RESET%
+:: No color codes for compatibility
+echo Starting Complete Setup for Telegram AI Trade
+echo This will install everything needed to run the application
 echo.
 
 :: Step 1: Check system requirements
-echo %CYAN%📋 Step 1: Checking System Requirements%RESET%
+echo Step 1: Checking System Requirements
 echo.
 
 :: Check Windows version
 ver | findstr /i "10\.0\|11\.0" >nul
 if %errorlevel% equ 0 (
-    echo %GREEN%✅ Windows 10/11 detected%RESET%
+    echo Windows 10/11 detected
 ) else (
-    echo %YELLOW%⚠️  Windows version check skipped (may work on other versions)%RESET%
+    echo Windows version check skipped (may work on other versions)
 )
 
 :: Check available disk space (need at least 2GB)
 for /f "tokens=3" %%a in ('dir C:\ /-c ^| find "bytes free"') do set FREE_SPACE=%%a
 set /a FREE_SPACE_GB=%FREE_SPACE:~0,-1%/1024/1024/1024
 if %FREE_SPACE_GB% gtr 2 (
-    echo %GREEN%✅ Sufficient disk space available (%FREE_SPACE_GB% GB)%RESET%
+    echo Sufficient disk space available (%FREE_SPACE_GB% GB)
 ) else (
-    echo %RED%❌ Insufficient disk space. Need at least 2GB free.%RESET%
+    echo Insufficient disk space. Need at least 2GB free.
     pause
     exit /b 1
 )
@@ -40,75 +32,73 @@ if %FREE_SPACE_GB% gtr 2 (
 :: Check available RAM (need at least 4GB)
 wmic computersystem get TotalPhysicalMemory | findstr /v "TotalPhysicalMemory" >nul
 if %errorlevel% equ 0 (
-    echo %GREEN%✅ RAM check passed%RESET%
+    echo RAM check passed
 ) else (
-    echo %YELLOW%⚠️  RAM check skipped%RESET%
+    echo RAM check skipped
 )
 
 echo.
 
 :: Step 2: Install Python dependencies
-echo %CYAN%📦 Step 2: Installing Python Dependencies%RESET%
+echo Step 2: Installing Python Dependencies
 echo.
 
 :: Check if virtual environment exists
 if exist "venv" (
-    echo %YELLOW%⚠️  Virtual environment already exists. Removing...%RESET%
+    echo Virtual environment already exists. Removing...
     rmdir /s /q "venv" 2>nul
 )
 
 :: Create virtual environment
-echo %CYAN%Creating virtual environment...%RESET%
+echo Creating virtual environment...
 python -m venv venv
 if %errorlevel% neq 0 (
-    echo %RED%❌ Failed to create virtual environment%RESET%
+    echo Failed to create virtual environment
     pause
     exit /b 1
 )
-echo %GREEN%✅ Virtual environment created%RESET%
+echo Virtual environment created
 
 :: Activate virtual environment
-echo %CYAN%Activating virtual environment...%RESET%
+echo Activating virtual environment...
 call venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
-    echo %RED%❌ Failed to activate virtual environment%RESET%
+    echo Failed to activate virtual environment
     pause
     exit /b 1
 )
-echo %GREEN%✅ Virtual environment activated%RESET%
+echo Virtual environment activated
 
 :: Upgrade pip
-echo %CYAN%Upgrading pip...%RESET%
+echo Upgrading pip...
 python -m pip install --upgrade pip
 if %errorlevel% neq 0 (
-    echo %YELLOW%⚠️  Failed to upgrade pip, continuing...%RESET%
+    echo Failed to upgrade pip, continuing...
 )
 
 :: Install requirements
-echo %CYAN%Installing Python packages...%RESET%
+echo Installing Python packages...
 if exist "requirements.txt" (
     pip install -r requirements.txt
     if %errorlevel% neq 0 (
-        echo %RED%❌ Failed to install requirements%RESET%
+    echo Failed to install requirements
         pause
         exit /b 1
     )
-    echo %GREEN%✅ Python packages installed%RESET%
+    echo Python packages installed
 ) else (
-    echo %YELLOW%⚠️  requirements.txt not found, installing basic packages...%RESET%
+    echo requirements.txt not found, installing basic packages...
     pip install fastapi uvicorn sqlalchemy alembic python-telegram-bot openai python-dotenv loguru rich
     if %errorlevel% neq 0 (
-        echo %RED%❌ Failed to install basic packages%RESET%
+    echo Failed to install basic packages
         pause
         exit /b 1
     )
-    echo %GREEN%✅ Basic packages installed%RESET%
+    echo Basic packages installed
 )
 
 echo.
-
-:: Step 3: Setup Database
-echo %CYAN%🗄️  Step 3: Setting up Database%RESET%
+echo Step 3: Setting up Database
 echo.
 
 :: Create runtime directory if it doesn't exist
@@ -117,35 +107,33 @@ if not exist "runtime\data" mkdir runtime\data
 
 :: Check if SQLite database exists
 if exist "runtime\data\trade.sqlite3" (
-    echo %YELLOW%⚠️  Database already exists%RESET%
+    echo Database already exists
 ) else (
-    echo %CYAN%Creating SQLite database...%RESET%
+    echo Creating SQLite database...
     echo. > runtime\data\trade.sqlite3
-    echo %GREEN%✅ Database file created%RESET%
+    echo Database file created
 )
 
 :: Run database migrations
-echo %CYAN%Running database migrations...%RESET%
+echo Running database migrations...
 if exist "alembic.ini" (
     alembic upgrade head
     if %errorlevel% neq 0 (
-        echo %YELLOW%⚠️  Database migrations failed, but continuing...%RESET%
+    echo Database migrations failed, but continuing...
     ) else (
-        echo %GREEN%✅ Database migrations completed%RESET%
+    echo Database migrations completed
     )
 ) else (
-    echo %YELLOW%⚠️  alembic.ini not found, skipping migrations%RESET%
+    echo alembic.ini not found, skipping migrations
 )
 
 echo.
-
-:: Step 4: Configure Environment
-echo %CYAN%⚙️  Step 4: Configuring Environment%RESET%
+echo Step 4: Configuring Environment
 echo.
 
 :: Create .env file if it doesn't exist
 if not exist ".env" (
-    echo %CYAN%Creating .env file...%RESET%
+    echo Creating .env file...
     (
         echo # Telegram AI Trade Environment Configuration
         echo # Copy this file to .env.local and fill in your actual values
@@ -174,51 +162,45 @@ if not exist ".env" (
         echo LOG_LEVEL=INFO
         echo LOG_FILE=runtime/logs/app.log
     ) > .env
-    echo %GREEN%✅ .env file created%RESET%
-    echo %YELLOW%⚠️  Please edit .env file with your actual API keys and settings%RESET%
+    echo .env file created
+    echo Please edit .env file with your actual API keys and settings
 ) else (
-    echo %GREEN%✅ .env file already exists%RESET%
+    echo .env file already exists
 )
 
 :: Create logs directory
 if not exist "runtime\logs" mkdir runtime\logs
-
 echo.
-
-:: Step 5: Install Additional Tools
-echo %CYAN%🔧 Step 5: Installing Additional Tools%RESET%
+echo Step 5: Installing Additional Tools
 echo.
 
 :: Install Node.js if not present (for web interface)
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo %YELLOW%⚠️  Node.js not detected. Installing...%RESET%
-    echo %CYAN%Please download and install Node.js from https://nodejs.org%RESET%
-    echo %YELLOW%After installation, restart this script%RESET%
+    echo Node.js not detected. Please download and install Node.js from https://nodejs.org
+    echo After installation, restart this script
     pause
     exit /b 1
 ) else (
-    echo %GREEN%✅ Node.js detected%RESET%
+    echo Node.js detected
 )
 
 :: Install PM2 for process management
-echo %CYAN%Installing PM2...%RESET%
+echo Installing PM2...
 npm install -g pm2
 if %errorlevel% neq 0 (
-    echo %YELLOW%⚠️  Failed to install PM2, continuing...%RESET%
+    echo Failed to install PM2, continuing...
 ) else (
-    echo %GREEN%✅ PM2 installed%RESET%
+    echo PM2 installed
 )
 
 echo.
-
-:: Step 6: Create Startup Scripts
-echo %CYAN%📜 Step 6: Creating Startup Scripts%RESET%
+echo Step 6: Creating Startup Scripts
 echo.
 
 :: Create run_app.bat
 if not exist "scripts\run_app.bat" (
-    echo %CYAN%Creating run_app.bat...%RESET%
+    echo Creating run_app.bat...
     (
         echo @echo off
         echo title Telegram AI Trade - Running
@@ -228,12 +210,12 @@ if not exist "scripts\run_app.bat" (
         echo python src\main.py
         echo pause
     ) > scripts\run_app.bat
-    echo %GREEN%✅ run_app.bat created%RESET%
+    echo run_app.bat created
 )
 
 :: Create stop_app.bat
 if not exist "scripts\stop_app.bat" (
-    echo %CYAN%Creating stop_app.bat...%RESET%
+    echo Creating stop_app.bat...
     (
         echo @echo off
         echo title Telegram AI Trade - Stopping
@@ -243,36 +225,32 @@ if not exist "scripts\stop_app.bat" (
         echo echo Application stopped.
         echo pause
     ) > scripts\stop_app.bat
-    echo %GREEN%✅ stop_app.bat created%RESET%
+    echo stop_app.bat created
 )
 
 echo.
-
-:: Step 7: Final Configuration
-echo %CYAN%🎯 Step 7: Final Configuration%RESET%
+echo Step 7: Final Configuration
 echo.
 
 :: Set file permissions (Windows doesn't need this but good practice)
-echo %CYAN%Setting file permissions...%RESET%
-echo %GREEN%✅ File permissions configured%RESET%
+echo Setting file permissions...
+echo File permissions configured
 
 :: Create desktop shortcut
-echo %CYAN%Creating desktop shortcut...%RESET%
+echo Creating desktop shortcut...
 if exist "%USERPROFILE%\Desktop" (
     (
         echo @echo off
         echo cd /d "%~dp0"
         echo start "" "%~dp0setup.bat"
     ) > "%USERPROFILE%\Desktop\Telegram AI Trade Setup.bat"
-    echo %GREEN%✅ Desktop shortcut created%RESET%
+    echo Desktop shortcut created
 ) else (
-    echo %YELLOW%⚠️  Desktop folder not found, skipping shortcut creation%RESET%
+    echo Desktop folder not found, skipping shortcut creation
 )
 
 echo.
-
-:: Step 8: Verification
-echo %CYAN%✅ Step 8: Final Verification%RESET%
+echo Step 8: Final Verification
 echo.
 
 :: Check if all critical files exist
@@ -282,34 +260,32 @@ if not exist "requirements.txt" set "MISSING_FILES=!MISSING_FILES! requirements.
 if not exist "venv\Scripts\activate.bat" set "MISSING_FILES=!MISSING_FILES! virtual environment"
 
 if defined MISSING_FILES (
-    echo %RED%❌ Missing critical files: %MISSING_FILES%%RESET%
+    echo Missing critical files: %MISSING_FILES%
     pause
     exit /b 1
 ) else (
-    echo %GREEN%✅ All critical files present%RESET%
+    echo All critical files present
 )
 
 :: Test Python import
-echo %CYAN%Testing Python imports...%RESET%
+echo Testing Python imports...
 python -c "import fastapi, uvicorn, sqlalchemy" 2>nul
 if %errorlevel% equ 0 (
-    echo %GREEN%✅ Python imports successful%RESET%
+    echo Python imports successful
 ) else (
-    echo %YELLOW%⚠️  Some Python imports failed, but continuing...%RESET%
+    echo Some Python imports failed, but continuing...
 )
 
 echo.
-
-:: Success message
-echo %GREEN%🎉 Setup completed successfully!%RESET%
+echo Setup completed successfully!
 echo.
-echo %CYAN%Next steps:%RESET%
-echo %YELLOW%1. Edit .env file with your API keys and settings%RESET%
-echo %YELLOW%2. Configure your MT5/MT4 connection%RESET%
-echo %YELLOW%3. Set up your Telegram bot%RESET%
-echo %YELLOW%4. Run the application using 'Run Application' option%RESET%
+echo Next steps:
+echo 1. Edit .env file with your API keys and settings
+echo 2. Configure your MT5/MT4 connection
+echo 3. Set up your Telegram bot
+echo 4. Run the application using 'Run Application' option
 echo.
-echo %CYAN%For help, check the documentation in the docs/ folder%RESET%
+echo For help, check the documentation in the docs/ folder
 echo.
 
 exit /b 0

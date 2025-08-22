@@ -13,12 +13,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency
 	_AIOMQL_AVAILABLE = False
 	aiomql = None  # type: ignore
-    import aiomql  # type: ignore
-    _AIOMQL_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    _AIOMQL_AVAILABLE = False
-    aiomql = None  # type: ignore
-    logger.warning("aiomql not installed; falling back to MT5Executor mock/standard path")
+	logger.warning("aiomql not installed; falling back to MT5Executor mock/standard path")
 
 
 class AioMQLExecutor(MT5Executor):

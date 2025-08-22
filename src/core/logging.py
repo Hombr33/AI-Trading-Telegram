@@ -2,6 +2,7 @@
 Logging configuration using loguru and rich for better output formatting.
 """
 
+
 import sys
 import os
 from pathlib import Path
@@ -13,6 +14,21 @@ from rich.logging import RichHandler
 from rich.traceback import install as install_rich_traceback
 from rich.panel import Panel
 from rich.text import Text
+
+# Colorama for Windows color support detection
+try:
+    import colorama
+    colorama.init()
+except ImportError:
+    colorama = None
+
+def terminal_supports_color() -> bool:
+    """Check if the terminal supports color output."""
+    # Windows: colorama handles enabling VT100, but check for basic support
+    if sys.platform == "win32":
+        return colorama is not None and sys.stdout.isatty()
+    # Other: check if stdout is a tty
+    return sys.stdout.isatty()
 
 # Install rich traceback handler
 install_rich_traceback()
@@ -247,10 +263,11 @@ def print_status_table(status_data: Dict[str, Any]):
     console.print(table)
 
 
-# Initialize logging with default settings
+# Initialize logging with auto-detected format
+_log_format = "rich" if terminal_supports_color() else "simple"
 setup_logging(
     level=os.getenv("LOG_LEVEL", "INFO"),
-    format_type="rich",
+    format_type=_log_format,
     file_path=os.getenv("LOG_FILE", "logs/ai_trading_bot.log"),
     enable_console=True,
     enable_file=True,

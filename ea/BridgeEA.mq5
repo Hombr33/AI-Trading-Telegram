@@ -13,6 +13,8 @@
 #include <Trade\OrderInfo.mqh>
 #include <Trade\SymbolInfo.mqh>
 
+#define INT_MAX 2147483647
+
 //--- Input Parameters
 input string   BRIDGE_TOKEN = "";                    // Bridge authentication token
 input string   API_ENDPOINT = "http://127.0.0.1:8000"; // API endpoint
@@ -66,7 +68,7 @@ int OnInit()
    
    // Get terminal and account information
    terminalId = TerminalInfoString(TERMINAL_NAME);
-   accountNumber = AccountInfoString(ACCOUNT_LOGIN);
+   accountNumber = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    
    // Initialize screenshot path
    screenshotPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\Screenshots\\";
@@ -165,7 +167,12 @@ void TestConnection()
    string url = API_ENDPOINT + "/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   char post[];
+   StringToCharArray(postData, post);
+   char result_data[];
+   string result_headers;
+   
+   int result = WebRequest("POST", url, headers, 5000, post, result_data, result_headers);
    
    if(result == 200)
    {
@@ -201,8 +208,12 @@ void SendHeartbeat()
    string url = API_ENDPOINT + "/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
-   
+   char post[];
+   StringToCharArray(postData, post);
+   char result_data[];
+   string result_headers;
+   int result = WebRequest("POST", url, headers, 5000, post, result_data, result_headers);
+
    if(result != 200)
    {
       Print("Heartbeat send failed with code: ", result);
@@ -219,7 +230,11 @@ void SendTickData()
    string url = API_ENDPOINT + "/bridge/tick_data";
    string postData = CreateTickData();
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   char post[];
+   StringToCharArray(postData, post);
+   char result_data[];
+   string response_headers;
+   int result = WebRequest("POST", url, headers, 5000, post, result_data, response_headers);
    
    if(result != 200)
    {
@@ -237,7 +252,7 @@ void SendPositionSnapshot()
    string url = API_ENDPOINT + "/bridge/position_snapshot";
    string postData = CreatePositionSnapshotData();
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   int result = MakeWebRequest("POST", url, headers, postData, 5000);
    
    if(result != 200)
    {
@@ -255,15 +270,21 @@ void CheckForIncomingOrders()
    string url = API_ENDPOINT + "/bridge/pending_orders";
    string postData = CreateHeartbeatData(); // Use heartbeat as authentication
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   int result = MakeWebRequest("POST", url, headers, postData, 5000);
    
    if(result == 200)
    {
       // Parse response for pending orders
-      string response = WebRequest("GET", url, headers, "", 5000);
-      if(response != "")
+      char result_data[];
+      string response_headers;
+      char empty[];  // Empty array for GET request
+      if(WebRequest("GET", url, headers, 5000, empty, result_data, response_headers) == 200)
       {
-         ProcessIncomingOrders(response);
+         string response = CharArrayToString(result_data);
+         if(response != "")
+         {
+            ProcessIncomingOrders(response);
+         }
       }
    }
 }
@@ -283,10 +304,16 @@ void ProcessIncomingOrders(string response)
       string symbol = ExtractValue(response, "symbol");
       string action = ExtractValue(response, "action");
       string orderType = ExtractValue(response, "order_type");
-      double volume = StringToDouble(ExtractValue(response, "volume"));
-      double price = StringToDouble(ExtractValue(response, "price"));
-      double sl = StringToDouble(ExtractValue(response, "stop_loss"));
-      double tp = StringToDouble(ExtractValue(response, "take_profit"));
+      string volStr = ExtractValue(response, "volume");
+      string priceStr = ExtractValue(response, "price");
+      string slStr = ExtractValue(response, "stop_loss");
+      string tpStr = ExtractValue(response, "take_profit");
+      
+      // Convert strings to appropriate types
+      double volume = StringToDouble(volStr);
+      double price = StringToDouble(priceStr);
+      double sl = StringToDouble(slStr);
+      double tp = StringToDouble(tpStr);
       
       // Execute the order
       ExecuteOrder(symbol, action, orderType, volume, price, sl, tp);
@@ -466,7 +493,7 @@ void SendOrderConfirmation(string symbol, string action, string orderType,
    string url = API_ENDPOINT + "/bridge/order_confirmation";
    string postData = CreateOrderConfirmationData(symbol, action, orderType, volume, status);
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   int result = MakeWebRequest("POST", url, headers, postData, 5000);
    
    if(result != 200)
    {
@@ -484,7 +511,7 @@ void SendSignalAcknowledgment(string symbol, string bias)
    string url = API_ENDPOINT + "/bridge/signal_ack";
    string postData = CreateSignalAckData(symbol, bias);
    
-   int result = WebRequest("POST", url, headers, postData, 5000);
+   int result = MakeWebRequest("POST", url, headers, postData, 5000);
    
    if(result != 200)
    {
@@ -602,7 +629,10 @@ string CreatePositionSnapshotData()
          json += "\"profit\":" + DoubleToString(positionInfo.Profit(), 2) + ",";
          json += "\"swap\":" + DoubleToString(positionInfo.Swap(), 2) + ",";
          json += "\"commission\":" + DoubleToString(positionInfo.Commission(), 2) + ",";
-         json += "\"time_open\":\"" + TimeToString(positionInfo.Time(), TIME_DATE|TIME_SECONDS) + "\"";
+         long openTimeRaw = positionInfo.Time();
+         datetime openTime;
+         openTime = (datetime)openTimeRaw;
+         json += "\"time_open\":\"" + TimeToString(openTime, TIME_DATE|TIME_SECONDS) + "\"";
          json += "}";
          
          firstPosition = false;
@@ -680,7 +710,7 @@ void SendScreenshotToAPI(string filePath, string filename)
    {
       string postData = CreateScreenshotAnalysisData(base64Data, filename);
       
-      int result = WebRequest("POST", url, headers, postData, 10000);
+      int result = MakeWebRequest("POST", url, headers, postData, 10000);
       
       if(result == 200)
       {
@@ -709,7 +739,7 @@ string CreateScreenshotAnalysisData(string base64Image, string filename)
    json += "\"image_data\":\"" + base64Image + "\",";
    json += "\"filename\":\"" + filename + "\",";
    json += "\"market_context\":{";
-   json += "\"current_price\":" + DoubleToString(SymbolInfoDouble(Symbol(), SYMBOL_BID), Digits) + ",";
+   json += "\"current_price\":" + DoubleToString(SymbolInfoDouble(Symbol(), SYMBOL_BID), (int)SymbolInfoInteger(Symbol(), SYMBOL_DIGITS)) + ",";
    json += "\"spread\":" + DoubleToString(SymbolInfoInteger(Symbol(), SYMBOL_SPREAD), 0) + ",";
    json += "\"volume\":" + DoubleToString(SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_REAL), 2) + ",";
    json += "\"session\":\"" + GetCurrentSession() + "\",";
@@ -746,7 +776,13 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
    }
    
    // Get file size
-   int fileSize = (int)FileSize(fileHandle);
+   ulong fileSizeLong = FileSize(fileHandle);
+   if(fileSizeLong > 2147483647) // Max int value
+   {
+      Print("File too large to process");
+      return false;
+   }
+   int fileSize = (int)fileSizeLong;
    if(fileSize <= 0)
    {
       FileClose(fileHandle);
@@ -758,7 +794,12 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
    uchar fileData[];
    ArrayResize(fileData, fileSize);
    
-   int bytesRead = FileReadArray(fileHandle, fileData, 0, fileSize);
+   uint bytesRead = FileReadArray(fileHandle, fileData, 0, fileSize);
+   if(bytesRead > INT_MAX)
+   {
+      Print("File too large to process");
+      return false;
+   }
    FileClose(fileHandle);
    
    if(bytesRead != fileSize)
@@ -801,6 +842,18 @@ string GetCurrentSession()
 }
 
 //+------------------------------------------------------------------+
+//| Helper function to make web requests                             |
+//+------------------------------------------------------------------+
+int MakeWebRequest(string method, string url, string request_headers, string postData, int timeout)
+{
+   char post[];
+   StringToCharArray(postData, post);
+   char result[];
+   string response_headers;
+   return WebRequest(method, url, request_headers, timeout, post, result, response_headers);
+}
+
+//+------------------------------------------------------------------+
 //| Get connection status                                            |
 //+------------------------------------------------------------------+
 bool IsConnected()
@@ -809,9 +862,9 @@ bool IsConnected()
 }
 
 //+------------------------------------------------------------------+
-//| Get last error message                                           |
+//| Get bridge error message                                         |
 //+------------------------------------------------------------------+
-string GetLastError()
+string GetBridgeError()
 {
    return lastError;
 }

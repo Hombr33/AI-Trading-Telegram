@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import asyncio
 
 from ..core.logging import get_logger
+from ..core.config import MT5Config
 
 logger = get_logger(__name__)
 
@@ -331,7 +332,7 @@ from ..models.trades import Trade
 class MT5Executor:
     """MT5 execution engine for automated trading."""
 
-    def __init__(self, config: TradingConfig):
+    def __init__(self, config: MT5Config):
         self.config = config
         self.connected = False
         self.account_info = None
@@ -340,12 +341,33 @@ class MT5Executor:
     async def connect(self) -> bool:
         """Connect to MT5 terminal."""
         try:
+            logger.info("Attempting to initialize MT5...")
+            
+            # Try to initialize MT5 without path first
             if not mt5.initialize():
-                logger.error(f"MT5 initialization failed: {mt5.last_error()}")
-                return False
+                logger.warning(f"MT5 initialization failed: {mt5.last_error()}")
+                logger.info("Trying to initialize with specific path...")
+                
+                # Try with EXNESS path
+                exness_path = "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe"
+                if not mt5.initialize(exness_path):
+                    logger.warning(f"MT5 initialization with EXNESS path failed: {mt5.last_error()}")
+                    
+                    # Try with IC Markets path
+                    ic_path = "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe"
+                    if not mt5.initialize(ic_path):
+                        logger.error(f"MT5 initialization with IC Markets path failed: {mt5.last_error()}")
+                        return False
 
-            # Test connection
-            if not mt5.login():
+            logger.info("MT5 initialized successfully")
+
+            # Login with credentials from config
+            logger.info(f"Attempting to login with account: {self.config.login}")
+            if not mt5.login(
+                login=int(self.config.login),
+                password=self.config.password,
+                server=self.config.server
+            ):
                 logger.error(f"MT5 login failed: {mt5.last_error()}")
                 return False
 

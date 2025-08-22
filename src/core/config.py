@@ -3,9 +3,15 @@ Configuration management for the AI Trading Bot.
 """
 
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
 
 
 class DatabaseConfig(BaseSettings):
@@ -23,12 +29,17 @@ class DatabaseConfig(BaseSettings):
 class MT5Config(BaseSettings):
     """MT5 configuration."""
 
-    login: Optional[int] = Field(default=None)
-    password: Optional[str] = Field(default=None)
-    server: Optional[str] = Field(default=None)
+    login: Optional[int] = Field(default=0)  # Default to 0 for demo/testing
+    password: Optional[str] = Field(default="")
+    server: Optional[str] = Field(default="")
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
+
+    @property
+    def is_configured(self) -> bool:
+        """Check if MT5 is properly configured."""
+        return bool(self.login and self.password and self.server)
 
     class Config:
         env_prefix = "MT5_"
@@ -40,6 +51,7 @@ class BridgeConfig(BaseSettings):
     bridge_token: str = Field(default="your_bridge_token_here")
     bridge_url: str = Field(default="http://127.0.0.1:8000")
     socketio_enabled: bool = Field(default=True)
+    socket_io_port: int = Field(default=8001)
     fallback_enabled: bool = Field(default=True)
 
     class Config:
@@ -73,8 +85,9 @@ class OpenAIConfig(BaseSettings):
 class RiskConfig(BaseSettings):
     """Risk management configuration."""
 
-    max_risk_per_trade_pct: float = Field(default=2.0)
-    max_daily_drawdown_pct: float = Field(default=6.0)
+    risk_per_trade_pct: float = Field(default=2.0, env="RISK_PER_TRADE_PCT")
+    max_daily_drawdown_pct: float = Field(default=6.0, env="MAX_DAILY_DRAWDOWN_PCT")
+    max_daily_loss_usd: float = Field(default=25.0, env="MAX_DAILY_LOSS_USD")
     max_open_positions: int = Field(default=10)
     max_correlation_exposure: float = Field(default=0.7)
     consecutive_loss_limit: int = Field(default=4)
@@ -139,9 +152,9 @@ class TradingConfig(BaseSettings):
 class LoggingConfig(BaseSettings):
     """Logging configuration."""
 
-    level: str = Field(default="INFO")
-    format: str = Field(default="json")
-    file_path: Optional[str] = Field(default=None)
+    level: str = Field(default="INFO", env="LOG_LEVEL")
+    format: str = Field(default="json", env="LOG_FORMAT")
+    file_path: Optional[str] = Field(default=None, env="LOG_FILE")
     max_size_mb: int = Field(default=100)
     backup_count: int = Field(default=5)
 
@@ -155,10 +168,11 @@ class AppConfig(BaseSettings):
     # Environment
     environment: str = Field(default="development")
     debug: bool = Field(default=False)
+    timezone: str = Field(default="UTC", env="TIMEZONE")
 
     # Server
-    host: str = Field(default="0.0.0.0")
-    port: int = Field(default=8000)
+    host: str = Field(default="0.0.0.0", env="API_HOST")
+    port: int = Field(default=8000, env="API_PORT")
     reload: bool = Field(default=False)
 
     # Components
@@ -175,44 +189,16 @@ class AppConfig(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        env_nested_delimiter = "__"
 
     def __init__(self, **kwargs):
+        """Initialize configuration.
+        
+        Environment variables are loaded automatically via pydantic_settings
+        from the .env file or system environment variables.
+        """
         super().__init__(**kwargs)
-
-        # Load from environment variables
-        self._load_from_env()
-
-    def _load_from_env(self):
-        """Load configuration from environment variables."""
-        # Database
-        if os.getenv("DATABASE_URL"):
-            self.database.url = os.getenv("DATABASE_URL")
-
-        # MT5
-        if os.getenv("MT5_LOGIN"):
-            self.mt5.login = int(os.getenv("MT5_LOGIN"))
-        if os.getenv("MT5_PASSWORD"):
-            self.mt5.password = os.getenv("MT5_PASSWORD")
-        if os.getenv("MT5_SERVER"):
-            self.mt5.server = os.getenv("MT5_SERVER")
-
-        # Telegram
-        if os.getenv("TELEGRAM_BOT_TOKEN"):
-            self.telegram.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        if os.getenv("TELEGRAM_CHAT_ID"):
-            self.telegram.chat_id = int(os.getenv("TELEGRAM_CHAT_ID"))
-
-        # OpenAI
-        if os.getenv("OPENAI_API_KEY"):
-            self.openai.api_key = os.getenv("OPENAI_API_KEY")
-
-        # Environment
-        if os.getenv("ENVIRONMENT"):
-            self.environment = os.getenv("ENVIRONMENT")
-
-        # Debug mode
-        if os.getenv("DEBUG"):
-            self.debug = os.getenv("DEBUG").lower() in ("true", "1", "yes")
+        self.debug = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 
     def get_database_url(self) -> str:
         """Get database URL with fallback."""

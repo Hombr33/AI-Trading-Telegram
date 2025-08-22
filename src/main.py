@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
         # Initialize MT5 executor
         logger.info("Initializing MT5 executor...")
         # Prefer AioMQLExecutor (uses aiomql if available), fallback to MT5Executor behaviors
-        mt5_executor = AioMQLExecutor(config.trading)
+        mt5_executor = AioMQLExecutor(config.mt5)
 
         # Connect to MT5
         logger.info("Connecting to MT5...")

@@ -25,6 +25,16 @@ bridge:
     backoff_ms: 250
   heartbeat_interval: 5
 
+# MetaTrader5 Configuration
+metatrader5:
+  path: "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe"
+  server: "ICMarkets-Live01"  # Change this to your actual server
+  login: 12345678  # Replace with your actual login
+  password: "your-password"  # Replace with your actual password
+  timeout: 60000
+  retry_delay: 5
+  max_retries: 3
+
 # Trading Configuration
 trading:
   risk_management:

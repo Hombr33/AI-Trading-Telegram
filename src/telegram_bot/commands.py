@@ -7,6 +7,9 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone, timedelta
 
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+
 from src.core.logging import get_logger
 from .notifications import NotificationManager
 
@@ -19,6 +22,308 @@ class CommandHandler:
     def __init__(self, notification_manager: NotificationManager):
         self.notification_manager = notification_manager
         self.mock_data = self._setup_mock_data()
+
+    async def start_command(self, update, context):
+        """Handle /start command."""
+        welcome_text = (
+            "🤖 *Welcome to AI Trading Bot!*\n\n"
+            "I'm your smart trading assistant, ready to help you monitor and manage your trading activities.\n\n"
+            "*Quick Actions:*\n"
+            "📊 /status - System Status\n"
+            "📈 /positions - Open Positions\n"
+            "🎯 /signals - Trading Signals\n"
+            "⚠️ /risk - Risk Metrics\n"
+            "⚙️ /settings - Bot Settings\n\n"
+            "Type /help for detailed information about all features."
+        )
+        
+        # Create inline keyboard
+        keyboard = [
+            [
+                InlineKeyboardButton("📊 Status", callback_data="status"),
+                InlineKeyboardButton("📈 Positions", callback_data="positions")
+            ],
+            [
+                InlineKeyboardButton("🎯 Signals", callback_data="signals"),
+                InlineKeyboardButton("⚠️ Risk", callback_data="risk")
+            ],
+            [
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+                InlineKeyboardButton("❓ Help", callback_data="help")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            welcome_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def help_command(self, update, context):
+        """Handle /help command."""
+        help_text = (
+            "📚 *AI Trading Bot Help*\n\n"
+            "*Trading Commands:*\n"
+            "📈 /positions - View and manage your open positions\n"
+            "🎯 /signals - Check latest AI-generated trading signals\n"
+            "📊 /performance - View your trading performance\n\n"
+            "*Monitoring Commands:*\n"
+            "🔄 /status - Check all system components\n"
+            "⚠️ /risk - Monitor risk metrics and exposure\n"
+            "📝 /journal - View trading journal entries\n\n"
+            "*Settings & Info:*\n"
+            "⚙️ /settings - Configure bot preferences\n"
+            "ℹ️ /about - Information about the bot\n\n"
+            "*Tips:*\n"
+            "• Use the inline buttons for quick navigation\n"
+            "• Enable notifications for real-time alerts\n"
+            "• Check /risk regularly to monitor exposure\n\n"
+            "Need more help? Visit our [Documentation](https://github.com/oyi77/telegram-ai-trade/docs)"
+        )
+        
+        # Add quick action buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("📈 Open Positions", callback_data="positions"),
+                InlineKeyboardButton("🎯 Latest Signals", callback_data="signals")
+            ],
+            [
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+                InlineKeyboardButton("📊 Status", callback_data="status")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            help_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
+
+    async def status_command(self, update, context):
+        """Handle /status command."""
+        status = self.mock_data["system_status"]
+        
+        def get_status_emoji(status):
+            return "✅" if status == "Online" else "❌" if status == "Offline" else "⚠️"
+        
+        status_text = (
+            "�️ *System Status Dashboard*\n\n"
+            f"{get_status_emoji(status['bot_status'])} *Trading Bot:* {status['bot_status']}\n"
+            f"{get_status_emoji(status['mt5_connection'])} *MT5 Connection:* {status['mt5_connection']}\n"
+            f"{get_status_emoji(status['ai_analyzer'])} *AI Analyzer:* {status['ai_analyzer']}\n"
+            f"{get_status_emoji(status['risk_manager'])} *Risk Manager:* {status['risk_manager']}\n\n"
+            f"🕒 *Last Updated:* {status['last_update']}\n\n"
+            "Select an action below to manage your trading:"
+        )
+        
+        # Add action buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data="refresh_status"),
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings")
+            ],
+            [
+                InlineKeyboardButton("📈 View Positions", callback_data="positions"),
+                InlineKeyboardButton("⚠️ Risk Metrics", callback_data="risk")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            status_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def positions_command(self, update, context):
+        """Handle /positions command."""
+        if not self.mock_data["positions"]:
+            no_positions_text = (
+                "📊 *Positions Overview*\n\n"
+                "No open positions at the moment.\n\n"
+                "Use /signals to check for new trading opportunities!"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎯 View Signals", callback_data="signals"),
+                    InlineKeyboardButton("📊 Performance", callback_data="performance")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                no_positions_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+            return
+
+        # Calculate total P/L
+        total_pl = sum(pos['profit'] for pos in self.mock_data["positions"])
+        
+        positions_text = (
+            "� *Open Positions Overview*\n\n"
+            f"Total P/L: {'🟢' if total_pl >= 0 else '🔴'} ${abs(total_pl):.2f}\n"
+            f"Active Positions: {len(self.mock_data['positions'])}\n\n"
+        )
+        
+        for pos in self.mock_data["positions"]:
+            profit_emoji = "🟢" if pos['profit'] >= 0 else "🔴"
+            direction_emoji = "📈" if pos['type'] == "BUY" else "📉"
+            
+            positions_text += (
+                f"{direction_emoji} *{pos['symbol']}* ({pos['type']})\n"
+                f"💰 Volume: {pos['volume']}\n"
+                f"📍 Entry: ${pos['price_open']:.5f}\n"
+                f"📱 Current: ${pos['price_current']:.5f}\n"
+                f"{profit_emoji} P/L: ${abs(pos['profit']):.2f}\n"
+                f"⏱️ Opened: {pos['time']}\n"
+                f"➖➖➖➖➖➖➖➖➖➖\n\n"
+            )
+        
+        # Add action buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data="refresh_positions"),
+                InlineKeyboardButton("📊 Charts", callback_data="charts")
+            ],
+            [
+                InlineKeyboardButton("⚠️ Risk Analysis", callback_data="risk"),
+                InlineKeyboardButton("📈 Performance", callback_data="performance")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            positions_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def signals_command(self, update, context):
+        """Handle /signals command."""
+        # Mock some example signals - in real implementation, get from signal service
+        signals = self.mock_data.get("signals", [])
+        
+        if not signals:
+            signals_text = (
+                "🎯 *Trading Signals*\n\n"
+                "No active signals at the moment.\n\n"
+                "The AI analyzer continuously monitors the markets and will "
+                "notify you when new opportunities arise.\n\n"
+                "*Signal Types:*\n"
+                "🟢 Strong Buy\n"
+                "🟡 Potential Buy\n"
+                "🔴 Strong Sell\n"
+                "🟠 Potential Sell"
+            )
+        else:
+            signals_text = "🎯 *Latest Trading Signals*\n\n"
+            
+            for signal in signals:
+                # Add appropriate emoji based on signal type and strength
+                direction_emoji = "🟢" if signal["direction"] == "BUY" else "🔴"
+                strength_emoji = "💪" if signal["strength"] > 0.7 else "⚡"
+                
+                signals_text += (
+                    f"{direction_emoji} *{signal['symbol']}*\n"
+                    f"{strength_emoji} Signal Strength: {signal['strength']*100:.1f}%\n"
+                    f"📊 Entry Zone: ${signal['entry_price']:.5f}\n"
+                    f"🎯 Target: ${signal['target_price']:.5f}\n"
+                    f"⚠️ Stop Loss: ${signal['stop_loss']:.5f}\n"
+                    f"⏰ Time: {signal['timestamp']}\n"
+                    f"➖➖➖➖➖➖➖➖➖➖\n\n"
+                )
+        
+        # Add interactive buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Refresh", callback_data="refresh_signals"),
+                InlineKeyboardButton("📊 Analysis", callback_data="analysis")
+            ],
+            [
+                InlineKeyboardButton("⚙️ Signal Settings", callback_data="signal_settings"),
+                InlineKeyboardButton("📈 Market Overview", callback_data="market_overview")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            signals_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def risk_command(self, update, context):
+        """Handle /risk command."""
+        risk = self.mock_data["risk_metrics"]
+        perf = self.mock_data["performance"]
+        
+        def get_risk_indicator(value, threshold):
+            if value <= threshold * 0.5:
+                return "🟢"  # Safe
+            elif value <= threshold * 0.8:
+                return "🟡"  # Warning
+            else:
+                return "🔴"  # Danger
+        
+        risk_text = (
+            "⚠️ *Risk Management Dashboard*\n\n"
+            "*Account Health:*\n"
+            f"{get_risk_indicator(risk['margin_used_pct'], 70)} Margin Used: {risk['margin_used_pct']}%\n"
+            f"{get_risk_indicator(risk['daily_drawdown'], 5)} Daily Drawdown: {risk['daily_drawdown']}%\n"
+            f"{get_risk_indicator(risk['exposure_level'], 80)} Total Exposure: {risk['exposure_level']}%\n\n"
+            
+            "*Position Risk:*\n"
+            f"📊 Open Positions: {risk['open_positions']}\n"
+            f"💰 Total Position Value: ${risk['total_position_value']:,.2f}\n"
+            f"📉 Max Drawdown: {risk['max_drawdown']}%\n\n"
+            
+            "*Performance Metrics:*\n"
+            f"📈 Win Rate: {perf['win_rate']}%\n"
+            f"⚖️ Risk/Reward: {perf['risk_reward_ratio']:.2f}\n"
+            f"💵 Profit Factor: {perf['profit_factor']:.2f}\n\n"
+            
+            "*Risk Limits Status:*\n"
+            "✅ Daily Loss Limit: Active\n"
+            "✅ Position Size Limit: Active\n"
+            "✅ Drawdown Protection: Active"
+            f"Win Rate: {perf['win_rate']}%\n"
+            f"Profit Factor: {perf['profit_factor']}\n"
+            f"Current Drawdown: {risk['current_drawdown']}%\n"
+            f"Max Drawdown: {perf['max_drawdown']}%\n"
+            f"Sharpe Ratio: {perf['sharpe_ratio']}\n"
+        )
+        await update.message.reply_text(risk_text)
+
+    async def settings_command(self, update, context):
+        """Handle /settings command."""
+        settings_text = (
+            "⚙️ Bot Settings\n\n"
+            "Use these commands to configure:\n\n"
+            "• /risk_limit - Set risk per trade\n"
+            "• /drawdown_limit - Set max drawdown\n"
+            "• /notifications - Configure alerts\n"
+            "• /timezone - Set your timezone\n"
+        )
+        await update.message.reply_text(settings_text)
+
+    async def handle_callback(self, update, context):
+        """Handle callback queries from inline buttons."""
+        query = update.callback_query
+        await query.answer()
+
+        if query.data.startswith("risk_"):
+            value = query.data.split("_")[1]
+            await query.message.reply_text(f"Risk limit set to {value}%")
+        elif query.data.startswith("drawdown_"):
+            value = query.data.split("_")[1]
+            await query.message.reply_text(f"Max drawdown limit set to {value}%")
+        elif query.data.startswith("notify_"):
+            option = query.data.split("_")[1]
+            await query.message.reply_text(f"Notifications {option} configured")
 
     def _setup_mock_data(self) -> Dict:
         """Setup mock data for demonstration purposes."""

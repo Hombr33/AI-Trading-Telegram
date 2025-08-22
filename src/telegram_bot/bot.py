@@ -45,8 +45,21 @@ class TelegramBot:
                 Application.builder().token(self.config.bot_token).build()
             )
 
-            # Setup notification manager
+            # Setup notification manager and command handler
             self.notification_manager = NotificationManager(self.config)
+            self.command_handler = CommandHandler(self.notification_manager)
+
+            # Register command handlers
+            self.application.add_handler(TGCommandHandler("start", self.command_handler.start_command))
+            self.application.add_handler(TGCommandHandler("help", self.command_handler.help_command))
+            self.application.add_handler(TGCommandHandler("status", self.command_handler.status_command))
+            self.application.add_handler(TGCommandHandler("positions", self.command_handler.positions_command))
+            self.application.add_handler(TGCommandHandler("signals", self.command_handler.signals_command))
+            self.application.add_handler(TGCommandHandler("risk", self.command_handler.risk_command))
+            self.application.add_handler(TGCommandHandler("settings", self.command_handler.settings_command))
+            
+            # Register callback query handler
+            self.application.add_handler(CallbackQueryHandler(self.command_handler.handle_callback))
 
             # Setup command handler
             self.command_handler = CommandHandler(self.notification_manager)
