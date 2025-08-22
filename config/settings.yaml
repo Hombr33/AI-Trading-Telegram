@@ -1,0 +1,118 @@
+# AI Trading Bot Configuration
+app:
+  name: "telegram-ai-trade"
+  version: "1.0.0"
+  environment: "development"
+  timezone: "Asia/Jakarta"
+  debug: false
+
+# API Configuration
+api:
+  host: "127.0.0.1"
+  port: 8000
+  workers: 1
+  timeout: 30
+  cors_origins: ["*"]
+
+# Bridge Configuration
+bridge:
+  token_env_key: "BRIDGE_TOKEN"
+  rate_limit:
+    requests_per_second: 50
+    burst_size: 10
+  retry:
+    max_attempts: 3
+    backoff_ms: 250
+  heartbeat_interval: 5
+
+# Trading Configuration
+trading:
+  risk_management:
+    risk_per_trade_pct: 2.0
+    max_daily_drawdown_pct: 6.0
+    max_daily_loss_usd: 25.0
+    max_open_positions: 10
+    max_daily_trades: 50
+  
+  position_sizing:
+    method: "risk_based_on_sl_distance"
+    min_position_size: 0.01
+    max_position_size: 10.0
+  
+  execution:
+    magic_number: 1001
+    slippage_points: 10
+    prefer_limit_orders: true
+  
+  session_filters:
+    avoid_high_impact_news: true
+    prefer_london_ny_overlap: true
+    timezone: "Asia/Jakarta"
+
+# Database Configuration
+database:
+  url: "sqlite:///./runtime/data/trade.sqlite3"
+  echo: false
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 3600
+  
+  sqlite_pragmas:
+    journal_mode: "WAL"
+    synchronous: "NORMAL"
+    foreign_keys: true
+    cache_size: -64000
+    temp_store: "MEMORY"
+
+# Telegram Configuration
+telegram:
+  bot_token_env: "TELEGRAM_BOT_TOKEN"
+  chat_id_env: "TELEGRAM_CHAT_ID"
+  update_interval: 1
+  timeout: 30
+  
+  notifications:
+    signals: true
+    trade_updates: true
+    performance_reports: true
+    risk_alerts: true
+
+# OpenAI Configuration
+openai:
+  api_key_env: "OPENAI_API_KEY"
+  model: "gpt-4"
+  max_tokens: 1000
+  temperature: 0.1
+  timeout: 30
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  output: "stdout"
+  file_path: null
+  
+  structured:
+    enabled: true
+    include_timestamp: true
+    include_level: true
+    include_module: true
+
+# Monitoring Configuration
+monitoring:
+  health_check_interval: 30
+  metrics_enabled: true
+  prometheus_endpoint: "/metrics"
+  
+  alerts:
+    daily_drawdown_threshold: true
+    ea_disconnect_heartbeat_missed: true
+    bridge_http_error_burst: true
+
+# Security Configuration
+security:
+  auth_enabled: true
+  rate_limiting: true
+  input_validation: true
+  sql_injection_protection: true

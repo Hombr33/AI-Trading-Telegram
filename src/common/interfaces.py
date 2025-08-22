@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+
 class IAnalyzer(ABC):
     """
     Interface for an analysis service that processes market data

@@ -7,11 +7,12 @@ from typing import Any
 import openai
 from pydantic import ValidationError
 
-from ..common.interfaces import IAnalyzer
-from ..api.models import SignalResponse
+from src.common.interfaces import IAnalyzer
+from src.api.models import SignalResponse
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
 
 class OpenAIAnalyzer(IAnalyzer):
     """
@@ -29,7 +30,9 @@ class OpenAIAnalyzer(IAnalyzer):
     def _load_system_prompt(self) -> str:
         """Loads the detailed system prompt from the JSON file."""
         try:
-            prompt_path = os.path.join(os.path.dirname(__file__), "app-code-prompt.json")
+            prompt_path = os.path.join(
+                os.path.dirname(__file__), "app-code-prompt.json"
+            )
             with open(prompt_path, "r") as f:
                 prompt_data = json.load(f)
             # We can construct a more targeted system message here if needed
@@ -54,15 +57,13 @@ class OpenAIAnalyzer(IAnalyzer):
             "content": [
                 {
                     "type": "text",
-                    "text": f"Analyze this chart screenshot within the following market context and provide a trading signal in JSON format according to the 'signal_schema'. Market context: {json.dumps(market_context)}"
+                    "text": f"Analyze this chart screenshot within the following market context and provide a trading signal in JSON format according to the 'signal_schema'. Market context: {json.dumps(market_context)}",
                 },
                 {
                     "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/png;base64,{base64_image}"
-                    }
-                }
-            ]
+                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                },
+            ],
         }
 
         try:
@@ -70,7 +71,7 @@ class OpenAIAnalyzer(IAnalyzer):
                 model="gpt-4o",  # Using GPT-4o for its vision and JSON mode capabilities
                 messages=[
                     {"role": "system", "content": self.system_prompt},
-                    user_message
+                    user_message,
                 ],
                 response_format={"type": "json_object"},
                 max_tokens=1500,
@@ -88,7 +89,9 @@ class OpenAIAnalyzer(IAnalyzer):
             # Assuming the direct output matches SignalResponse structure.
             # This might need adjustment if the AI nests it under a key.
             validated_signal = SignalResponse(**signal_data)
-            logger.info(f"Successfully received and validated signal for {validated_signal.symbol}")
+            logger.info(
+                f"Successfully received and validated signal for {validated_signal.symbol}"
+            )
             return validated_signal
 
         except openai.APIError as e:

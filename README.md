@@ -1,384 +1,416 @@
-# AI Trading Bot - Automated Trading with Institutional Intelligence
+# 🤖 AI Trading Bot - Telegram Integration
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![MT5](https://img.shields.io/badge/MT5-Integration-orange.svg)](https://www.metatrader5.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+An institutional-grade AI-powered automated trading bot that integrates OpenAI GPT-5 for market analysis, MT5/MT4 execution via Expert Advisors, and Telegram bot for signal distribution and monitoring.
 
-## 🚀 Overview
+## 🚀 Features
 
-An advanced AI-powered automated trading bot that combines institutional-grade market analysis with precision execution through MetaTrader 5. Built with a focus on SMC/liquidity patterns, Quasimodo formations, and scalping strategies for retail traders.
+### 🔄 **2-Way Communication**
+- **Socket.IO** for real-time communication with MT5 EA
+- **HTTP fallback** for reliable communication when Socket.IO fails
+- **Bidirectional data flow** between Python and MT5
 
-## ✨ Key Features
+### 📊 **Order Execution**
+- **Automated order placement** based on AI signals
+- **Position management** with real-time monitoring
+- **Advanced trailing stops** and partial take profits
+- **Risk-based position sizing** (2% risk per trade)
 
-- **🤖 AI-Powered Analysis**: Multi-timeframe analysis with institutional-grade intelligence
-- **📊 SMC/Liquidity Focus**: Advanced pattern recognition for institutional-level trading
-- **🎯 Quasimodo Patterns**: Break of structure and change of character detection
-- **⚡ Real-Time Execution**: MT5 integration with sub-100ms execution latency
-- **🛡️ Advanced Risk Management**: Position sizing, drawdown controls, correlation management
-- **📱 Telegram Integration**: Real-time signal distribution and bot management
-- **📈 Multi-Source Data**: MT5, Binance, Bybit, News APIs, and sentiment analysis
-- **🔍 Comprehensive Monitoring**: Performance metrics, health checks, and alerting
+### 🎯 **Trailing Take Profit**
+- **Start trailing after 250 points profit**
+- **Initial trailing distance: 200 points**
+- **Trailing step: 50 points**
+- **Breakeven move at 1R profit**
+- **Partial TP at 1.5R (50% position)**
+- **Full TP at 3.0R**
+
+### 📱 **Telegram Integration**
+- **Real-time trading signals** with instant notifications
+- **Position updates** and P&L tracking
+- **Risk alerts** and drawdown warnings
+- **Performance reports** and trading journal
+- **Interactive commands** for monitoring and control
+
+### 🛡️ **Risk Management**
+- **Maximum 2% risk per trade**
+- **Maximum 6% daily drawdown**
+- **Consecutive loss management**
+- **Correlation exposure limits**
+- **Automatic circuit breakers**
 
 ## 🏗️ Architecture
 
-The system follows a modular, event-driven architecture with clear separation of concerns:
-
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Data Sources  │    │  AI Analysis    │    │   Execution     │
-│                 │    │                 │    │                 │
-│ • MT5           │───▶│ • SMC Patterns  │───▶│ • MT5 Orders    │
-│ • Binance       │    │ • Quasimodo     │    │ • Risk Mgmt     │
-│ • News APIs     │    │ • Multi-TF      │    │ • Position Mgmt │
-│ • Sentiment     │    │ • Confidence    │    │ • Monitoring    │
+│   MT5 Terminal  │◄──►│  Python App     │◄──►│  Telegram Bot   │
+│   (BridgeEA)    │    │  (FastAPI)      │    │  (Monitoring)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Data Storage   │    │  Signal Bridge  │    │  Risk Engine    │
-│                 │    │                 │    │                 │
-│ • SQLite        │    │ • Telegram Bot  │    │ • Position Size │
-│ • Redis Cache   │    │ • JSON Schema   │    │ • User Mgmt     │
-│ • Parquet Files │    │ • Drawdown Ctrl │    │ • Correlation   │
+│   Order Exec    │    │   AI Analyzer   │    │   Notifications │
+│   Position Mgmt │    │   Signal Proc   │    │   Risk Alerts   │
+│   Trailing Mgmt │    │   Risk Mgmt     │    │   Performance   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🎯 Trading Strategy
+## 📋 Requirements
 
-### Multi-Timeframe Analysis
-- **H4**: Big picture trend and major supply/demand zones
-- **H1**: Market structure and minor liquidity pools
-- **M15**: Entry zone refinement and FVG validation
-- **M5**: Execution timing and candle rejection patterns
-- **M1**: Immediate entry triggers and confirmation
-
-### SMC/Liquidity Focus
-- **Liquidity Zones**: Equal highs/lows, round numbers, previous swings
-- **Order Blocks**: Bullish/bearish order blocks and mitigation zones
-- **Fair Value Gaps**: Imbalance detection and inefficiency fills
-- **Stop Hunt Areas**: Inducement zones and liquidity sweeps
-
-### Risk Management
-- **Position Sizing**: 2% risk per trade based on SL distance
-- **Daily Limits**: 6% maximum drawdown, $25 maximum loss
-- **Consecutive Losses**: Progressive risk reduction (2→1%, 3→0.5%, 4→stop)
-- **Correlation Control**: Maximum 70% correlation exposure
-
-## 🛠️ Technology Stack
-
-### Backend & Framework
-- **Python 3.11+**: Core application language
-- **FastAPI**: High-performance web framework
-- **SQLAlchemy**: Database ORM and migrations
-- **Pydantic**: Data validation and settings management
-
-### Trading & Data
-- **MetaTrader 5**: Primary trading platform integration
-- **Binance/Bybit APIs**: Crypto market data
-- **News APIs**: Economic calendar and sentiment
-- **Pandas/NumPy**: Data processing and analysis
-
-### AI & Machine Learning
-- **scikit-learn**: Pattern recognition and analysis
-- **Technical Analysis**: Advanced indicator calculations
-- **Sentiment Analysis**: News and social media processing
-
-### Infrastructure
-- **SQLite**: Portable, lightweight database
-- **Redis**: Caching and real-time data
-- **Docker**: Containerization and deployment
-- **Prometheus/Grafana**: Monitoring and visualization
-
-## 📦 Installation
-
-### Prerequisites
-- Python 3.11+
-- Docker and Docker Compose
-- MetaTrader 5 (for live trading)
-- Telegram Bot Token
-
-### Quick Start
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/telegram-ai-trade.git
-   cd telegram-ai-trade
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Access the application**
-   - Trading Bot API: http://localhost:8000
-   - Grafana Dashboard: http://localhost:3000 (admin/admin123)
-   - Prometheus: http://localhost:9090
-   - SQLite Database: ./database/trading_bot.db
-
-### Manual Installation
-
-1. **Install Python dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Set up database**
-   ```bash
-   # SQLite database will be created automatically
-   # Database file: ./database/trading_bot.db
-   
-   # Run migrations (if using Alembic)
-   alembic upgrade head
-   ```
-
-3. **Configure MT5 connection**
-   ```bash
-   # Set environment variables
-   export MT5_LOGIN=your_login
-   export MT5_PASSWORD=your_password
-   export MT5_SERVER=your_server
-   ```
-
-4. **Start the application**
-   ```bash
-   python src/main.py
-   ```
-
-## ⚙️ Configuration
-
-### Environment Variables
-
+### Python Dependencies
 ```bash
-# Trading Configuration
-TRADING_ENV=development
-RISK_PER_TRADE_PCT=2.0
-MAX_DAILY_DRAWDOWN_PCT=6.0
-MAX_DAILY_LOSS_USD=25
+# Core Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+
+# Socket.IO and WebSocket
+python-socketio>=5.10.0
+python-engineio>=4.7.0
+websockets>=12.0
+
+# MT5 Integration
+MetaTrader5>=5.0.45
+
+# Telegram Bot
+python-telegram-bot>=20.7
+
+# Database and Async
+sqlalchemy>=2.0.0
+aiohttp>=3.9.0
+asyncio-mqtt>=0.13.0
+
+# Logging and Monitoring
+structlog>=23.2.0
+rich>=13.7.0
+```
+
+### System Requirements
+- **Python 3.8+**
+- **MetaTrader 5** terminal
+- **PostgreSQL** database (optional, can use SQLite)
+- **Telegram Bot Token** (provided: `7773625662:AAHx-Nk8OkoBbU7a4mMP6CQ6fQxplgBpz3E`)
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+Create a `.env` file:
+```bash
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN=7773625662:AAHx-Nk8OkoBbU7a4mMP6CQ6fQxplgBpz3E
+TELEGRAM_CHAT_ID=your_chat_id_here
 
 # MT5 Configuration
-MT5_LOGIN=your_login
-MT5_PASSWORD=your_password
-MT5_SERVER=your_server
+MT5_LOGIN=your_mt5_login
+MT5_PASSWORD=your_mt5_password
+MT5_SERVER=your_mt5_server
 
-# Telegram Configuration
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
 
 # Database Configuration
-DATABASE_URL=sqlite:///./database/trading_bot.db
-REDIS_URL=redis://localhost:6379
-
-# API Keys
-BINANCE_API_KEY=your_binance_key
-BINANCE_SECRET_KEY=your_binance_secret
-NEWS_API_KEY=your_news_api_key
+DATABASE_URL=postgresql://user:password@localhost/trading_bot
 ```
 
-### Trading Parameters
+### 3. Start the Application
+```bash
+# Run the FastAPI application
+python run.py
 
-```yaml
-# config/trading.yaml
-risk_management:
-  risk_per_trade_pct: 2.0
-  max_daily_drawdown_pct: 6.0
-  max_consecutive_losses: 4
-  
-position_sizing:
-  method: "risk_based_on_sl_distance"
-  min_position_size: 0.01
-  max_position_size: 10.0
-  
-execution:
-  magic_number: 1001
-  slippage_points: 10
-  prefer_limit_orders: true
-  
-session_filters:
-  avoid_high_impact_news: true
-  prefer_london_ny_overlap: true
-  timezone: "Asia/Jakarta"
+# Or use uvicorn directly
+uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## 📱 Usage
-
-### Telegram Commands
-
-- `/start` - Initialize the bot and show welcome message
-- `/status` - Check bot status and current performance
-- `/trades` - View recent trades and open positions
-- `/performance` - Get performance statistics and reports
-- `/settings` - Configure risk parameters and preferences
-
-### Signal Format
-
-The bot generates signals in the following format:
-
-```json
-{
-  "id": "xau-2025-01-21-0901",
-  "symbol": "XAUUSD",
-  "bias": "BEARISH",
-  "setups": [
-    {
-      "type": "SELL",
-      "entry_zone": [3343.0, 3345.0],
-      "entry_style": "limit",
-      "sl": 3348.0,
-      "tp": [3336.0, 3330.5],
-      "confidence": 82,
-      "notes": "Retest H1 supply + liquidity sweep; M5 rejection confirmed."
-    }
-  ],
-  "risk": {"risk_per_trade_pct": 2.0},
-  "management": {"move_to_BE_at_R1": true, "partial_tp": {"tp1_close_pct": 0.5}}
-}
+### 4. Test Telegram Bot
+```bash
+python test_telegram.py
 ```
+
+## 📱 Telegram Bot Commands
+
+### 🚀 **Basic Commands**
+- `/start` - Welcome message and bot setup
+- `/help` - Show all available commands
+- `/status` - System and component status
+
+### 📊 **Trading Commands**
+- `/positions` - View open positions
+- `/orders` - View pending orders
+- `/performance` - Trading performance metrics
+- `/risk` - Risk metrics and alerts
+- `/journal` - Trading journal entries
+
+### ⚙️ **Configuration**
+- `/settings` - Bot settings and configuration
+- `/notifications` - Notification preferences
+- `/risk_limits` - Risk management settings
+
+## 🔧 Configuration
+
+### Bridge Configuration
+```python
+# Socket.IO with HTTP fallback
+BRIDGE_TOKEN=your_bridge_token
+BRIDGE_URL=http://127.0.0.1:8000
+SOCKETIO_ENABLED=true
+FALLBACK_ENABLED=true
+```
+
+### Risk Management
+```python
+# Risk limits
+MAX_RISK_PER_TRADE_PCT=2.0
+MAX_DAILY_DRAWDOWN_PCT=6.0
+MAX_OPEN_POSITIONS=10
+MAX_CORRELATION_EXPOSURE=0.7
+```
+
+### Trading Configuration
+```python
+# Trading parameters
+DEFAULT_LOT_SIZE=0.01
+MIN_LOT_SIZE=0.01
+MAX_LOT_SIZE=10.0
+SLIPPAGE_POINTS=10
+MAGIC_NUMBER=1001
+```
+
+## 🔄 Communication Flow
+
+### 1. **Signal Generation**
+```
+MT5 Screenshot → AI Analysis → Signal Generation → Telegram Notification
+```
+
+### 2. **Order Execution**
+```
+Telegram Signal → Python App → MT5 Execution → Position Update → Telegram Alert
+```
+
+### 3. **Position Management**
+```
+Position Monitor → Trailing Stop → Partial TP → Full TP → Telegram Update
+```
+
+### 4. **Risk Management**
+```
+Risk Monitor → Alert Generation → Telegram Notification → Action Required
+```
+
+## 📊 API Endpoints
+
+### Health and Status
+- `GET /` - Root endpoint
+- `GET /health` - Health check
+- `GET /status` - System status
+- `GET /config` - Configuration
+
+### Bridge Communication
+- `POST /api/v1/bridge/order` - Process order
+- `POST /api/v1/bridge/signal` - Process signal
+- `POST /api/v1/bridge/position_update` - Position update
+- `POST /api/v1/bridge/risk_alert` - Risk alert
+
+### Trading Operations
+- `GET /api/v1/trading/positions` - Get positions
+- `GET /api/v1/trading/orders` - Get orders
+- `POST /api/v1/trading/execute` - Execute signal
 
 ## 🧪 Testing
 
-### Run Tests
-
+### Test Telegram Bot
 ```bash
-# Unit tests
-pytest tests/unit/
-
-# Integration tests
-pytest tests/integration/
-
-# End-to-end tests
-pytest tests/e2e/
-
-# All tests with coverage
-pytest --cov=src --cov-report=html
+python test_telegram.py
 ```
 
-### Test Coverage
+### Test Socket.IO Bridge
+```bash
+# Start the application
+python run.py
 
-- **Unit Tests**: >80% coverage target
-- **Integration Tests**: Critical paths 100% coverage
-- **Performance Tests**: Load testing and stress testing
-- **Security Tests**: Authentication and authorization
+# In another terminal, test Socket.IO connection
+python -c "
+import socketio
+sio = socketio.Client()
+sio.connect('http://localhost:8000', auth={'token': 'your_token'})
+sio.emit('test', {'message': 'Hello'})
+sio.disconnect()
+"
+```
 
-## 📊 Monitoring
+### Test Order Execution
+```bash
+python scripts/execute_orders.py
+```
 
-### Performance Metrics
+## 📁 Project Structure
 
-- **Trading Performance**: Win rate, profit factor, drawdown
-- **System Performance**: Latency, throughput, error rates
-- **Risk Metrics**: Position correlation, exposure levels
-- **Business Metrics**: Daily P&L, trade frequency
+```
+telegram-ai-trade/
+├── src/
+│   ├── core/           # Configuration and logging
+│   ├── bridge/         # Communication bridges
+│   ├── execution/      # Trading execution
+│   ├── telegram/       # Telegram bot integration
+│   └── models/         # Data models
+├── ea/                 # MetaTrader 5 Expert Advisors
+├── scripts/            # Utility scripts
+├── tests/              # Test files
+├── requirements.txt    # Python dependencies
+├── run.py             # Application startup
+└── README.md          # This file
+```
 
-### Alerting
+## 🔒 Security Features
 
-- **Risk Alerts**: Drawdown warnings, correlation breaches
-- **System Alerts**: Connection failures, high error rates
-- **Performance Alerts**: Low win rates, excessive losses
-- **Maintenance Alerts**: Scheduled maintenance, updates
+- **Token-based authentication** for bridge communication
+- **Environment variable** configuration
+- **Input validation** and sanitization
+- **Rate limiting** and request throttling
+- **Error handling** without information leakage
 
-## 🔒 Security
+## 📈 Performance Features
 
-### Security Features
+- **Async/await** for high-performance I/O
+- **Connection pooling** for database operations
+- **Caching** for frequently accessed data
+- **Background tasks** for non-blocking operations
+- **Real-time updates** via WebSocket/Socket.IO
 
-- **Authentication**: API key and OAuth2 support
-- **Authorization**: Role-based access control
-- **Data Protection**: Encryption in transit and at rest
-- **Audit Logging**: Complete action history tracking
-- **Input Validation**: Comprehensive input sanitization
+## 🚨 Monitoring and Alerting
 
-### Best Practices
+### System Health
+- **Component status** monitoring
+- **Connection health** checks
+- **Performance metrics** tracking
+- **Error rate** monitoring
 
-- Store sensitive data in environment variables
-- Use HTTPS for all communications
-- Implement rate limiting and DDoS protection
-- Regular security audits and updates
-- Follow OWASP security guidelines
+### Trading Alerts
+- **Signal notifications** with confidence scores
+- **Position updates** and P&L changes
+- **Risk limit** breaches
+- **Performance milestones**
+
+### Risk Alerts
+- **Drawdown warnings** at 3%, 4%, 5%
+- **Correlation exposure** alerts
+- **Position limit** warnings
+- **Emergency stop** notifications
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. **Telegram Bot Not Responding**
+```bash
+# Check bot token
+echo $TELEGRAM_BOT_TOKEN
+
+# Test bot manually
+python test_telegram.py
+```
+
+#### 2. **Socket.IO Connection Failed**
+```bash
+# Check bridge configuration
+curl http://localhost:8000/config
+
+# Test HTTP fallback
+curl -X POST http://localhost:8000/api/v1/bridge/signal \
+  -H "Content-Type: application/json" \
+  -d '{"test": "signal"}'
+```
+
+#### 3. **MT5 Connection Issues**
+```bash
+# Check MT5 configuration
+echo $MT5_LOGIN
+echo $MT5_SERVER
+
+# Test MT5 connection
+python -c "
+import MetaTrader5 as mt5
+print(mt5.initialize())
+print(mt5.account_info())
+"
+```
+
+### Logs and Debugging
+```bash
+# Set debug mode
+export DEBUG=true
+export LOG_LEVEL=DEBUG
+
+# Check application logs
+tail -f logs/app.log
+
+# Check system status
+curl http://localhost:8000/status
+```
 
 ## 🚀 Deployment
 
-### Production Deployment
+### Development
+```bash
+python run.py
+```
 
-1. **Environment Setup**
-   ```bash
-   # Set production environment
-   export TRADING_ENV=production
-   export LOG_LEVEL=INFO
-   ```
+### Production
+```bash
+# Using gunicorn
+gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker
 
-2. **Database Migration**
-   ```bash
-   alembic upgrade head
-   ```
+# Using systemd service
+sudo systemctl start ai-trading-bot
+sudo systemctl enable ai-trading-bot
+```
 
-3. **Service Deployment**
-   ```bash
-   # Using Docker Compose
-   docker-compose -f docker-compose.prod.yml up -d
-   
-   # Using Kubernetes
-   kubectl apply -f k8s/
-   ```
+### Docker
+```dockerfile
+FROM python:3.9-slim
 
-### Scaling
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-- **Horizontal Scaling**: Multiple bot instances
-- **Load Balancing**: Round-robin distribution
-- **Database Scaling**: Read replicas and connection pooling
-- **Cache Scaling**: Redis cluster for high availability
+COPY . .
+CMD ["python", "run.py"]
+```
+
+## 📚 Documentation
+
+- **API Documentation**: Available at `/docs` when running
+- **Code Documentation**: Inline docstrings and type hints
+- **Architecture**: See `.cursor/rules/telegram_ai_trade_rules.mdc`
+- **Configuration**: See `src/core/config.py`
 
 ## 🤝 Contributing
 
-### Development Setup
-
-1. **Fork the repository**
-2. **Create a feature branch**
-3. **Follow coding standards**
-   - Use Black for code formatting
-   - Follow PEP 8 guidelines
-   - Write comprehensive tests
-4. **Submit a pull request**
-
-### Code Standards
-
-- **Python**: PEP 8, Black formatting, type hints
-- **Testing**: pytest, >80% coverage
-- **Documentation**: Google style docstrings
-- **Security**: Input validation, secure defaults
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Make** your changes
+4. **Test** thoroughly
+5. **Submit** a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## ⚠️ Disclaimer
 
-**This software is for educational and research purposes only. Trading involves substantial risk of loss and is not suitable for all investors. Past performance does not guarantee future results. Always consult with a qualified financial advisor before making investment decisions.**
+This software is for educational and research purposes only. Trading involves substantial risk of loss and is not suitable for all investors. Past performance does not guarantee future results.
 
 ## 🆘 Support
 
-### Documentation
-
-Please see our comprehensive [Documentation Guide](docs/README.md) that covers:
-
-- Core System Documentation (architecture, quality, monitoring)
-- Trading Documentation (strategy, implementation, risk)
-- Machine-Readable Rules (in `.cursor/rules/`)
-
-### Community
-- [GitHub Issues](https://github.com/yourusername/telegram-ai-trade/issues)
-- [Discord Server](https://discord.gg/your-invite)
-- [Telegram Group](https://t.me/your-group)
-
-### Professional Support
-- Email: support@yourcompany.com
-- Priority support for enterprise customers
+- **Issues**: Create a GitHub issue
+- **Documentation**: Check the README and inline docs
+- **Configuration**: Review the config files and environment variables
+- **Testing**: Use the provided test scripts
 
 ---
 
-**Built with ❤️ for the trading community**
+**🚀 Ready to start automated trading with AI-powered signals and real-time Telegram monitoring!**
