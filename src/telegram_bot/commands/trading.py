@@ -7,7 +7,14 @@ from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
-from src.telegram_bot.utils.keyboards import create_keyboard
+from src.telegram_bot.utils.keyboards import (
+    create_keyboard, 
+    create_progress_keyboard, 
+    create_confirmation_keyboard,
+    create_paginated_keyboard,
+    get_trading_menu_keyboard
+)
+from src.telegram_bot.utils.visual_effects import VisualEffects
 from src.telegram_bot.utils.mock_data import (
     get_positions, get_orders, get_account_info, get_recent_signals
 )
@@ -54,38 +61,52 @@ class TradingCommandHandler(BaseCommandHandler):
 
         if not positions:
             message = (
-                f"📊 **POSITIONS** 📊\n\n"
-                f"No open positions at the moment.\n\n"
-                f"Use /signals to view trading signals\n"
-                f"Use /orders to view pending orders"
+                f"📊 **LIVE POSITIONS DASHBOARD** 📊\n\n"
+                f"🎯 **No Active Positions**\n\n"
+                f"💡 **Quick Actions**:\n"
+                f"🎯 Check AI signals for opportunities\n"
+                f"📋 Review pending orders\n"
+                f"💰 Monitor account balance\n\n"
+                f"⚡ *Ready to trade when you are!*"
             )
+            keyboard = create_keyboard([
+                [("🎯 Get Signals", "signals"), ("📋 View Orders", "orders")],
+                [("💰 Account Info", "account"), ("📊 Market Pulse", "market_pulse")],
+                [("🔄 Refresh", "refresh_positions"), ("❓ Help", "help")]
+            ])
         else:
-            # Format the positions message
-            message = f"📊 **POSITIONS** 📊\n\n"
+            # Show typing effect for better UX
+            await VisualEffects.send_typing_effect(update, context, 1.0)
+            
+            # Format the positions message with enhanced visuals
+            total_profit = sum(pos["profit"] for pos in positions)
+            profit_trend = VisualEffects.create_profit_trend([0, total_profit])
+            
+            message = (
+                f"📊 **LIVE POSITIONS DASHBOARD** 📊\n\n"
+                f"💰 **Portfolio P&L**: {VisualEffects.format_currency(total_profit)}\n"
+                f"📈 **Trend**: {profit_trend}\n\n"
+            )
 
-            for position in positions:
-                # Determine emoji based on position type
-                type_emoji = "📈" if position["type"] == "BUY" else "📉"
-                
-                # Determine emoji based on profit
-                profit_emoji = "🟢" if position["profit"] > 0 else "🔴" if position["profit"] < 0 else "⚪"
+            for i, position in enumerate(positions, 1):
+                # Use visual effects for trading card
+                card = VisualEffects.create_trading_card(position)
+                message += card + "\n\n"
 
-                message += (
-                    f"{type_emoji} **{position['symbol']}** ({position['type']})\n"
-                    f"  Open: ${position['price_open']:.5f}\n"
-                    f"  Current: ${position['price_current']:.5f}\n"
-                    f"  Volume: {position['volume']}\n"
-                    f"  {profit_emoji} P&L: ${position['profit']:.2f} ({position['profit_pct']:.2f}%)\n\n"
-                )
-
-            message += f"**Total Positions**: {len(positions)}\n**Last Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-
-        # Create an inline keyboard for positions actions
-        keyboard = create_keyboard([
-            [("Refresh", "refresh_positions"), ("Orders", "orders")],
-            [("Account", "account"), ("Signals", "signals")],
-            [("Status", "status"), ("Risk", "risk")]
-        ])
+            message += (
+                f"📊 **Portfolio Summary**:\n"
+                f"🎯 Active Positions: **{len(positions)}**\n"
+                f"💰 Total Value: {VisualEffects.format_currency(total_profit)}\n"
+                f"🕐 **Live Update**: {datetime.now().strftime('%H:%M:%S')}"
+            )
+            
+            # Create enhanced keyboard with quick actions
+            keyboard = create_keyboard([
+                [("🔄 Refresh", "refresh_positions"), ("📊 Details", "position_details")],
+                [("⚡ Quick Close", "quick_close"), ("🎯 Add Position", "add_position")],
+                [("💰 Account", "account"), ("⚠️ Risk Check", "risk")],
+                [("📋 Orders", "orders"), ("📊 Performance", "performance")]
+            ])
 
         # If this is a callback query, edit the message
         if update.callback_query:

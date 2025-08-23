@@ -9,7 +9,13 @@ from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
-from src.telegram_bot.utils.keyboards import create_keyboard
+from src.telegram_bot.utils.keyboards import (
+    create_keyboard, 
+    get_main_menu_keyboard, 
+    create_trading_dashboard_keyboard,
+    create_emoji_status_keyboard,
+    create_progress_keyboard
+)
 from src.telegram_bot.utils.mock_data import get_system_status, get_system_info
 from .base import BaseCommandHandler
 
@@ -49,31 +55,23 @@ class SystemCommandHandler(BaseCommandHandler):
         """
         user = update.effective_user
         message = (
-            f"👋 Hello, {user.first_name}!\n\n"
-            f"Welcome to the AI Trading Bot. I'm here to help you monitor and manage your trading activities.\n\n"
-            f"Here are some quick actions to get started:\n"
-            f"• /status - Check system status\n"
-            f"• /account - View account information\n"
-            f"• /positions - View open positions\n"
-            f"• /orders - View pending orders\n"
-            f"• /signals - View trading signals\n"
-            f"• /risk - View risk metrics\n"
-            f"• /performance - View performance metrics\n"
-            f"• /monitor - Monitor system resources\n"
-            f"• /help - Show all available commands\n\n"
-            f"Let me know if you need any assistance!"
+            f"🚀 **Welcome, {user.first_name}!** 🚀\n\n"
+            f"🤖 **AI Trading Bot** is ready to help you dominate the markets!\n\n"
+            f"✨ **Features Unlocked**:\n"
+            f"📊 Real-time market analysis\n"
+            f"🎯 AI-powered trading signals\n"
+            f"⚠️ Advanced risk management\n"
+            f"💰 Live account monitoring\n"
+            f"📈 Performance analytics\n\n"
+            f"🎮 **Use the keyboard below for quick access!**\n"
+            f"💡 *Or tap the dashboard for advanced features*"
         )
 
-        # Create an inline keyboard with quick actions
-        keyboard = create_keyboard([
-            [("Status", "status"), ("Account", "account")],
-            [("Positions", "positions"), ("Orders", "orders")],
-            [("Signals", "signals"), ("Risk", "risk")],
-            [("Performance", "performance"), ("Monitor", "monitor")],
-            [("Help", "help")]
-        ])
+        # Create main trading dashboard
+        inline_keyboard = create_trading_dashboard_keyboard()
 
-        await self.send_message(update, context, message, keyboard)
+        await self.send_message(update, context, message, inline_keyboard, 
+                               reply_keyboard=get_main_menu_keyboard())
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /help command.
@@ -83,33 +81,32 @@ class SystemCommandHandler(BaseCommandHandler):
             context: The context object.
         """
         message = (
-            f"🤖 **AI Trading Bot Help** 🤖\n\n"
-            f"Here are all the available commands:\n\n"
-            f"**System Commands**:\n"
-            f"• /start - Start the bot\n"
-            f"• /help - Show this help message\n"
-            f"• /status - Check system status\n"
-            f"• /monitor - Monitor system resources\n"
-            f"• /settings - Configure bot settings\n\n"
-            f"**Trading Commands**:\n"
-            f"• /account - View account information\n"
-            f"• /positions - View open positions\n"
-            f"• /orders - View pending orders\n"
-            f"• /signals - View trading signals\n\n"
-            f"**Analysis Commands**:\n"
-            f"• /risk - View risk metrics\n"
-            f"• /performance - View performance metrics\n"
-            f"• /journal - View trading journal\n\n"
-            f"Click on any button below to execute the corresponding command."
+            f"🎯 **AI Trading Bot Help Center** 🎯\n\n"
+            f"🔧 **System Commands**:\n"
+            f"🚀 `/start` - Launch bot dashboard\n"
+            f"❓ `/help` - Display this help menu\n"
+            f"📊 `/status` - Real-time system status\n"
+            f"🖥️ `/monitor` - Resource monitoring\n"
+            f"⚙️ `/settings` - Bot configuration\n\n"
+            f"💹 **Trading Commands**:\n"
+            f"💰 `/account` - Account balance & equity\n"
+            f"📈 `/positions` - Active trading positions\n"
+            f"📋 `/orders` - Pending order management\n"
+            f"🎯 `/signals` - AI-generated trading signals\n\n"
+            f"📈 **Analysis Commands**:\n"
+            f"⚠️ `/risk` - Risk metrics & exposure\n"
+            f"📊 `/performance` - Trading performance stats\n"
+            f"📝 `/journal` - Trading journal & history\n\n"
+            f"💡 **Tap any button to execute instantly!**"
         )
 
         # Create an inline keyboard with all commands
         keyboard = create_keyboard([
-            [("Status", "status"), ("Account", "account")],
-            [("Positions", "positions"), ("Orders", "orders")],
-            [("Signals", "signals"), ("Risk", "risk")],
-            [("Performance", "performance"), ("Journal", "journal")],
-            [("Monitor", "monitor"), ("Settings", "settings")]
+            [("📊 Status", "status"), ("💰 Account", "account")],
+            [("📈 Positions", "positions"), ("📋 Orders", "orders")],
+            [("🎯 Signals", "signals"), ("⚠️ Risk", "risk")],
+            [("📊 Performance", "performance"), ("📝 Journal", "journal")],
+            [("🖥️ Monitor", "monitor"), ("⚙️ Settings", "settings")]
         ])
 
         # If this is a callback query, edit the message
@@ -130,23 +127,24 @@ class SystemCommandHandler(BaseCommandHandler):
 
         # Format the status message
         message = (
-            f"📊 **SYSTEM STATUS** 📊\n\n"
-            f"🔄 **Status**: {status_data['status']}\n"
+            f"📊 **SYSTEM STATUS DASHBOARD** 📊\n\n"
+            f"🟢 **Status**: {status_data['status']}\n"
             f"⏰ **Uptime**: {status_data['uptime']}\n"
-            f"🔌 **Connection**: {status_data['connection']}\n"
-            f"📈 **CPU Usage**: {status_data['cpu_usage']}%\n"
-            f"💾 **Memory Usage**: {status_data['memory_usage']}%\n\n"
-            f"**Active Strategies**: {status_data['active_strategies']}\n"
-            f"**Open Positions**: {status_data['open_positions']}\n"
-            f"**Pending Orders**: {status_data['pending_orders']}\n\n"
-            f"**Last Updated**: {status_data['last_updated']}"
+            f"🔌 **MT5 Connection**: {status_data['connection']}\n"
+            f"📈 **CPU**: {status_data['cpu_usage']}%\n"
+            f"💾 **Memory**: {status_data['memory_usage']}%\n\n"
+            f"📈 **Trading Overview**:\n"
+            f"🎯 Active Strategies: **{status_data['active_strategies']}**\n"
+            f"📊 Open Positions: **{status_data['open_positions']}**\n"
+            f"📋 Pending Orders: **{status_data['pending_orders']}**\n\n"
+            f"🕐 **Last Updated**: {status_data['last_updated']}"
         )
 
         # Create an inline keyboard for status actions
         keyboard = create_keyboard([
-            [("Refresh", "refresh_status"), ("Positions", "positions")],
-            [("Orders", "orders"), ("Account", "account")],
-            [("Monitor", "monitor"), ("Settings", "settings")]
+            [("🔄 Refresh", "refresh_status"), ("📈 Positions", "positions")],
+            [("📋 Orders", "orders"), ("💰 Account", "account")],
+            [("🖥️ Monitor", "monitor"), ("⚙️ Settings", "settings")]
         ])
 
         # If this is a callback query, edit the message

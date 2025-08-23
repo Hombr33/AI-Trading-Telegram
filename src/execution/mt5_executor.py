@@ -2,11 +2,23 @@
 MT5 execution logic for trading operations.
 """
 
+import time
+import asyncio
+import os
+import glob
+import platform
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
-import asyncio
 
-from ..core.logging import get_logger
+from ..core.logging import (
+    get_logger,
+    log_error_with_context,
+    log_system_event,
+    log_trade_event,
+    log_operation_timing
+)
+from ..core.error_handler import with_error_handling, ErrorContext
+from ..core.exceptions import MT5ConnectionError, MT5ExecutionError
 from ..core.config import MT5Config
 
 logger = get_logger(__name__)
@@ -338,6 +350,82 @@ class MT5Executor:
         self.account_info = None
         self.symbols_info = {}
 
+    def _find_mt5_installations(self) -> List[str]:
+        """Scan for MT5 installations on the system."""
+        installations = []
+        
+        if platform.system() == "Windows":
+            # Check Windows registry first
+            try:
+                import winreg
+                registry_paths = []
+                
+                # Check HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+                reg_keys = [
+                    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+                    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+                    (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+                ]
+                
+                for root_key, sub_key in reg_keys:
+                    try:
+                        with winreg.OpenKey(root_key, sub_key) as key:
+                            for i in range(winreg.QueryInfoKey(key)[0]):
+                                try:
+                                    subkey_name = winreg.EnumKey(key, i)
+                                    with winreg.OpenKey(key, subkey_name) as subkey:
+                                        try:
+                                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                            if "MetaTrader" in display_name:
+                                                install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                                terminal_path = os.path.join(install_location, "terminal64.exe")
+                                                if os.path.exists(terminal_path):
+                                                    registry_paths.append(terminal_path)
+                                                    logger.info(f"Found MT5 in registry: {terminal_path}")
+                                        except FileNotFoundError:
+                                            continue
+                                except (OSError, FileNotFoundError):
+                                    continue
+                    except (OSError, FileNotFoundError):
+                        continue
+                
+                installations.extend(registry_paths)
+            except ImportError:
+                logger.debug("winreg not available for registry scanning")
+            except Exception as e:
+                logger.debug(f"Registry scan failed: {e}")
+            
+            # File system scan as backup
+            search_paths = [
+                "C:\\Program Files\\MetaTrader*\\terminal64.exe",
+                "C:\\Program Files (x86)\\MetaTrader*\\terminal64.exe",
+                "C:\\Users\\*\\AppData\\Roaming\\MetaQuotes\\Terminal\\*\\terminal64.exe",
+                "D:\\Program Files\\MetaTrader*\\terminal64.exe",
+                "E:\\Program Files\\MetaTrader*\\terminal64.exe"
+            ]
+            
+            for pattern in search_paths:
+                try:
+                    found_paths = glob.glob(pattern, recursive=True)
+                    installations.extend(found_paths)
+                except Exception as e:
+                    logger.debug(f"Error scanning pattern {pattern}: {e}")
+            
+            # Remove duplicates while preserving order
+            installations = list(dict.fromkeys(installations))
+            
+        elif platform.system() == "Darwin":  # macOS
+            # Wine or other compatibility layers
+            search_paths = [
+                "/Applications/MetaTrader*.app/Contents/MacOS/terminal64",
+                "~/.wine/drive_c/Program Files/MetaTrader*/terminal64.exe"
+            ]
+            for pattern in search_paths:
+                installations.extend(glob.glob(os.path.expanduser(pattern)))
+        
+        logger.info(f"Found {len(installations)} MT5 installations: {installations}")
+        return installations
+
     async def connect(self) -> bool:
         """Connect to MT5 terminal using simplified approach."""
         try:
@@ -349,13 +437,18 @@ class MT5Executor:
                 error_code = mt5.last_error()
                 logger.warning(f"Default MT5 initialization failed: {error_code}")
                 
-                # Try common installation paths if default fails
-                paths_to_try = [
-                    "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
-                    "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe",
-                    "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe",
-                    "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe"
-                ]
+                # Scan for MT5 installations dynamically
+                logger.info("Scanning for MT5 installations...")
+                paths_to_try = self._find_mt5_installations()
+                
+                if not paths_to_try:
+                    logger.warning("No MT5 installations found, trying fallback paths")
+                    paths_to_try = [
+                        "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
+                        "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe",
+                        "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe",
+                        "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe"
+                    ]
                 
                 initialized = False
                 for path in paths_to_try:

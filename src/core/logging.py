@@ -209,6 +209,18 @@ def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwa
     logger.bind(**extra_data).info(f"Performance: {metric_name} = {value}{unit}")
 
 
+def log_operation_timing(operation: str, start_time: float, end_time: float, **context):
+    """Log operation timing for performance monitoring."""
+    duration_ms = (end_time - start_time) * 1000
+    log_performance_metric(
+        f"{operation}_duration",
+        duration_ms,
+        "ms",
+        operation=operation,
+        **context
+    )
+
+
 def log_error_with_context(
     error: Exception, context: Dict[str, Any], level: str = "ERROR"
 ):

@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional, Callable, Union
 import asyncio
 from datetime import datetime
 
-from telegram import Update, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
@@ -43,6 +43,7 @@ class BaseCommandHandler:
         context: ContextTypes.DEFAULT_TYPE, 
         text: str, 
         keyboard: Optional[InlineKeyboardMarkup] = None,
+        reply_keyboard: Optional[Union[ReplyKeyboardMarkup, ReplyKeyboardRemove]] = None,
         parse_mode: str = "Markdown"
     ):
         """Send a message to the user.
@@ -51,16 +52,30 @@ class BaseCommandHandler:
             update: The update object.
             context: The context object.
             text: The text to send.
-            keyboard: The keyboard to attach to the message.
+            keyboard: The inline keyboard to attach to the message.
+            reply_keyboard: The reply keyboard to show.
             parse_mode: The parse mode to use.
         """
         try:
+            # Use reply keyboard if provided, otherwise use inline keyboard
+            reply_markup = reply_keyboard if reply_keyboard is not None else keyboard
+            
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text=text,
-                reply_markup=keyboard,
+                reply_markup=reply_markup,
                 parse_mode=parse_mode
             )
+            
+            # If we have both keyboards, send inline keyboard in separate message
+            if reply_keyboard is not None and keyboard is not None:
+                await asyncio.sleep(0.1)  # Small delay for better UX
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="🎯 **Quick Actions Dashboard**",
+                    reply_markup=keyboard,
+                    parse_mode=parse_mode
+                )
         except Exception as e:
             logger.error(f"Error sending message: {e}")
             # Try without parse mode if it fails

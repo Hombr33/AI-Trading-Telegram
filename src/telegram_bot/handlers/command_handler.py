@@ -50,8 +50,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def setup_command_handlers(notification_manager: NotificationManager) -> Dict[str, Callable]:
     """Setup command handlers for the Telegram bot."""
-    return {
-        "start": start_command,
-        "help": help_command,
-        "status": status_command,
-    }
+    from ..commands.handler import CommandHandler
+    
+    # Use the proper modular command handler
+    command_handler = CommandHandler()
+    return command_handler.get_command_handlers()

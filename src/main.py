@@ -20,6 +20,9 @@ from .core.logging import (
     print_status_table,
     log_error_with_context,
 )
+from .core.workflow import workflow_manager, performance_monitor
+from .core.health_monitor import health_monitor
+from .core.error_handler import ErrorContext
 from .bridge.socketio_bridge import SocketIOBridge
 from .execution.mt5_executor import MT5Executor
 from .execution.order_manager import OrderManager
@@ -92,6 +95,10 @@ async def lifespan(app: FastAPI):
         trading.position_manager = position_manager
         trading.telegram_bot = telegram_bot
 
+        # Start health monitoring
+        logger.info("Starting health monitoring...")
+        await health_monitor.start_monitoring()
+
         # Start all components in the correct sequence
         logger.info("Starting all components in sequence...")
 
@@ -102,7 +109,7 @@ async def lifespan(app: FastAPI):
         await socketio_bridge.connect()
         logger.info("Socket.IO bridge connected successfully")
 
-        # 3. Start managers as background tasks
+        # 3. Start managers as background tasks with error handling
         logger.info("Starting trading managers...")
         position_task = asyncio.create_task(position_manager.start())
         trailing_task = asyncio.create_task(trailing_manager.start())
@@ -114,6 +121,7 @@ async def lifespan(app: FastAPI):
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
 
+        # Record startup success
         log_system_event(
             "main", "startup", "AI Trading Bot application started successfully"
         )
@@ -146,15 +154,18 @@ async def lifespan(app: FastAPI):
         log_error_with_context(e, {"component": "startup", "action": "initialization"})
         raise
     finally:
-        # Shutdown sequence
+        # Enhanced shutdown sequence
         logger.info("Shutting down AI Trading Bot...")
 
         try:
-            # Stop managers
-            if position_manager:
-                await position_manager.stop()
+            # Stop health monitoring
+            await health_monitor.stop_monitoring()
+
+            # Stop managers in reverse order
             if trailing_manager:
                 await trailing_manager.stop()
+            if position_manager:
+                await position_manager.stop()
 
             # Stop Telegram bot
             if telegram_bot:
@@ -281,67 +292,94 @@ async def root():
     }
 
 
-# Health check endpoint
+# Enhanced health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    health_status = {
-        "status": "healthy",
-        "timestamp": "2025-08-22T00:00:00Z",
-        "version": "1.0.0",
-        "components": {},
-    }
+    """Enhanced health check endpoint with comprehensive monitoring."""
+    try:
+        # Get health monitor status
+        health_summary = health_monitor.get_health_summary()
+        
+        # Get performance metrics
+        performance_summary = performance_monitor.get_performance_summary()
+        
+        # Component-specific health checks
+        components = {}
+        
+        # Check MT5 connection
+        if mt5_executor:
+            try:
+                connected = mt5_executor.is_connected
+                components["mt5"] = {
+                    "status": "connected" if connected else "disconnected",
+                    "healthy": connected,
+                    "type": "AioMQLExecutor" if hasattr(mt5_executor, '_ai_client') else "MT5Executor"
+                }
+            except Exception as e:
+                components["mt5"] = {
+                    "status": "error",
+                    "healthy": False,
+                    "error": str(e),
+                }
 
-    # Check MT5 connection
-    if mt5_executor:
-        try:
-            connected = mt5_executor.is_connected
-            health_status["components"]["mt5"] = {
-                "status": "connected" if connected else "disconnected",
-                "healthy": connected,
+        # Check Socket.IO bridge
+        if socketio_bridge:
+            bridge_status = socketio_bridge.get_status()
+            components["bridge"] = {
+                "status": "connected" if bridge_status["connected"] else "disconnected",
+                "healthy": bridge_status["connected"],
+                "fallback_enabled": bridge_status.get("fallback_enabled", False)
             }
-        except Exception as e:
-            health_status["components"]["mt5"] = {
-                "status": "error",
-                "healthy": False,
-                "error": str(e),
+
+        # Check Telegram bot
+        if telegram_bot:
+            components["telegram"] = {
+                "status": "running" if telegram_bot.is_running else "stopped",
+                "healthy": telegram_bot.is_running,
             }
 
-    # Check Socket.IO bridge
-    if socketio_bridge:
-        bridge_status = socketio_bridge.get_status()
-        health_status["components"]["bridge"] = {
-            "status": "connected" if bridge_status["connected"] else "disconnected",
-            "healthy": bridge_status["connected"],
+        # Check managers
+        if position_manager:
+            components["position_manager"] = {
+                "status": "running" if position_manager.is_running else "stopped",
+                "healthy": position_manager.is_running,
+            }
+
+        if trailing_manager:
+            components["trailing_manager"] = {
+                "status": "running" if trailing_manager.is_running else "stopped",
+                "healthy": trailing_manager.is_running,
+            }
+
+        # Calculate overall health
+        healthy_components = sum(1 for comp in components.values() if comp.get("healthy", False))
+        total_components = len(components)
+        health_percentage = (healthy_components / total_components * 100) if total_components > 0 else 0
+        
+        overall_status = "healthy"
+        if health_percentage < 50:
+            overall_status = "critical"
+        elif health_percentage < 80:
+            overall_status = "warning"
+
+        return {
+            "status": overall_status,
+            "health_percentage": health_percentage,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "1.0.0",
+            "uptime_seconds": performance_summary.get("uptime_seconds", 0),
+            "components": components,
+            "system_health": health_summary,
+            "performance": performance_summary
         }
-
-    # Check Telegram bot
-    if telegram_bot:
-        health_status["components"]["telegram"] = {
-            "status": "running" if telegram_bot.is_running else "stopped",
-            "healthy": telegram_bot.is_running,
+        
+    except Exception as e:
+        log_error_with_context(e, {"operation": "health_check"})
+        return {
+            "status": "error",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "error": str(e)
         }
-
-    # Check managers
-    if position_manager:
-        health_status["components"]["position_manager"] = {
-            "running": "running" if position_manager.is_running else "stopped",
-            "healthy": position_manager.is_running,
-        }
-
-    if trailing_manager:
-        health_status["components"]["trailing_manager"] = {
-            "running": "running" if trailing_manager.is_running else "stopped",
-            "healthy": trailing_manager.is_running,
-        }
-
-    # Overall health
-    all_healthy = all(
-        comp.get("healthy", True) for comp in health_status["components"].values()
-    )
-    health_status["status"] = "healthy" if all_healthy else "unhealthy"
-
-    return health_status
 
 
 # Status endpoint

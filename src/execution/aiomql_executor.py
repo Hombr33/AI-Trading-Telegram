@@ -1,9 +1,27 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Any
+import time
 import asyncio
+from typing import Dict, List, Optional, Any
 
-from ..core.logging import get_logger
+from ..core.logging import (
+    get_logger, 
+    log_error_with_context, 
+    log_system_event,
+    log_trade_event,
+    log_performance_metric,
+    log_operation_timing
+)
+from ..core.error_handler import (
+    with_error_handling,
+    ErrorContext,
+    CircuitBreaker
+)
+from ..core.exceptions import (
+    MT5ConnectionError,
+    MT5ExecutionError,
+    AioMQLError
+)
 from .mt5_executor import MT5Executor
 
 logger = get_logger(__name__)
@@ -26,6 +44,12 @@ class AioMQLExecutor(MT5Executor):
 
     This class keeps the same public async interface as MT5Executor so it can be
     plugged into existing managers without wider refactors.
+    
+    Features:
+    - Automatic fallback to MT5Executor if aiomql unavailable
+    - Circuit breaker for connection reliability
+    - Enhanced error handling and logging
+    - Performance monitoring and timeout controls
     """
 
     def __init__(self, config):
@@ -33,33 +57,48 @@ class AioMQLExecutor(MT5Executor):
         self._ai_client = None
         self._ai_session = None
         self._symbols_cache = {}
+        self._connection_circuit_breaker = CircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=60.0,
+            expected_exception=AioMQLError
+        )
+        self._last_heartbeat = None
 
+    @with_error_handling("aiomql_connect", notify_telegram=True, fallback_value=False)
     async def connect(self) -> bool:
         """Connect using aiomql if available; otherwise defer to parent."""
+        start_time = time.time()
+        
         if _AIOMQL_AVAILABLE and self.config.is_configured:
-            try:
-                # Initialize aiomql Account with timeout
-                logger.info("Attempting aiomql connection...")
-                
-                # Create account instance
-                account = Account(
-                    login=int(self.config.login),
-                    password=self.config.password,
-                    server=self.config.server
-                )
-                
-                # Initialize terminal connection with timeout
-                terminal = Terminal()
-                
-                # Use asyncio.wait_for for timeout control
+            async with ErrorContext("aiomql_connection", {
+                "login": self.config.login,
+                "server": self.config.server
+            }) as ctx:
                 try:
+                    # Check circuit breaker
+                    if not self._connection_circuit_breaker.can_execute():
+                        logger.warning("Connection circuit breaker is open, using fallback")
+                        return await super().connect()
+                    
+                    logger.info("Attempting aiomql connection...")
+                    
+                    # Create account instance
+                    account = Account(
+                        login=int(self.config.login),
+                        password=self.config.password,
+                        server=self.config.server
+                    )
+                    
+                    # Initialize terminal connection with timeout
+                    terminal = Terminal()
+                    
                     # Attempt to initialize with timeout
                     terminal_init = await asyncio.wait_for(
                         terminal.initialize(), timeout=30.0
                     )
                     
                     if terminal_init:
-                        logger.info("aiomql terminal initialized successfully")
+                        log_system_event("aiomql", "terminal_init", "Terminal initialized successfully")
                         
                         # Attempt login with timeout
                         login_success = await asyncio.wait_for(
@@ -67,35 +106,43 @@ class AioMQLExecutor(MT5Executor):
                         )
                         
                         if login_success:
-                            logger.info("aiomql login successful")
                             self._ai_client = account
                             self._ai_session = terminal
                             self.connected = True
+                            self._last_heartbeat = time.time()
+                            
+                            # Record success in circuit breaker
+                            self._connection_circuit_breaker.record_success()
                             
                             # Get account info with error handling
                             try:
                                 self.account_info = await self.get_account_info()
                                 if self.account_info:
-                                    logger.info(f"Connected to aiomql account: {self.account_info.get('login', 'unknown')}")
+                                    log_system_event(
+                                        "aiomql", "login_success",
+                                        f"Connected to account: {self.account_info.get('login', 'unknown')}",
+                                        context={"account_balance": self.account_info.get('balance', 0)}
+                                    )
                             except Exception as e:
                                 logger.warning(f"Failed to get aiomql account info: {e}")
                             
+                            log_operation_timing("aiomql_connect", start_time, time.time())
                             return True
                         else:
-                            logger.warning("aiomql login failed, cleaning up and falling back")
-                            await self._cleanup_aiomql_partial()
+                            raise AioMQLError("Login failed")
                     else:
-                        logger.warning("aiomql terminal initialization failed, falling back")
+                        raise AioMQLError("Terminal initialization failed")
                         
                 except asyncio.TimeoutError:
-                    logger.warning("aiomql connection timeout, falling back to MT5Executor")
+                    self._connection_circuit_breaker.record_failure()
+                    raise AioMQLError("Connection timeout")
+                except Exception as e:
+                    self._connection_circuit_breaker.record_failure()
                     await self._cleanup_aiomql_partial()
-                    
-            except Exception as e:
-                logger.warning(f"aiomql connect failed ({e}); falling back to MT5Executor")
-                await self._cleanup_aiomql_partial()
+                    raise AioMQLError(f"Connection failed: {e}")
         
         # Fallback to standard MT5Executor logic
+        log_system_event("aiomql", "fallback", "Using MT5Executor fallback")
         return await super().connect()
         
     async def _cleanup_aiomql_partial(self):

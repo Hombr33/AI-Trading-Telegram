@@ -13,18 +13,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     """Handle callback queries from inline keyboards."""
     try:
         query = update.callback_query
-        await query.answer()
+        await query.answer("⚡ Processing...")
         
         data = query.data
         logger.info(f"Callback query received: {data}")
         
-        if data == "refresh_status":
-            await query.edit_message_text("🔄 Status refreshed")
-        else:
-            await query.edit_message_text(f"Command received: {data}")
+        # Import command handlers
+        from ..commands.handler import CommandHandler
+        command_handler = CommandHandler()
+        
+        # Handle special live dashboard
+        if data == "live_dashboard":
+            from ..utils.animations import LiveDashboard
+            dashboard = LiveDashboard()
+            await dashboard.start_live_dashboard(update, context)
+            return
+        
+        # Handle other callbacks through command handler
+        await command_handler.handle_callback(update, context)
             
     except Exception as e:
         logger.error(f"Error handling callback query: {e}")
+        try:
+            await query.edit_message_text(
+                f"❌ **Error Processing Request**\n\n"
+                f"Something went wrong. Please try again or use /help.",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
 
 
 def setup_callback_handler(notification_manager: NotificationManager):
