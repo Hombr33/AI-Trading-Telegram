@@ -186,7 +186,9 @@ class BaseTelegramBot:
                         logger.info("Polling task cancelled successfully")
                     except Exception as e:
                         logger.warning(f"Unexpected error during polling task cancellation: {e}")
-                        
+                    finally:
+                        if not self.polling_task.done():
+                            logger.error("Polling task did not complete cancellation")
                 except Exception as e:
                     logger.warning(f"Error cancelling polling task: {e}")
             

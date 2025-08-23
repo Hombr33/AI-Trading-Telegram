@@ -172,8 +172,10 @@ async def lifespan(app: FastAPI):
                     logger.info("MT5 connected successfully")
                 else:
                     logger.warning("Failed to connect to MT5, continuing with mock mode")
+                    logger.debug("MT5 connection details: Login=%s, Server=%s", config.mt5.login, config.mt5.server)
             except Exception as e:
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
+                logger.debug("MT5 connection exception details", exc_info=True)
         
         # 4. Start Telegram bot (needed for auto services)
         logger.info("Starting Telegram bot...")

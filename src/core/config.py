@@ -34,6 +34,7 @@ class MT5Config(BaseSettings):
     login: Optional[int] = Field(default=None, env="MT5_LOGIN")  # Default to None for demo/testing
     password: Optional[str] = Field(default="")
     server: Optional[str] = Field(default="")
+    broker_name: Optional[str] = Field(default="", env="MT5_BROKER_NAME")
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
