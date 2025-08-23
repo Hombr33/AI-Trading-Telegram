@@ -23,6 +23,7 @@ from ..core.exceptions import (
     AioMQLError
 )
 from .mt5_executor import MT5Executor
+from .base_executor import BaseExecutor, PlatformType
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,10 @@ class AioMQLExecutor(MT5Executor):
             expected_exception=AioMQLError
         )
         self._last_heartbeat = None
+    
+    @property
+    def platform_name(self) -> str:
+        return "AioMQL (MetaTrader 5)"
 
     @with_error_handling("aiomql_connect", notify_telegram=True, fallback_value=False)
     async def connect(self) -> bool:

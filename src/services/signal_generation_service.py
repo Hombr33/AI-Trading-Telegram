@@ -1,0 +1,487 @@
+"""
+Automatic signal generation service.
+Generates trading signals at configurable intervals using AI analysis.
+"""
+
+import asyncio
+import time
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+
+from src.core.config import config
+from src.core.logging import get_logger, log_system_event
+from src.analysis.openai_analyzer import OpenAIAnalyzer
+from src.execution.platform_manager import PlatformManager
+from src.telegram_bot.notifications.trading import send_signal_notification
+
+logger = get_logger(__name__)
+
+
+class SignalGenerationService:
+    """Service for automatic signal generation."""
+    
+    def __init__(self, config, telegram_bot):
+        self.config = config
+        self.telegram_bot = telegram_bot
+        self.running = False
+        self.task: Optional[asyncio.Task] = None
+        self.analyzer = OpenAIAnalyzer(config)
+        self.platform_manager: Optional[PlatformManager] = None
+        self.last_signal_time = 0
+        self.signal_count_today = 0
+        self.daily_reset_time = 0
+    
+    async def start(self):
+        """Start the signal generation service."""
+        if self.running:
+            logger.warning("Signal generation service is already running")
+            return
+        
+        self.running = True
+        self.task = asyncio.create_task(self._signal_generation_loop())
+        log_system_event("signal_service", "started", "Signal generation service started")
+        logger.info("Signal generation service started")
+    
+    async def stop(self):
+        """Stop the signal generation service."""
+        if not self.running:
+            return
+        
+        self.running = False
+        if self.task:
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass
+        
+        log_system_event("signal_service", "stopped", "Signal generation service stopped")
+        logger.info("Signal generation service stopped")
+    
+    def set_platform_manager(self, platform_manager: PlatformManager):
+        """Set the platform manager for market data access."""
+        self.platform_manager = platform_manager
+    
+    async def _signal_generation_loop(self):
+        """Main signal generation loop."""
+        while self.running:
+            try:
+                # Check if signal generation is enabled
+                if not config.auto_trading.auto_signal_generation:
+                    await asyncio.sleep(60)  # Check every minute
+                    continue
+                
+                # Reset daily counter at midnight
+                current_time = time.time()
+                if current_time - self.daily_reset_time > 86400:  # 24 hours
+                    self.signal_count_today = 0
+                    self.daily_reset_time = current_time
+                
+                # Check if it's time for next signal
+                interval_seconds = config.auto_trading.signal_interval_minutes * 60
+                if current_time - self.last_signal_time >= interval_seconds:
+                    await self._generate_signals()
+                    self.last_signal_time = current_time
+                
+                # Sleep for 1 minute before next check
+                await asyncio.sleep(60)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in signal generation loop: {e}")
+                await asyncio.sleep(60)
+    
+    async def _generate_signals(self):
+        """Generate signals for all configured trading pairs."""
+        try:
+            # Get all trading pairs
+            all_pairs = config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
+            
+            logger.info(f"Generating signals for {len(all_pairs)} pairs")
+            
+            for symbol in all_pairs:
+                try:
+                    signal = await self._analyze_symbol(symbol)
+                    if signal and signal.get("action") != "hold":
+                        await self._send_signal_notification(signal)
+                        self.signal_count_today += 1
+                        
+                        logger.info(f"Generated signal for {symbol}: {signal.get('action')} @ {signal.get('entry_price')}")
+                
+                except Exception as e:
+                    logger.error(f"Error generating signal for {symbol}: {e}")
+                    continue
+                
+                # Small delay between symbols to avoid overwhelming APIs
+                await asyncio.sleep(1)
+        
+        except Exception as e:
+            logger.error(f"Error in signal generation: {e}")
+    
+    async def _analyze_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Analyze a symbol and generate trading signal."""
+        try:
+            # Get AI analysis using real-time web search
+            try:
+                analysis = await self.analyzer.analyze_market(symbol)
+                signal = self._parse_analysis_to_signal(symbol, analysis, {"current_price": 0})  # Price comes from AI analysis now
+                
+                # Send notification if signal is actionable
+                if signal and signal.get("action") != "hold":
+                    await self._send_signal_notification(signal)
+                
+                return signal
+            
+            except Exception as e:
+                logger.error(f"Error in AI analysis for {symbol}: {e}")
+                return self._create_error_signal(symbol, {"current_price": 0})
+        
+        except Exception as e:
+            logger.error(f"Error analyzing {symbol}: {e}")
+            return None
+    
+    async def _get_market_data(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get real-time market data for analysis."""
+        try:
+            # Use real market data APIs instead of mock data
+            import aiohttp
+            import asyncio
+            
+            # Determine if it's forex or crypto
+            is_crypto = any(crypto in symbol for crypto in ["BTC", "ETH", "ADA"])
+            
+            if is_crypto:
+                # Get crypto data from Binance API with timeout and error handling
+                crypto_symbol = symbol.replace("/", "").replace("USDT", "USDT")
+                url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={crypto_symbol}"
+                
+                try:
+                    timeout = aiohttp.ClientTimeout(total=10)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                return {
+                                    "symbol": symbol,
+                                    "platform": "binance",
+                                    "current_price": float(data["lastPrice"]),
+                                    "high_24h": float(data["highPrice"]),
+                                    "low_24h": float(data["lowPrice"]),
+                                    "volume_24h": float(data["volume"]),
+                                    "price_change_24h": float(data["priceChangePercent"]),
+                                    "timestamp": time.time()
+                                }
+                            else:
+                                logger.warning(f"Binance API returned status {response.status} for {symbol}")
+                except asyncio.TimeoutError:
+                    logger.warning(f"Binance API timeout for {symbol}")
+                except Exception as api_error:
+                    logger.warning(f"Binance API error for {symbol}: {api_error}")
+            else:
+                # Get forex data from a free API
+                # Using exchangerate-api.com for real forex rates
+                base_currency = symbol[:3]
+                quote_currency = symbol[3:]
+                
+                url = f"https://api.exchangerate-api.com/v4/latest/{base_currency}"
+                
+                try:
+                    timeout = aiohttp.ClientTimeout(total=10)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                if quote_currency in data["rates"]:
+                                    current_rate = data["rates"][quote_currency]
+                                    return {
+                                        "symbol": symbol,
+                                        "platform": "forex",
+                                        "current_price": current_rate,
+                                        "high_24h": current_rate * 1.002,  # Approximate
+                                        "low_24h": current_rate * 0.998,   # Approximate
+                                        "volume_24h": 1000000,  # Forex volume is hard to get
+                                        "price_change_24h": 0.1,  # Approximate
+                                        "timestamp": time.time()
+                                    }
+                            else:
+                                logger.warning(f"Exchange rate API returned status {response.status} for {symbol}")
+                except asyncio.TimeoutError:
+                    logger.warning(f"Exchange rate API timeout for {symbol}")
+                except Exception as api_error:
+                    logger.warning(f"Exchange rate API error for {symbol}: {api_error}")
+            
+            # Fallback to mock data if APIs fail
+            logger.warning(f"Using fallback mock data for {symbol}")
+            # Use realistic crypto prices as of January 2025
+            if "BTC" in symbol:
+                base_price = 115000  # ~$115,000 for Bitcoin
+            elif "ETH" in symbol:
+                base_price = 3800    # ~$3,800 for Ethereum
+            elif "SOL" in symbol:
+                base_price = 180     # ~$180 for Solana
+            elif "ADA" in symbol:
+                base_price = 1.20    # ~$1.20 for Cardano
+            elif "USD" in symbol:
+                base_price = 1.1000  # Forex rates around 1.10
+            else:
+                base_price = 100     # Default for other cryptos
+            import random
+            
+            return {
+                "symbol": symbol,
+                "platform": "mock",
+                "current_price": base_price + random.uniform(-base_price * 0.02, base_price * 0.02),
+                "high_24h": base_price + random.uniform(0, base_price * 0.03),
+                "low_24h": base_price - random.uniform(0, base_price * 0.03),
+                "volume_24h": random.uniform(1000000, 10000000),
+                "price_change_24h": random.uniform(-5.0, 5.0),
+                "timestamp": time.time()
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting market data for {symbol}: {e}")
+            # Return mock data as fallback
+            # Use realistic crypto prices as of January 2025
+            if "BTC" in symbol:
+                base_price = 115000  # ~$115,000 for Bitcoin
+            elif "ETH" in symbol:
+                base_price = 3800    # ~$3,800 for Ethereum
+            elif "SOL" in symbol:
+                base_price = 180     # ~$180 for Solana
+            elif "ADA" in symbol:
+                base_price = 1.20    # ~$1.20 for Cardana
+            elif "USD" in symbol:
+                base_price = 1.1000  # Forex rates around 1.10
+            else:
+                base_price = 100     # Default for other cryptos
+            import random
+            
+            return {
+                "symbol": symbol,
+                "platform": "mock",
+                "current_price": base_price + random.uniform(-base_price * 0.02, base_price * 0.02),
+                "high_24h": base_price + random.uniform(0, base_price * 0.03),
+                "low_24h": base_price - random.uniform(0, base_price * 0.03),
+                "volume_24h": random.uniform(1000000, 10000000),
+                "price_change_24h": random.uniform(-5.0, 5.0),
+                "timestamp": time.time()
+            }
+    
+    def _build_analysis_prompt(self, symbol: str, market_data: Dict[str, Any]) -> str:
+        """Build comprehensive analysis prompt for AI."""
+        return f"""
+        You are an expert trading analyst. Analyze {symbol} and provide a detailed trading signal based on current market conditions.
+
+        REAL-TIME MARKET DATA:
+        Symbol: {symbol}
+        Current Price: {market_data['current_price']}
+        24h High: {market_data['high_24h']}
+        24h Low: {market_data['low_24h']}
+        24h Price Change: {market_data['price_change_24h']}%
+        24h Volume: {market_data['volume_24h']}
+        Data Source: {market_data.get('platform', 'unknown')}
+        Timestamp: {datetime.fromtimestamp(market_data['timestamp']).strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+        ANALYSIS REQUIREMENTS:
+        1. Technical Analysis:
+           - Price action and trend analysis
+           - Support and resistance levels
+           - Key technical indicators (RSI, MACD, Moving Averages)
+           - Chart patterns and breakouts
+
+        2. Market Context:
+           - Current market sentiment
+           - Volume analysis
+           - Volatility assessment
+           - Risk factors
+
+        3. Trading Decision:
+           - Clear action: BUY, SELL, or HOLD
+           - Specific entry price
+           - Stop loss level (risk management)
+           - Take profit targets
+           - Position size recommendation
+           - Risk level: LOW, MEDIUM, or HIGH
+           - Confidence score: 1-10 (10 = highest confidence)
+
+        4. Reasoning:
+           - Explain your analysis logic
+           - Key factors influencing the decision
+           - Market conditions supporting the trade
+           - Potential risks and mitigation
+
+        IMPORTANT: Base your analysis on the REAL market data provided above. Consider current market conditions, price movements, and volume. Provide actionable trading signals that can be executed immediately.
+
+        Format your response with clear sections for easy parsing.
+        """
+    
+    def _parse_analysis_to_signal(self, symbol: str, analysis: str, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse AI analysis into structured signal."""
+        try:
+            import json
+            import re
+            
+            # Try to extract JSON from the real-time response
+            json_match = re.search(r'\{.*\}', analysis, re.DOTALL)
+            
+            if json_match:
+                try:
+                    json_str = json_match.group(0)
+                    analysis_json = json.loads(json_str)
+                    
+                    # Extract values from JSON response
+                    action = analysis_json.get("action", "HOLD").lower()
+                    entry_price = float(analysis_json.get("entry_price", 100))
+                    stop_loss = float(analysis_json.get("stop_loss", entry_price * 0.98 if action == "buy" else entry_price * 1.02))
+                    take_profit = float(analysis_json.get("take_profit", entry_price * 1.04 if action == "buy" else entry_price * 0.96))
+                    confidence = int(analysis_json.get("confidence", 7))
+                    risk_level = analysis_json.get("risk_level", "MEDIUM").lower()
+                    reasoning = analysis_json.get("reasoning", "Real-time AI analysis")
+                    
+                    # Create structured signal
+                    signal = {
+                        "symbol": symbol,
+                        "action": action,
+                        "entry_price": entry_price,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "risk_level": risk_level,
+                        "confidence": confidence,
+                        "analysis": reasoning,
+                        "timestamp": datetime.now().isoformat(),
+                        "platform": "realtime_web_search",
+                        "signal_type": "realtime_json",
+                        "raw_analysis": analysis
+                    }
+                    
+                    return signal
+                    
+                except json.JSONDecodeError:
+                    pass
+            
+            # Fallback to text parsing for non-JSON responses
+            logger.warning(f"Analysis is not valid JSON, falling back to text parsing for {symbol}")
+            
+            analysis_lower = analysis.lower()
+            
+            # Extract action
+            action = "hold"
+            if "action: buy" in analysis_lower or "recommendation: buy" in analysis_lower:
+                action = "buy"
+            elif "action: sell" in analysis_lower or "recommendation: sell" in analysis_lower:
+                action = "sell"
+            elif "buy" in analysis_lower and "don't buy" not in analysis_lower:
+                action = "buy"
+            elif "sell" in analysis_lower and "don't sell" not in analysis_lower:
+                action = "sell"
+            
+            # Extract confidence and risk
+            import re
+            confidence = 7
+            confidence_match = re.search(r'confidence[:\s]+(\d+)', analysis_lower)
+            if confidence_match:
+                confidence = int(confidence_match.group(1))
+            
+            risk_level = "medium"
+            if "risk: low" in analysis_lower or "risk level: low" in analysis_lower:
+                risk_level = "low"
+            elif "risk: high" in analysis_lower or "risk level: high" in analysis_lower:
+                risk_level = "high"
+            
+            # Extract prices from text or use defaults
+            entry_price = 100  # Default for real-time analysis
+            price_match = re.search(r'price[:\s]+\$?([0-9,.]+)', analysis_lower)
+            if price_match:
+                entry_price = float(price_match.group(1).replace(',', ''))
+            
+            stop_loss = entry_price * 0.98 if action == "buy" else entry_price * 1.02
+            take_profit = entry_price * 1.04 if action == "buy" else entry_price * 0.96
+            
+            signal = {
+                "symbol": symbol,
+                "action": action,
+                "entry_price": entry_price,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "risk_level": risk_level,
+                "confidence": confidence,
+                "analysis": analysis,
+                "timestamp": datetime.now().isoformat(),
+                "platform": "realtime_web_search",
+                "signal_type": "text_parsed"
+                }
+            
+            return signal
+        
+        except Exception as e:
+            logger.error(f"Error parsing analysis for {symbol}: {e}")
+            return {
+                "symbol": symbol,
+                "action": "hold",
+                "entry_price": market_data.get("current_price", 0),
+                "stop_loss": market_data.get("current_price", 0),
+                "take_profit": market_data.get("current_price", 0),
+                "confidence": 1,
+                "risk_level": "high",
+                "analysis": "Error in analysis parsing",
+                "timestamp": datetime.now().isoformat(),
+                "platform": market_data.get("platform", "unknown"),
+                "signal_type": "error"
+            }
+    
+    async def generate_signals(self):
+        """Generate signals for all configured trading pairs."""
+        try:
+            logger.info("Starting signal generation for all configured pairs...")
+            
+            # Get all configured pairs
+            all_pairs = config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
+            
+            signals_generated = 0
+            for symbol in all_pairs:
+                try:
+                    logger.info(f"Generating signal for {symbol}...")
+                    signal = await self._analyze_symbol(symbol)
+                    
+                    if signal:
+                        # Send notification
+                        await self._send_signal_notification(signal)
+                        signals_generated += 1
+                        logger.info(f"✅ Signal generated and sent for {symbol}")
+                    else:
+                        logger.warning(f"No signal generated for {symbol}")
+                        
+                except Exception as e:
+                    logger.error(f"Error generating signal for {symbol}: {e}")
+                    continue
+            
+            logger.info(f"Signal generation completed. Generated {signals_generated} signals out of {len(all_pairs)} pairs.")
+            return signals_generated
+            
+        except Exception as e:
+            logger.error(f"Error in generate_signals: {e}")
+            return 0
+    
+    async def _send_signal_notification(self, signal: Dict[str, Any]):
+        """Send signal notification via Telegram."""
+        try:
+            await send_signal_notification(signal)
+        except Exception as e:
+            logger.error(f"Error sending signal notification: {e}")
+    
+    def get_status(self) -> Dict[str, Any]:
+        """Get service status."""
+        return {
+            "running": self.running,
+            "enabled": config.auto_trading.auto_signal_generation,
+            "signals_today": self.signal_count_today,
+            "last_signal_time": datetime.fromtimestamp(self.last_signal_time).isoformat() if self.last_signal_time else None,
+            "next_signal_in": max(0, (self.last_signal_time + config.auto_trading.signal_interval_minutes * 60) - time.time()) if self.last_signal_time else 0,
+            "interval_minutes": config.auto_trading.signal_interval_minutes,
+            "active_pairs": len(config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs)
+        }
+
+
+# Global service instance - will be initialized in main.py
+signal_generation_service = None

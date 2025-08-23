@@ -148,3 +148,85 @@ class TradingNotifications:
 
         except Exception as e:
             logger.error(f"Error sending order notification: {e}")
+
+
+# Global notification functions for backward compatibility
+async def send_signal_notification(signal_data: Dict[str, Any]):
+    """Send trading signal notification (global function).
+    
+    Args:
+        signal_data: The signal data to send.
+    """
+    try:
+        # Format the signal for Telegram
+        symbol = signal_data.get("symbol", "UNKNOWN")
+        action = signal_data.get("action", "HOLD").upper()
+        entry_price = signal_data.get("entry_price", 0)
+        stop_loss = signal_data.get("stop_loss", 0)
+        take_profit = signal_data.get("take_profit", 0)
+        confidence = signal_data.get("confidence", 0)
+        risk_level = signal_data.get("risk_level", "unknown").upper()
+        platform = signal_data.get("platform", "unknown")
+        timestamp = signal_data.get("timestamp", datetime.now().isoformat())
+        
+        # Determine emojis
+        action_emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "⚪"
+        risk_emoji = "🟢" if risk_level == "LOW" else "🟡" if risk_level == "MEDIUM" else "🔴"
+        
+        # Format message for Telegram
+        telegram_message = f"""
+🚨 **AI TRADING SIGNAL** 🚨
+
+{action_emoji} **Action**: {action}
+📊 **Symbol**: {symbol}
+💰 **Entry**: ${entry_price:.5f}
+🛡️ **Stop Loss**: ${stop_loss:.5f}
+🎯 **Take Profit**: ${take_profit:.5f}
+
+📈 **Confidence**: {confidence}/10
+{risk_emoji} **Risk Level**: {risk_level}
+🔗 **Platform**: {platform}
+⏰ **Time**: {timestamp[:19]}
+
+📋 **Analysis**: {signal_data.get('analysis', 'AI-generated signal')[:100]}...
+
+Use /positions to check current positions
+Use /risk to monitor risk levels
+        """.strip()
+        
+        # Log the formatted signal
+        logger.info(f"📡 Telegram Signal Generated:")
+        logger.info(f"Symbol: {symbol} | Action: {action} | Entry: ${entry_price:.5f}")
+        logger.info(f"Confidence: {confidence}/10 | Risk: {risk_level}")
+        
+        # Actually send the message to Telegram
+        try:
+            from ..core.trading_bot import TradingBot
+            bot = TradingBot.get_instance()
+            if bot and bot.config.chat_id:
+                await bot.send_message(bot.config.chat_id, telegram_message, parse_mode="Markdown")
+                logger.info(f"✅ Signal sent to Telegram chat {bot.config.chat_id}")
+            else:
+                logger.warning("❌ Telegram bot not available or chat_id not configured")
+        except Exception as e:
+            logger.error(f"❌ Error sending signal to Telegram: {e}")
+        
+        # Store formatted message for Telegram bot to pick up
+        signal_data['telegram_message'] = telegram_message
+        signal_data['formatted_for_telegram'] = True
+        
+        return signal_data
+        
+    except Exception as e:
+        logger.error(f"Error formatting signal notification: {e}")
+        logger.info(f"Raw signal data: {signal_data}")
+
+
+async def send_trade_notification(trade_data: Dict[str, Any]):
+    """Send trade notification (global function).
+    
+    Args:
+        trade_data: The trade data to send.
+    """
+    # For now, just log the trade since we don't have a global notification manager
+    logger.info(f"Trade executed: {trade_data}")

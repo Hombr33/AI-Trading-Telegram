@@ -6,6 +6,7 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Any
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,12 +25,24 @@ from .core.workflow import workflow_manager, performance_monitor
 from .core.health_monitor import health_monitor
 from .core.error_handler import ErrorContext
 from .bridge.socketio_bridge import SocketIOBridge
-from .execution.mt5_executor import MT5Executor
+from .execution.platform_manager import PlatformManager
 from .execution.order_manager import OrderManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
 from .telegram_bot.core.trading_bot import TradingBot
-from .execution.aiomql_executor import AioMQLExecutor
+from .services.signal_generation_service import SignalGenerationService
+from .services.auto_trading_service import AutoTradingService
+
+# Import MT5/AioMQL only on Windows
+import sys
+if sys.platform == "win32":
+    try:
+        from .execution.aiomql_executor import AioMQLExecutor
+    except ImportError:
+        AioMQLExecutor = None
+        logger.warning("AioMQL executor not available on Windows")
+else:
+    AioMQLExecutor = None
 
 # Import API routes
 from .api.routes import health, v1, bridge, trading
@@ -40,16 +53,18 @@ logger = get_logger(__name__)
 # Global instances for API routes
 telegram_bot: TradingBot = None
 socketio_bridge: SocketIOBridge = None
-mt5_executor: MT5Executor = None
+platform_manager: PlatformManager = None
 order_manager: OrderManager = None
 position_manager: PositionManager = None
 trailing_manager: TrailingManager = None
+signal_generation_service: SignalGenerationService = None
+auto_trading_service: AutoTradingService = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global telegram_bot, socketio_bridge, mt5_executor, order_manager, position_manager, trailing_manager
+    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service
 
     # Print startup banner
     print_banner(
@@ -59,21 +74,30 @@ async def lifespan(app: FastAPI):
     )
 
     try:
-        # Initialize MT5 executor
-        logger.info("Initializing MT5 executor...")
-        # Prefer AioMQLExecutor (uses aiomql if available), fallback to MT5Executor behaviors
-        mt5_executor = AioMQLExecutor(config.mt5)
+        # Initialize Platform Manager (supports MT5 + Crypto exchanges)
+        logger.info("Initializing platform manager...")
+        platform_manager = PlatformManager(config)
+        
+        # Connect to all configured platforms
+        logger.info("Connecting to trading platforms...")
+        connection_results = await platform_manager.connect_all()
+        
+        connected_platforms = [name for name, success in connection_results.items() if success]
+        failed_platforms = [name for name, success in connection_results.items() if not success]
+        
+        if connected_platforms:
+            logger.info(f"Connected to platforms: {', '.join(connected_platforms)}")
+        if failed_platforms:
+            logger.warning(f"Failed to connect to platforms: {', '.join(failed_platforms)}")
+        
+        if not connected_platforms:
+            logger.warning("No platforms connected, continuing with mock mode")
 
-        # Connect to MT5
-        logger.info("Connecting to MT5...")
-        if not await mt5_executor.connect():
-            logger.warning("Failed to connect to MT5, continuing with mock mode")
-
-        # Initialize managers
+        # Initialize managers with platform manager
         logger.info("Initializing trading managers...")
-        order_manager = OrderManager(mt5_executor, config.trading)
-        position_manager = PositionManager(mt5_executor, config.trading)
-        trailing_manager = TrailingManager(mt5_executor, config.trading)
+        order_manager = OrderManager(platform_manager, config.trading)
+        position_manager = PositionManager(platform_manager, config.trading)
+        trailing_manager = TrailingManager(platform_manager, config.trading)
 
         # Initialize Socket.IO bridge
         logger.info("Initializing Socket.IO bridge...")
@@ -94,6 +118,11 @@ async def lifespan(app: FastAPI):
         trading.order_manager = order_manager
         trading.position_manager = position_manager
         trading.telegram_bot = telegram_bot
+
+        # Initialize auto trading services
+        logger.info("Initializing auto trading services...")
+        signal_generation_service = SignalGenerationService(config, telegram_bot)
+        auto_trading_service = AutoTradingService(config, platform_manager, telegram_bot)
 
         # Start health monitoring
         logger.info("Starting health monitoring...")
@@ -117,9 +146,21 @@ async def lifespan(app: FastAPI):
         # Wait a short time to ensure managers are running
         await asyncio.sleep(1)
         
-        # 4. Start Telegram bot last (after all other components are ready)
+        # 4. Start Telegram bot (needed for auto services)
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
+        
+        # 5. Start auto trading services if enabled
+        if config.auto_trading.enabled:
+            logger.info("Starting auto trading services...")
+            if config.auto_trading.auto_signal_generation:
+                logger.info("Starting signal generation service...")
+                await signal_generation_service.start()
+            
+            logger.info("Starting auto trading execution service...")
+            await auto_trading_service.start()
+        else:
+            logger.info("Auto trading is disabled in configuration")
 
         # Record startup success
         log_system_event(
@@ -161,6 +202,15 @@ async def lifespan(app: FastAPI):
             # Stop health monitoring
             await health_monitor.stop_monitoring()
 
+            # Stop auto trading services first
+            if auto_trading_service:
+                logger.info("Stopping auto trading service...")
+                await auto_trading_service.stop()
+            
+            if signal_generation_service:
+                logger.info("Stopping signal generation service...")
+                await signal_generation_service.stop()
+
             # Stop managers in reverse order
             if trailing_manager:
                 await trailing_manager.stop()
@@ -175,9 +225,9 @@ async def lifespan(app: FastAPI):
             if socketio_bridge:
                 await socketio_bridge.disconnect()
 
-            # Shutdown MT5 executor
-            if mt5_executor:
-                await mt5_executor.disconnect()
+            # Disconnect all trading platforms
+            if platform_manager:
+                await platform_manager.disconnect_all()
 
             log_system_event(
                 "main", "shutdown", "AI Trading Bot application shut down successfully"
@@ -275,7 +325,10 @@ async def root():
         "description": "Institutional-grade AI-powered automated trading bot",
         "status": "running",
         "components": {
-            "mt5_executor": mt5_executor.is_connected if mt5_executor else False,
+            "platform_manager": (
+                len(platform_manager.get_platform_status()["connected_platforms"]) > 0
+                if platform_manager else False
+            ),
             "socketio_bridge": (
                 socketio_bridge.get_status()
                 if socketio_bridge
@@ -288,6 +341,8 @@ async def root():
                 trailing_manager.is_running if trailing_manager else False
             ),
             "telegram_bot": telegram_bot.is_running if telegram_bot else False,
+            "auto_trading": auto_trading_service.is_running if auto_trading_service else False,
+            "signal_generation": signal_generation_service.is_running if signal_generation_service else False,
         },
     }
 
@@ -306,17 +361,19 @@ async def health_check():
         # Component-specific health checks
         components = {}
         
-        # Check MT5 connection
-        if mt5_executor:
+        # Check platform connections
+        if platform_manager:
             try:
-                connected = mt5_executor.is_connected
-                components["mt5"] = {
-                    "status": "connected" if connected else "disconnected",
-                    "healthy": connected,
-                    "type": "AioMQLExecutor" if hasattr(mt5_executor, '_ai_client') else "MT5Executor"
+                platform_status = platform_manager.get_platform_status()
+                components["platforms"] = {
+                    "connected_platforms": platform_status["connected_platforms"],
+                    "total_platforms": platform_status["total_platforms"],
+                    "primary_platform": platform_status["primary_platform"],
+                    "healthy": platform_status["connected_platforms"] > 0,
+                    "details": platform_status["platforms"]
                 }
             except Exception as e:
-                components["mt5"] = {
+                components["platforms"] = {
                     "status": "error",
                     "healthy": False,
                     "error": str(e),

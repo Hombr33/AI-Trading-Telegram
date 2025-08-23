@@ -9,6 +9,7 @@ from src.core.logging import get_logger
 from .system import SystemCommandHandler
 from .trading import TradingCommandHandler
 from .analysis import AnalysisCommandHandler
+from .auto_trading import AutoTradingCommandHandler
 
 logger = get_logger(__name__)
 
@@ -21,12 +22,14 @@ class CommandHandler:
         self.system_handler = SystemCommandHandler()
         self.trading_handler = TradingCommandHandler()
         self.analysis_handler = AnalysisCommandHandler()
+        self.auto_trading_handler = AutoTradingCommandHandler()
         
         # Combine commands from all handlers
         self.commands = {}
         self.commands.update(self.system_handler.commands)
         self.commands.update(self.trading_handler.commands)
         self.commands.update(self.analysis_handler.commands)
+        self.commands.update(self.auto_trading_handler.commands)
         
         # Setup mock data
         self._setup_mock_data()
@@ -62,6 +65,8 @@ class CommandHandler:
             await self.trading_handler.handle_callback(update, context)
         elif callback_data in self.analysis_handler.callbacks:
             await self.analysis_handler.handle_callback(update, context)
+        elif callback_data in self.auto_trading_handler.callbacks:
+            await self.auto_trading_handler.handle_callback(update, context)
         else:
             logger.warning(f"Unknown callback data: {callback_data}")
             await self.system_handler.answer_callback_query(update, context)

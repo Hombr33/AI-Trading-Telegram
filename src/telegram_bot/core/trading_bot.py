@@ -22,6 +22,9 @@ logger = get_logger(__name__)
 
 class TradingBot(BaseTelegramBot):
     """Trading bot implementation for Telegram."""
+    
+    _instance: Optional['TradingBot'] = None
+    _initialized: bool = False
 
     def __init__(self, config: TelegramConfig):
         """Initialize the trading bot.
@@ -33,6 +36,32 @@ class TradingBot(BaseTelegramBot):
         self.notification_manager: Optional[NotificationManager] = None
         self.command_handlers = {}
         self.callback_handlers = {}
+        
+        # Set as singleton instance
+        TradingBot._instance = self
+    
+    @classmethod
+    def get_instance(cls) -> Optional['TradingBot']:
+        """Get the singleton instance of TradingBot.
+        
+        Returns:
+            The TradingBot instance if it exists, None otherwise.
+        """
+        return cls._instance
+    
+    @classmethod
+    def create_instance(cls, config: TelegramConfig) -> 'TradingBot':
+        """Create or get the singleton instance of TradingBot.
+        
+        Args:
+            config: Telegram bot configuration.
+            
+        Returns:
+            The TradingBot instance.
+        """
+        if cls._instance is None:
+            cls._instance = cls(config)
+        return cls._instance
 
     async def setup(self):
         """Set up the trading bot."""
