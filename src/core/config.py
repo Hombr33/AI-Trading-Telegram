@@ -44,6 +44,20 @@ class MT5Config(BaseSettings):
             return None
         return int(v) if v else None
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Load from YAML if available
+        try:
+            from .yaml_config import get_mt5_config_from_yaml
+            yaml_config = get_mt5_config_from_yaml()
+            
+            # Override with YAML values if present
+            for key, value in yaml_config.items():
+                if hasattr(self, key) and value:
+                    setattr(self, key, value)
+        except Exception:
+            pass  # Continue with default/env values
+
     @property
     def is_configured(self) -> bool:
         """Check if MT5 is properly configured."""
@@ -92,6 +106,27 @@ class OpenAIConfig(BaseSettings):
     model: str = Field(default="gpt-4")
     max_tokens: int = Field(default=2000)
     temperature: float = Field(default=0.1)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Load from YAML if available
+        try:
+            from .yaml_config import get_openai_config_from_yaml
+            yaml_config = get_openai_config_from_yaml()
+            
+            # Override with YAML values if present
+            for key, value in yaml_config.items():
+                if hasattr(self, key) and value:
+                    # Handle environment variable keys
+                    if key.endswith('_env'):
+                        actual_key = key[:-4]  # Remove '_env' suffix
+                        env_value = os.getenv(value)
+                        if env_value and hasattr(self, actual_key):
+                            setattr(self, actual_key, env_value)
+                    else:
+                        setattr(self, key, value)
+        except Exception:
+            pass  # Continue with default/env values
 
     class Config:
         env_prefix = "OPENAI_"

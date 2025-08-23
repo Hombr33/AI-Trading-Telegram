@@ -16,6 +16,22 @@ class NotificationType(Enum):
     PERFORMANCE = "performance"
 
 
+class NotificationPriority(Enum):
+    """Notification priority levels."""
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
+
+
+class NotificationStatus(Enum):
+    """Notification delivery status."""
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    RETRYING = "retrying"
+
+
 class CallbackType(Enum):
     """Callback query types."""
 

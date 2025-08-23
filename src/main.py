@@ -13,8 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import socketio
 from socketio import AsyncServer
 
-from .core.config import config
-from .core.logging import (
+from src.core.config import config
+from src.core.logging import (
     get_logger,
     log_system_event,
     print_banner,
@@ -45,7 +45,7 @@ else:
     AioMQLExecutor = None
 
 # Import API routes
-from .api.routes import health, v1, bridge, trading
+from src.api.routes import health, v1, bridge, trading
 
 # Get logger
 logger = get_logger(__name__)
@@ -94,6 +94,7 @@ async def lifespan(app: FastAPI):
             logger.warning("No platforms connected, continuing with mock mode")
 
         # Initialize managers with platform manager
+
         logger.info("Initializing trading managers...")
         order_manager = OrderManager(platform_manager, config.trading)
         position_manager = PositionManager(platform_manager, config.trading)
@@ -128,7 +129,7 @@ async def lifespan(app: FastAPI):
         logger.info("Starting health monitoring...")
         await health_monitor.start_monitoring()
 
-        # Start all components in the correct sequence
+        # Start all components in parallel
         logger.info("Starting all components in sequence...")
 
         # 1. Start FastAPI first (happens automatically with the lifespan context)
@@ -143,10 +144,23 @@ async def lifespan(app: FastAPI):
         position_task = asyncio.create_task(position_manager.start())
         trailing_task = asyncio.create_task(trailing_manager.start())
         
-        # Wait a short time to ensure managers are running
-        await asyncio.sleep(1)
+        # 4. Start MT5 connection in background (non-blocking)
+        async def connect_mt5_background():
+            """Connect to MT5 in the background without blocking startup."""
+            try:
+                logger.info("Connecting to MT5 in background...")
+                if await mt5_executor.connect():
+                    logger.info("MT5 connected successfully")
+                else:
+                    logger.warning("Failed to connect to MT5, continuing with mock mode")
+            except Exception as e:
+                logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
+        
+        # Start MT5 connection as background task
+        mt5_task = asyncio.create_task(connect_mt5_background())
         
         # 4. Start Telegram bot (needed for auto services)
+
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
         
@@ -170,22 +184,22 @@ async def lifespan(app: FastAPI):
         # Print status table
         status_data = {
             "MT5 Executor": {
-                "status": "initialized",
-                "details": "Ready for connection",
+                "status": "connecting",
+                "details": "Connecting in background",
             },
             "Socket.IO Bridge": {
-                "status": "connecting",
-                "details": "Establishing connection",
+                "status": "connected",
+                "details": "Ready for EA connections",
             },
             "Position Manager": {
-                "status": "starting",
-                "details": "Background task started",
+                "status": "running",
+                "details": "Background task active",
             },
             "Trailing Manager": {
-                "status": "starting",
-                "details": "Background task started",
+                "status": "running",
+                "details": "Background task active",
             },
-            "Telegram Bot": {"status": "starting", "details": "Initializing bot"},
+            "Telegram Bot": {"status": "running", "details": "Ready for commands"},
         }
         print_status_table(status_data)
 
@@ -212,22 +226,25 @@ async def lifespan(app: FastAPI):
                 await signal_generation_service.stop()
 
             # Stop managers in reverse order
-            if trailing_manager:
+            if 'trailing_manager' in locals():
                 await trailing_manager.stop()
-            if position_manager:
+            if 'position_manager' in locals():
                 await position_manager.stop()
 
-            # Stop Telegram bot
-            if telegram_bot:
+            # Stop Telegram bot gracefully
+            if 'telegram_bot' in locals():
+                logger.info("Stopping Telegram bot...")
                 await telegram_bot.stop()
+                logger.info("Telegram bot stopped (any polling cancellation messages are normal)")
 
             # Disconnect Socket.IO bridge
-            if socketio_bridge:
+            if 'socketio_bridge' in locals():
                 await socketio_bridge.disconnect()
 
             # Disconnect all trading platforms
             if platform_manager:
                 await platform_manager.disconnect_all()
+
 
             log_system_event(
                 "main", "shutdown", "AI Trading Bot application shut down successfully"

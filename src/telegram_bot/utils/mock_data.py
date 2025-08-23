@@ -9,15 +9,25 @@ import sys
 def get_system_status() -> Dict[str, Any]:
     """Get mock system status data."""
     return {
+        "status": "Online",
         "bot_status": "Online",
         "mt5_connection": "Connected",
+        "connection": "Connected",
         "ai_analyzer": "Active",
         "risk_manager": "Active",
         "last_update": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+        "last_updated": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+        "uptime": "5d 12h 34m",
+        "cpu_usage": 35.5,
+        "memory_usage": 42.8,
         "daily_drawdown": 1.8,
         "total_positions": 3,
+        "open_positions": 3,
+        "active_positions": 3,
         "active_trades": 2,
-        "pending_signals": 1
+        "pending_orders": 2,
+        "pending_signals": 1,
+        "active_strategies": 2,
     }
 
 
@@ -47,15 +57,26 @@ def get_performance() -> Dict[str, Any]:
         "daily_profit": 125.30,
         "weekly_profit": 450.75,
         "monthly_profit": 1250.50,
+        "today_profit": 125.30,
+        "week_profit": 450.75,
+        "month_profit": 1250.50,
+        "today_trades": 5,
+        "week_trades": 18,
+        "month_trades": 45,
         "win_rate": 0.65,
         "profit_factor": 1.85,
+        "sharpe_ratio": 1.32,
         "avg_winner": 50.25,
         "avg_loser": -30.15,
+        "avg_trade": 14.71,
         "largest_winner": 250.00,
         "largest_loser": -150.00,
+        "best_trade": 250.00,
+        "worst_trade": -150.00,
         "total_trades": 85,
         "winning_trades": 55,
-        "losing_trades": 30
+        "losing_trades": 30,
+        "avg_holding_time": "4h 23m"
     }
 
 def get_system_info() -> Dict[str, Any]:
@@ -202,16 +223,25 @@ def get_mock_orders() -> List[Dict[str, Any]]:
 def get_mock_system_status() -> Dict[str, Any]:
     """Get mock system status data."""
     return {
+        "status": "Online",
         "bot_status": "Online",
         "mt5_connection": "Mock Mode",
+        "connection": "Mock Mode",
         "ai_analyzer": "Active",
         "risk_manager": "Active",
         "last_update": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+        "last_updated": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+        "uptime": "5h 23m",
+        "cpu_usage": 35.5,
+        "memory_usage": 42.8,
         "daily_drawdown": 1.8,
         "total_positions": 2,
+        "open_positions": 2,
+        "active_positions": 2,
         "active_trades": 2,
+        "pending_orders": 1,
         "pending_signals": 1,
-        "uptime": "5h 23m",
+        "active_strategies": 2,
         "errors_24h": 0,
         "warnings_24h": 2
     }
@@ -291,6 +321,10 @@ def get_mock_account_info() -> Dict[str, Any]:
         "name": "Demo Account",
         "server": "MetaQuotes-Demo",
         "profit": 75.68,
+        "profit_loss": 75.68,  # Added for compatibility
+        "open_positions": 3,
+        "pending_orders": 2,
+        "total_profit": 1250.50,  # Added for performance command
     }
 
 
@@ -308,69 +342,6 @@ def get_mock_system_info() -> Dict[str, Any]:
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "processes": random.randint(5, 15),
     }
-
-
-def get_system_status() -> Dict[str, Any]:
-    """Get system status data.
-    
-    Returns:
-        Dict: System status data.
-    """
-    return get_mock_system_status()
-
-
-def get_system_info() -> Dict[str, Any]:
-    """Get system information data.
-    
-    Returns:
-        Dict: System information data.
-    """
-    return get_mock_system_info()
-
-
-def get_positions() -> List[Dict[str, Any]]:
-    """Get positions data.
-    
-    Returns:
-        List[Dict]: Positions data.
-    """
-    return get_mock_positions()
-
-
-def get_orders() -> List[Dict[str, Any]]:
-    """Get orders data.
-    
-    Returns:
-        List[Dict]: Orders data.
-    """
-    return get_mock_orders()
-
-
-def get_account_info() -> Dict[str, Any]:
-    """Get account information data.
-    
-    Returns:
-        Dict: Account information data.
-    """
-    return get_mock_account_info()
-
-
-def get_risk_metrics() -> Dict[str, Any]:
-    """Get risk metrics data.
-    
-    Returns:
-        Dict: Risk metrics data.
-    """
-    return get_mock_risk_metrics()
-
-
-def get_performance() -> Dict[str, Any]:
-    """Get performance data.
-    
-    Returns:
-        Dict: Performance data.
-    """
-    return get_mock_performance()
 
 
 def get_recent_signals() -> List[Dict[str, Any]]:
