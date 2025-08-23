@@ -12,27 +12,27 @@ from fastapi.middleware.cors import CORSMiddleware
 import socketio
 from socketio import AsyncServer
 
-from .core.config import config
-from .core.logging import (
+from src.core.config import config
+from src.core.logging import (
     get_logger,
     log_system_event,
     print_banner,
     print_status_table,
     log_error_with_context,
 )
-from .core.workflow import workflow_manager, performance_monitor
-from .core.health_monitor import health_monitor
-from .core.error_handler import ErrorContext
-from .bridge.socketio_bridge import SocketIOBridge
-from .execution.mt5_executor import MT5Executor
-from .execution.order_manager import OrderManager
-from .execution.position_manager import PositionManager
-from .execution.trailing_manager import TrailingManager
-from .telegram_bot.core.trading_bot import TradingBot
-from .execution.aiomql_executor import AioMQLExecutor
+from src.core.workflow import workflow_manager, performance_monitor
+from src.core.health_monitor import health_monitor
+from src.core.error_handler import ErrorContext
+from src.bridge.socketio_bridge import SocketIOBridge
+from src.execution.mt5_executor import MT5Executor
+from src.execution.order_manager import OrderManager
+from src.execution.position_manager import PositionManager
+from src.execution.trailing_manager import TrailingManager
+from src.telegram_bot.core.trading_bot import TradingBot
+from src.execution.aiomql_executor import AioMQLExecutor
 
 # Import API routes
-from .api.routes import health, v1, bridge, trading
+from src.api.routes import health, v1, bridge, trading
 
 # Get logger
 logger = get_logger(__name__)
@@ -59,17 +59,12 @@ async def lifespan(app: FastAPI):
     )
 
     try:
-        # Initialize MT5 executor
+        # Initialize MT5 executor (but don't connect yet)
         logger.info("Initializing MT5 executor...")
         # Prefer AioMQLExecutor (uses aiomql if available), fallback to MT5Executor behaviors
         mt5_executor = AioMQLExecutor(config.mt5)
 
-        # Connect to MT5
-        logger.info("Connecting to MT5...")
-        if not await mt5_executor.connect():
-            logger.warning("Failed to connect to MT5, continuing with mock mode")
-
-        # Initialize managers
+        # Initialize managers with MT5 executor (they can work in mock mode initially)
         logger.info("Initializing trading managers...")
         order_manager = OrderManager(mt5_executor, config.trading)
         position_manager = PositionManager(mt5_executor, config.trading)
@@ -99,7 +94,7 @@ async def lifespan(app: FastAPI):
         logger.info("Starting health monitoring...")
         await health_monitor.start_monitoring()
 
-        # Start all components in the correct sequence
+        # Start all components in parallel
         logger.info("Starting all components in sequence...")
 
         # 1. Start FastAPI first (happens automatically with the lifespan context)
@@ -114,10 +109,22 @@ async def lifespan(app: FastAPI):
         position_task = asyncio.create_task(position_manager.start())
         trailing_task = asyncio.create_task(trailing_manager.start())
         
-        # Wait a short time to ensure managers are running
-        await asyncio.sleep(1)
+        # 4. Start MT5 connection in background (non-blocking)
+        async def connect_mt5_background():
+            """Connect to MT5 in the background without blocking startup."""
+            try:
+                logger.info("Connecting to MT5 in background...")
+                if await mt5_executor.connect():
+                    logger.info("MT5 connected successfully")
+                else:
+                    logger.warning("Failed to connect to MT5, continuing with mock mode")
+            except Exception as e:
+                logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
         
-        # 4. Start Telegram bot last (after all other components are ready)
+        # Start MT5 connection as background task
+        mt5_task = asyncio.create_task(connect_mt5_background())
+        
+        # 5. Start Telegram bot (no need to wait for MT5)
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
 
@@ -129,22 +136,22 @@ async def lifespan(app: FastAPI):
         # Print status table
         status_data = {
             "MT5 Executor": {
-                "status": "initialized",
-                "details": "Ready for connection",
+                "status": "connecting",
+                "details": "Connecting in background",
             },
             "Socket.IO Bridge": {
-                "status": "connecting",
-                "details": "Establishing connection",
+                "status": "connected",
+                "details": "Ready for EA connections",
             },
             "Position Manager": {
-                "status": "starting",
-                "details": "Background task started",
+                "status": "running",
+                "details": "Background task active",
             },
             "Trailing Manager": {
-                "status": "starting",
-                "details": "Background task started",
+                "status": "running",
+                "details": "Background task active",
             },
-            "Telegram Bot": {"status": "starting", "details": "Initializing bot"},
+            "Telegram Bot": {"status": "running", "details": "Ready for commands"},
         }
         print_status_table(status_data)
 
@@ -161,22 +168,46 @@ async def lifespan(app: FastAPI):
             # Stop health monitoring
             await health_monitor.stop_monitoring()
 
+            # Cancel background tasks
+            if 'mt5_task' in locals() and not mt5_task.done():
+                mt5_task.cancel()
+                try:
+                    await mt5_task
+                except asyncio.CancelledError:
+                    logger.info("MT5 connection task cancelled")
+
+            if 'position_task' in locals() and not position_task.done():
+                position_task.cancel()
+                try:
+                    await position_task
+                except asyncio.CancelledError:
+                    logger.info("Position manager task cancelled")
+
+            if 'trailing_task' in locals() and not trailing_task.done():
+                trailing_task.cancel()
+                try:
+                    await trailing_task
+                except asyncio.CancelledError:
+                    logger.info("Trailing manager task cancelled")
+
             # Stop managers in reverse order
-            if trailing_manager:
+            if 'trailing_manager' in locals():
                 await trailing_manager.stop()
-            if position_manager:
+            if 'position_manager' in locals():
                 await position_manager.stop()
 
-            # Stop Telegram bot
-            if telegram_bot:
+            # Stop Telegram bot gracefully
+            if 'telegram_bot' in locals():
+                logger.info("Stopping Telegram bot...")
                 await telegram_bot.stop()
+                logger.info("Telegram bot stopped (any polling cancellation messages are normal)")
 
             # Disconnect Socket.IO bridge
-            if socketio_bridge:
+            if 'socketio_bridge' in locals():
                 await socketio_bridge.disconnect()
 
             # Shutdown MT5 executor
-            if mt5_executor:
+            if 'mt5_executor' in locals():
                 await mt5_executor.disconnect()
 
             log_system_event(

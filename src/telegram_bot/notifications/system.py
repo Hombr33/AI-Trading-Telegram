@@ -1,5 +1,14 @@
 """System notifications for Telegram bot."""
 
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+
+from src.core.logging import get_logger
+from .manager import NotificationManager
+from ..utils.constants import NotificationPriority
+
+logger = get_logger(__name__)  # System notifications for Telegram bot.
+
 from typing import Dict, Any
 from datetime import datetime, timezone
 
@@ -45,7 +54,10 @@ class SystemNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="info", priority="medium", parse_mode="Markdown"
+                message, 
+                notification_type="info", 
+                priority=NotificationPriority.MEDIUM, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:
@@ -69,7 +81,10 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, notification_type="info", priority="high", parse_mode="Markdown"
+                message, 
+                notification_type="info", 
+                priority=NotificationPriority.HIGH, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:
@@ -102,7 +117,10 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, notification_type="error", priority="high", parse_mode="Markdown"
+                message, 
+                notification_type="error", 
+                priority=NotificationPriority.HIGH, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:
@@ -168,7 +186,10 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, notification_type="info", priority="low", parse_mode="Markdown"
+                message, 
+                notification_type="info", 
+                priority=NotificationPriority.LOW, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:

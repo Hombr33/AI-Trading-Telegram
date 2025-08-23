@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from src.core.logging import get_logger
 from .manager import NotificationManager
+from ..utils.constants import NotificationPriority
 
 logger = get_logger(__name__)
 
@@ -56,8 +57,19 @@ class RiskNotifications:
 
             alert_message += f"\n⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
+            # Determine priority based on alert type
+            if alert_type == "emergency":
+                priority = NotificationPriority.CRITICAL
+            elif alert_type in ["drawdown", "exposure"]:
+                priority = NotificationPriority.HIGH
+            else:
+                priority = NotificationPriority.MEDIUM
+
             await self.notification_manager.send_notification(
-                alert_message, notification_type="risk", priority="high", parse_mode="Markdown"
+                alert_message, 
+                notification_type="risk", 
+                priority=priority, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:

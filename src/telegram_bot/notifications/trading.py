@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from src.core.logging import get_logger
 from .manager import NotificationManager
+from ..utils.constants import NotificationPriority
 
 logger = get_logger(__name__)
 
@@ -51,7 +52,10 @@ class TradingNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="signal", priority="high", parse_mode="Markdown"
+                message, 
+                notification_type="signal", 
+                priority=NotificationPriority.HIGH, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:
@@ -101,7 +105,10 @@ class TradingNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="position", priority="medium", parse_mode="Markdown"
+                message, 
+                notification_type="position", 
+                priority=NotificationPriority.MEDIUM, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:
@@ -143,7 +150,10 @@ class TradingNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="order", priority="medium", parse_mode="Markdown"
+                message, 
+                notification_type="order", 
+                priority=NotificationPriority.MEDIUM, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:

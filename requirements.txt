@@ -4,6 +4,7 @@ pydantic==2.9.2
 pydantic-settings==2.5.2
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
+PyYAML==6.0.1
 
 # Database and ORM
 sqlalchemy==2.0.36
@@ -18,6 +19,9 @@ bcrypt==4.1.2
 
 # Telegram
 python-telegram-bot>=20.7
+
+# AI and Analysis
+openai>=1.0.0
 
 # Testing
 pytest==7.4.3

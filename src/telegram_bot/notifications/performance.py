@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from src.core.logging import get_logger
 from .manager import NotificationManager
+from ..utils.constants import NotificationPriority
 
 logger = get_logger(__name__)
 
@@ -66,7 +67,10 @@ class PerformanceNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="performance", priority="medium", parse_mode="Markdown"
+                message, 
+                notification_type="performance", 
+                priority=NotificationPriority.MEDIUM, 
+                parse_mode="Markdown"
             )
 
         except Exception as e:

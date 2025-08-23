@@ -45,6 +45,10 @@ class SystemCommandHandler(BaseCommandHandler):
             "monitor": self.monitor_command,
             "refresh_monitor": self.monitor_command,
             "settings": self.settings_command,
+            "edit_notifications": self.edit_notifications_callback,
+            "edit_trading": self.edit_trading_callback,
+            "edit_risk": self.edit_risk_callback,
+            "edit_system": self.edit_system_callback,
             "mt5status": self.mt5_status_command,
             "refresh_mt5": self.mt5_status_command,
         }
@@ -58,36 +62,6 @@ class SystemCommandHandler(BaseCommandHandler):
             "Use /help to see all available commands."
         )
         await update.message.reply_text(welcome_text)
-
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle the /help command."""
-        help_text = """
-                    Welcome to AI Trading Bot! Here are the available commands:
-
-                    Trading Commands:
-                    /positions - View open positions
-                    /orders - View pending orders
-                    /account - View account info
-                    /signals - View recent trading signals
-
-                    Symbol Management:
-                    /symbols [broker] - List symbol mappings
-                    /addsymbol <standard> <broker> <broker_name> - Add mapping
-                    /delsymbol <standard> <broker_name> - Delete mapping
-
-                    System Commands:
-                    /status - Check system status
-                    /monitor - View performance metrics
-                    /settings - Configure bot settings
-                    /help - Show this help message
-                    """
-        await update.message.reply_text(help_text)
-
-        # Create main trading dashboard
-        inline_keyboard = create_trading_dashboard_keyboard()
-
-        await self.send_message(update, context, message, inline_keyboard, 
-                               reply_keyboard=get_main_menu_keyboard())
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /help command.
@@ -425,3 +399,63 @@ class SystemCommandHandler(BaseCommandHandler):
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
+
+    async def edit_notifications_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the edit_notifications callback."""
+        message = (
+            f"🔔 **NOTIFICATION SETTINGS** 🔔\n\n"
+            f"Notification configuration coming soon!\n\n"
+            f"This feature will allow you to configure which notifications you receive."
+        )
+        
+        keyboard = create_keyboard([
+            [("Back to Settings", "settings")],
+            [("Status", "status"), ("Help", "help")]
+        ])
+        
+        await self.edit_message(update, context, message, keyboard)
+
+    async def edit_trading_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the edit_trading callback."""
+        message = (
+            f"📈 **TRADING SETTINGS** 📈\n\n"
+            f"Trading configuration coming soon!\n\n"
+            f"This feature will allow you to configure trading parameters like risk per trade, max positions, etc."
+        )
+        
+        keyboard = create_keyboard([
+            [("Back to Settings", "settings")],
+            [("Status", "status"), ("Help", "help")]
+        ])
+        
+        await self.edit_message(update, context, message, keyboard)
+
+    async def edit_risk_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the edit_risk callback."""
+        message = (
+            f"⚠️ **RISK SETTINGS** ⚠️\n\n"
+            f"Risk management configuration coming soon!\n\n"
+            f"This feature will allow you to configure risk parameters like max drawdown, position size limits, etc."
+        )
+        
+        keyboard = create_keyboard([
+            [("Back to Settings", "settings")],
+            [("Status", "status"), ("Help", "help")]
+        ])
+        
+        await self.edit_message(update, context, message, keyboard)
+
+    async def edit_system_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the edit_system callback."""
+        message = (
+            f"⚙️ **SYSTEM SETTINGS** ⚙️\n\n"
+            f"System configuration coming soon!\n\n"
+            f"This feature will allow you to configure system parameters like timezone, logging level, etc."
+        )
+        
+        keyboard = create_keyboard([
+            [("Back to Settings", "settings")],
+            [("Status", "status"), ("Help", "help")]
+        ])
+        
+        await self.edit_message(update, context, message, keyboard)
