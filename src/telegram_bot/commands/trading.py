@@ -19,8 +19,14 @@ from src.telegram_bot.utils.visual_effects import VisualEffects
 from src.database.session import SessionLocal
 from src.services.symbol_service import SymbolService
 from .base import BaseCommandHandler
+from src.analysis.openai_analyzer import OpenAIAnalyzer
+from src.core.config import AppConfig
 
 logger = get_logger(__name__)
+
+# Initialize OpenAIAnalyzer
+config = AppConfig()
+analyzer = OpenAIAnalyzer(config=config)
 
 
 class TradingCommandHandler(BaseCommandHandler):
@@ -453,20 +459,6 @@ class TradingCommandHandler(BaseCommandHandler):
             List of trading signals.
         """
         try:
-            from src.core.config import AppConfig
-            from src.analysis.openai_analyzer import OpenAIAnalyzer
-            
-            # Get configuration
-            config = AppConfig()
-            
-            # Check if OpenAI is configured
-            if not config.openai.api_key:
-                logger.warning("OpenAI API key not configured, using fallback signals")
-                return self._get_fallback_signals()
-            
-            # Initialize the analyzer
-            analyzer = OpenAIAnalyzer(config)
-            
             # For now, we'll generate signals based on market context without screenshots
             # This is a simplified implementation that uses text-based market analysis
             market_context = {
@@ -496,13 +488,6 @@ class TradingCommandHandler(BaseCommandHandler):
             List of trading signals.
         """
         try:
-            from src.core.config import AppConfig
-            import openai
-            import json
-            
-            config = AppConfig()
-            client = openai.AsyncOpenAI(api_key=config.openai.api_key)
-            
             # Create a prompt for signal generation
             prompt = f"""
             You are a professional forex trading signal generator. Analyze the current market conditions and generate 1-3 high-quality trading signals.
@@ -535,16 +520,7 @@ class TradingCommandHandler(BaseCommandHandler):
             - Limit to maximum 3 signals
             """
             
-            response = await client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a professional forex trading analyst with 10 years of experience."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                max_tokens=800,
-                temperature=0.7
-            )
+            response = await analyzer.analyze(prompt, market_context)
             
             response_content = response.choices[0].message.content
             if not response_content:
