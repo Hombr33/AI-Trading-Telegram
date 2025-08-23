@@ -20,6 +20,7 @@ from ..core.logging import (
 from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import MT5ConnectionError, MT5ExecutionError
 from ..core.config import MT5Config
+from .base_executor import BaseExecutor, PlatformType
 
 logger = get_logger(__name__)
 
@@ -341,14 +342,16 @@ from ..models.positions import Position
 from ..models.trades import Trade
 
 
-class MT5Executor:
+class MT5Executor(BaseExecutor):
     """MT5 execution engine for automated trading."""
 
     def __init__(self, config: MT5Config):
-        self.config = config
-        self.connected = False
-        self.account_info = None
+        super().__init__(config, PlatformType.MT5)
         self.symbols_info = {}
+        
+    @property
+    def platform_name(self) -> str:
+        return "MetaTrader 5"
 
     def _find_mt5_installations(self) -> List[str]:
         """Scan for MT5 installations on the system."""
@@ -653,43 +656,53 @@ class MT5Executor:
             logger.error(f"Position close error: {e}")
             return {"success": False, "error": str(e)}
 
-    async def get_positions(self) -> List[Dict]:
-        """Get all open positions from MT5."""
+    async def get_positions(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all open positions, optionally filtered by symbol."""
         if not self.connected:
+            logger.warning("MT5 not connected")
             return []
 
         try:
-            positions = mt5.positions_get()
+            if symbol:
+                positions = mt5.positions_get(symbol=symbol)
+            else:
+                positions = mt5.positions_get()
+
             if positions is None:
+                error_code = mt5.last_error()
+                logger.error(f"Failed to get positions: {error_code}")
                 return []
 
-            return [
-                {
-                    "ticket": pos.ticket if hasattr(pos, "ticket") else i,
-                    "symbol": pos.symbol if hasattr(pos, "symbol") else "EURUSD",
-                    "type": pos.type if hasattr(pos, "type") else "BUY",
-                    "volume": pos.volume if hasattr(pos, "volume") else 0.01,
-                    "price_open": (
-                        pos.price_open if hasattr(pos, "price_open") else 1.2000
-                    ),
-                    "price_current": (
-                        pos.price_current if hasattr(pos, "price_current") else 1.2000
-                    ),
-                    "sl": pos.sl if hasattr(pos, "sl") else 0.0,
-                    "tp": pos.tp if hasattr(pos, "tp") else 0.0,
-                    "profit": pos.profit if hasattr(pos, "profit") else 0.0,
-                    "swap": pos.swap if hasattr(pos, "swap") else 0.0,
-                    "time": (
-                        pos.time
-                        if hasattr(pos, "time")
-                        else int(datetime.now().timestamp())
-                    ),
+            result = []
+            for pos in positions:
+                position_data = {
+                    "position_id": str(pos.ticket),
+                    "symbol": pos.symbol,
+                    "side": "BUY" if pos.type == 0 else "SELL",
+                    "size": pos.volume,
+                    "entry_price": pos.price_open,
+                    "current_price": pos.price_current,
+                    "unrealized_pnl": pos.profit,
+                    "realized_pnl": 0.0,  # MT5 doesn't track this separately
+                    "timestamp": datetime.fromtimestamp(pos.time, timezone.utc).isoformat(),
+                    "platform": self.platform_type.value,
+                    # Legacy fields for backward compatibility
+                    "type": "BUY" if pos.type == 0 else "SELL",
+                    "volume": pos.volume,
+                    "price_open": pos.price_open,
+                    "price_current": pos.price_current,
+                    "sl": pos.sl,
+                    "profit": pos.profit,
+                    "swap": pos.swap,
+                    "time": pos.time,
+                    "comment": pos.comment,
                 }
-                for i, pos in enumerate(positions)
-            ]
+                result.append(self.format_position_data(position_data))
+
+            return result
 
         except Exception as e:
-            logger.error(f"Error getting positions: {e}")
+            log_error_with_context(e, {"operation": "get_positions", "symbol": symbol})
             return []
 
     async def get_orders(self) -> List[Dict]:
@@ -845,3 +858,213 @@ class MT5Executor:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.disconnect()
+    
+    # Implement abstract methods from BaseExecutor
+    async def test_connection(self) -> bool:
+        """Test MT5 connection."""
+        try:
+            if not self.connected:
+                return False
+            # Try a simple operation
+            terminal_info = mt5.terminal_info()
+            return terminal_info is not None
+        except:
+            return False
+    
+    async def get_balance(self, asset: str = "USD") -> float:
+        """Get account balance."""
+        try:
+            account_info = await self.get_account_info()
+            if account_info:
+                return float(account_info.get('balance', 0))
+            return 0.0
+        except:
+            return 0.0
+    
+    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """Cancel an order."""
+        try:
+            request = {
+                "action": mt5.TRADE_ACTION_REMOVE,
+                "order": int(order_id),
+            }
+            
+            result = mt5.order_send(request)
+            if result is None:
+                error_code = mt5.last_error()
+                return {"success": False, "error": f"MT5 error: {error_code}"}
+            
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                return {"success": False, "error": f"Cancel failed: {result.retcode}"}
+            
+            return {"success": True, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def modify_order(self, order_id: str, **kwargs) -> Dict[str, Any]:
+        """Modify an order."""
+        try:
+            request = {
+                "action": mt5.TRADE_ACTION_MODIFY,
+                "order": int(order_id),
+            }
+            
+            # Add modifiable fields
+            if "price" in kwargs:
+                request["price"] = float(kwargs["price"])
+            if "sl" in kwargs:
+                request["sl"] = float(kwargs["sl"])
+            if "tp" in kwargs:
+                request["tp"] = float(kwargs["tp"])
+            
+            result = mt5.order_send(request)
+            if result is None:
+                error_code = mt5.last_error()
+                return {"success": False, "error": f"MT5 error: {error_code}"}
+            
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                return {"success": False, "error": f"Modify failed: {result.retcode}"}
+            
+            return {"success": True, "order_id": order_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+        """Get order details."""
+        try:
+            orders = mt5.orders_get(ticket=int(order_id))
+            if orders and len(orders) > 0:
+                order = orders[0]
+                return self.format_order_data({
+                    "id": str(order.ticket),
+                    "symbol": order.symbol,
+                    "side": "BUY" if order.type % 2 == 0 else "SELL",
+                    "type": "LIMIT" if order.type in [2, 3, 4, 5] else "MARKET",
+                    "amount": order.volume_initial,
+                    "price": order.price_open,
+                    "filled": order.volume_initial - order.volume_current,
+                    "remaining": order.volume_current,
+                    "status": "OPEN",
+                    "timestamp": datetime.fromtimestamp(order.time_setup, timezone.utc).isoformat()
+                })
+            return None
+        except Exception as e:
+            log_error_with_context(e, {"operation": "get_order", "order_id": order_id})
+            return None
+    
+    async def get_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all orders."""
+        try:
+            if symbol:
+                orders = mt5.orders_get(symbol=symbol)
+            else:
+                orders = mt5.orders_get()
+            
+            if orders is None:
+                return []
+            
+            result = []
+            for order in orders:
+                order_data = {
+                    "id": str(order.ticket),
+                    "symbol": order.symbol,
+                    "side": "BUY" if order.type % 2 == 0 else "SELL",
+                    "type": "LIMIT" if order.type in [2, 3, 4, 5] else "MARKET",
+                    "amount": order.volume_initial,
+                    "price": order.price_open,
+                    "filled": order.volume_initial - order.volume_current,
+                    "remaining": order.volume_current,
+                    "status": "OPEN",
+                    "timestamp": datetime.fromtimestamp(order.time_setup, timezone.utc).isoformat()
+                }
+                result.append(self.format_order_data(order_data))
+            
+            return result
+        except Exception as e:
+            log_error_with_context(e, {"operation": "get_orders", "symbol": symbol})
+            return []
+    
+    async def close_position(self, position_id: str, volume: Optional[float] = None) -> Dict[str, Any]:
+        """Close position."""
+        return await self.close_position_by_ticket(int(position_id))
+    
+    async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get symbol information."""
+        try:
+            symbol_info = mt5.symbol_info(symbol)
+            if symbol_info is None:
+                return None
+            
+            return {
+                "symbol": symbol,
+                "base_asset": symbol[:3],  # Approximation for forex pairs
+                "quote_asset": symbol[3:],
+                "status": "TRADING" if symbol_info.visible else "INACTIVE",
+                "min_qty": symbol_info.volume_min,
+                "max_qty": symbol_info.volume_max,
+                "step_size": symbol_info.volume_step,
+                "min_price": symbol_info.point,
+                "tick_size": symbol_info.point,
+                "platform": self.platform_type.value
+            }
+        except Exception as e:
+            log_error_with_context(e, {"operation": "get_symbol_info", "symbol": symbol})
+            return None
+    
+    async def get_ticker(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get current ticker data."""
+        try:
+            tick = mt5.symbol_info_tick(symbol)
+            if tick is None:
+                return None
+            
+            return {
+                "symbol": symbol,
+                "price": tick.last,
+                "bid": tick.bid,
+                "ask": tick.ask,
+                "volume": tick.volume,
+                "change_24h": 0.0,  # Not available in MT5
+                "change_percent_24h": 0.0,  # Not available in MT5
+                "timestamp": int(tick.time * 1000),
+                "platform": self.platform_type.value
+            }
+        except Exception as e:
+            log_error_with_context(e, {"operation": "get_ticker", "symbol": symbol})
+            return None
+    
+    async def get_klines(self, symbol: str, timeframe: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get historical kline data."""
+        try:
+            # Map timeframe string to MT5 timeframe
+            tf_map = {
+                "1m": mt5.TIMEFRAME_M1,
+                "5m": mt5.TIMEFRAME_M5,
+                "15m": mt5.TIMEFRAME_M15,
+                "30m": mt5.TIMEFRAME_M30,
+                "1h": mt5.TIMEFRAME_H1,
+                "4h": mt5.TIMEFRAME_H4,
+                "1d": mt5.TIMEFRAME_D1
+            }
+            
+            mt5_timeframe = tf_map.get(timeframe, mt5.TIMEFRAME_H1)
+            rates = mt5.copy_rates_from_pos(symbol, mt5_timeframe, 0, limit)
+            
+            if rates is None:
+                return []
+            
+            result = []
+            for rate in rates:
+                result.append({
+                    "timestamp": int(rate["time"] * 1000),
+                    "open": float(rate["open"]),
+                    "high": float(rate["high"]),
+                    "low": float(rate["low"]),
+                    "close": float(rate["close"]),
+                    "volume": float(rate["tick_volume"])
+                })
+            
+            return result
+        except Exception as e:
+            log_error_with_context(e, {"operation": "get_klines", "symbol": symbol})
+            return []

@@ -111,11 +111,19 @@ class BaseTelegramBot:
             bool: True if the message was sent successfully, False otherwise.
         """
         try:
-            if not self.application:
-                logger.error("Bot application not initialized")
-                return False
-
-            await self.application.bot.send_message(chat_id, message, **kwargs)
+            # If application is running, use it
+            if self.application and self.running:
+                await self.application.bot.send_message(chat_id, message, **kwargs)
+                return True
+            
+            # Otherwise, create a simple bot instance for sending messages
+            from telegram import Bot
+            bot = Bot(token=self.config.bot_token)
+            
+            # Initialize the bot for one-time use
+            async with bot:
+                await bot.send_message(chat_id, message, **kwargs)
+            
             return True
 
         except Exception as e:

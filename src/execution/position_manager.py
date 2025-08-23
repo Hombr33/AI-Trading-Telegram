@@ -34,6 +34,8 @@ class PositionManager:
         self.active_positions: Dict[int, Position] = {}
         self.position_history: List[Position] = []
         self.running = False
+        self.sync_failures = 0
+        self.last_sync_time = 0
 
     @with_error_handling("position_manager_start", notify_telegram=True)
     async def start(self):

@@ -4,9 +4,9 @@ Configuration management for the AI Trading Bot.
 
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 # Load environment variables from .env file
@@ -29,12 +29,19 @@ class DatabaseConfig(BaseSettings):
 class MT5Config(BaseSettings):
     """MT5 configuration."""
 
-    login: Optional[int] = Field(default=0)  # Default to 0 for demo/testing
+    login: Optional[int] = Field(default=None, env="MT5_LOGIN")  # Default to None for demo/testing
     password: Optional[str] = Field(default="")
     server: Optional[str] = Field(default="")
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
+    
+    @field_validator('login', mode='before')
+    @classmethod
+    def validate_login(cls, v):
+        if v == '' or v is None:
+            return None
+        return int(v) if v else None
 
     @property
     def is_configured(self) -> bool:
@@ -65,6 +72,13 @@ class TelegramConfig(BaseSettings):
     chat_id: Optional[int] = Field(default=6077091585)
     webhook_url: Optional[str] = Field(default=None)
     webhook_enabled: bool = Field(default=False)
+    
+    @field_validator('chat_id', mode='before')
+    @classmethod
+    def validate_chat_id(cls, v):
+        if v == '' or v is None:
+            return None
+        return int(v) if v else None
 
     class Config:
         env_prefix = "TELEGRAM_"
@@ -94,6 +108,45 @@ class RiskConfig(BaseSettings):
 
     class Config:
         env_prefix = "RISK_"
+
+
+class CryptoConfig(BaseSettings):
+    """Crypto exchange configuration."""
+    
+    # Binance
+    binance_api_key: str = Field(default="")
+    binance_secret_key: str = Field(default="")
+    binance_testnet: bool = Field(default=True)
+    
+    # Bybit
+    bybit_api_key: str = Field(default="")
+    bybit_secret_key: str = Field(default="")
+    bybit_testnet: bool = Field(default=True)
+    
+    # Bitget
+    bitget_api_key: str = Field(default="")
+    bitget_secret_key: str = Field(default="")
+    bitget_passphrase: str = Field(default="")
+    bitget_testnet: bool = Field(default=True)
+    
+    # Common settings
+    default_leverage: int = Field(default=1)
+    max_leverage: int = Field(default=10)
+    
+    @property
+    def binance_configured(self) -> bool:
+        return bool(self.binance_api_key and self.binance_secret_key)
+    
+    @property
+    def bybit_configured(self) -> bool:
+        return bool(self.bybit_api_key and self.bybit_secret_key)
+    
+    @property
+    def bitget_configured(self) -> bool:
+        return bool(self.bitget_api_key and self.bitget_secret_key and self.bitget_passphrase)
+
+    class Config:
+        env_prefix = "CRYPTO_"
 
 
 class TradingConfig(BaseSettings):
@@ -162,12 +215,32 @@ class LoggingConfig(BaseSettings):
         env_prefix = "LOG_"
 
 
+class AutoTradingConfig(BaseSettings):
+    """Auto trading configuration."""
+    
+    enabled: bool = Field(default=False, env="AUTO_TRADING_ENABLED")
+    auto_signal_generation: bool = Field(default=False, env="AUTO_SIGNAL_GENERATION")
+    signal_interval_minutes: int = Field(default=15, env="SIGNAL_INTERVAL_MINUTES")
+    max_trades_per_day: int = Field(default=10, env="MAX_TRADES_PER_DAY")
+    
+    # Trading pairs for auto signals (no env vars to avoid JSON parsing issues)
+    forex_pairs: List[str] = Field(default=["EURUSD", "GBPUSD", "USDJPY"])
+    crypto_pairs: List[str] = Field(default=["BTCUSDT", "ETHUSDT", "ADAUSDT"])
+    
+    # Risk per trade for auto trading
+    risk_per_trade_percent: float = Field(default=1.0, env="AUTO_RISK_PER_TRADE")
+    
+    class Config:
+        env_prefix = "AUTO_"
+        env_ignore = {"forex_pairs", "crypto_pairs"}
+
+
 class AppConfig(BaseSettings):
     """Main application configuration."""
 
-    # Environment
-    environment: str = Field(default="development")
-    debug: bool = Field(default=False)
+    # Application
+    environment: str = Field(default="development", env="ENVIRONMENT")
+    debug: bool = Field(default=False, env="DEBUG")
     timezone: str = Field(default="UTC", env="TIMEZONE")
 
     # Server
@@ -183,22 +256,48 @@ class AppConfig(BaseSettings):
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
     trading: TradingConfig = Field(default_factory=TradingConfig)
+    crypto: CryptoConfig = Field(default_factory=CryptoConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    # Auto trading config initialized manually to avoid env parsing issues
+    auto_trading: Optional[AutoTradingConfig] = Field(default=None)
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
         env_nested_delimiter = "__"
+        extra = "ignore"  # Ignore extra fields from environment
+        env_prefix = ""  # No prefix for main config
 
     def __init__(self, **kwargs):
         """Initialize configuration.
         
-        Environment variables are loaded automatically via pydantic_settings
-        from the .env file or system environment variables.
+        This method handles the initialization of all configuration components
+        and ensures proper validation of all settings.
         """
+        # Override with environment variables if they exist
+        if "host" not in kwargs and os.getenv("API_HOST"):
+            kwargs["host"] = os.getenv("API_HOST")
+        if "port" not in kwargs and os.getenv("API_PORT"):
+            kwargs["port"] = int(os.getenv("API_PORT"))
+            
         super().__init__(**kwargs)
         self.debug = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+        
+        # Initialize auto_trading manually with safe defaults
+        if self.auto_trading is None:
+            # Create simple object with attributes to avoid Pydantic validation issues
+            class SimpleAutoConfig:
+                def __init__(self):
+                    self.enabled = os.getenv("AUTO_TRADING_ENABLED", "false").lower() == "true"
+                    self.auto_signal_generation = os.getenv("AUTO_SIGNAL_GENERATION", "false").lower() == "true"
+                    self.signal_interval_minutes = int(os.getenv("SIGNAL_INTERVAL_MINUTES", "15"))
+                    self.max_trades_per_day = int(os.getenv("MAX_TRADES_PER_DAY", "10"))
+                    self.forex_pairs = ["EURUSD", "GBPUSD", "USDJPY"]
+                    self.crypto_pairs = ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
+                    self.risk_per_trade_percent = float(os.getenv("AUTO_RISK_PER_TRADE", "1.0"))
+            
+            self.auto_trading = SimpleAutoConfig()
 
     def get_database_url(self) -> str:
         """Get database URL with fallback."""
@@ -253,8 +352,10 @@ class AppConfig(BaseSettings):
             "risk": self.risk.dict(),
             "trading": self.trading.dict(),
             "logging": self.logging.dict(),
+            "auto_trading": self.auto_trading.dict(),
         }
 
 
-# Global configuration instance
+# Global configuration instance - reload env vars to ensure they're picked up
+load_dotenv(env_path, override=True)
 config = AppConfig()

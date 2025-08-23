@@ -301,9 +301,13 @@ class HealthMonitor:
         """Check if critical connections are active."""
         try:
             # Check if we can import main components
-            from ..main import mt5_executor, telegram_bot, socketio_bridge
+            from ..main import telegram_bot, socketio_bridge, platform_manager
             
-            mt5_healthy = mt5_executor and mt5_executor.is_connected
+            mt5_healthy = False
+            if platform_manager:
+                # Check if MT5 platform is available and connected
+                mt5_executor = platform_manager.get_executor("mt5")
+                mt5_healthy = mt5_executor and mt5_executor.is_connected
             telegram_healthy = telegram_bot and telegram_bot.is_running
             bridge_healthy = socketio_bridge and socketio_bridge.get_status().get("connected", False)
             
