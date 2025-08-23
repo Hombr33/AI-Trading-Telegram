@@ -345,50 +345,13 @@ from ..models.trades import Trade
 class MT5Executor(BaseExecutor):
     """MT5 execution engine for automated trading."""
 
-    def __init__(self, config: MT5Config, symbol_service=None):
+    def __init__(self, config: MT5Config):
         super().__init__(config, PlatformType.MT5)
-        self.connected = False
-        self.account_info = None
         self.symbols_info = {}
-        self.symbol_service = symbol_service
-        self.broker_name = getattr(config, 'broker_name', "")
-
+        
     @property
     def platform_name(self) -> str:
         return "MetaTrader 5"
-
-    def _get_broker_symbol(self, standard_symbol: str) -> str:
-        """Get the broker-specific symbol for a standard symbol.
-        
-        Args:
-            standard_symbol: The standard symbol (e.g., EURUSD).
-            
-        Returns:
-            The broker-specific symbol (e.g., EURUSDm for Exness).
-        """
-        if not self.symbol_service or not self.broker_name:
-            return standard_symbol
-            
-        try:
-            # Try to get mapped symbol
-            mapped_symbol = self.symbol_service.map_symbol(standard_symbol, self.broker_name)
-            return mapped_symbol
-        except Exception as e:
-            logger.warning(f"Error getting symbol mapping for {standard_symbol}: {e}")
-            # Fall back to standard symbol if mapping fails
-            return standard_symbol
-
-    async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Get symbol information with mapping support.
-        
-        Args:
-            symbol: The standard symbol to get info for.
-            
-        Returns:
-            Symbol information if available, None otherwise.
-        """
-        broker_symbol = self._get_broker_symbol(symbol)
-        return await super().get_symbol_info(broker_symbol)
 
     def _find_mt5_installations(self) -> List[str]:
         """Scan for MT5 installations on the system."""

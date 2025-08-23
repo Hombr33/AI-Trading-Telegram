@@ -35,7 +35,6 @@ class MT5Config(BaseSettings):
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
-    broker_name: str = Field(default="")  # Added broker name for symbol mapping
     
     @field_validator('login', mode='before')
     @classmethod
@@ -43,20 +42,6 @@ class MT5Config(BaseSettings):
         if v == '' or v is None:
             return None
         return int(v) if v else None
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Load from YAML if available
-        try:
-            from .yaml_config import get_mt5_config_from_yaml
-            yaml_config = get_mt5_config_from_yaml()
-            
-            # Override with YAML values if present
-            for key, value in yaml_config.items():
-                if hasattr(self, key) and value:
-                    setattr(self, key, value)
-        except Exception:
-            pass  # Continue with default/env values
 
     @property
     def is_configured(self) -> bool:

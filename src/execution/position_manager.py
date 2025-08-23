@@ -35,8 +35,7 @@ class PositionManager:
         self.position_history: List[Position] = []
         self.running = False
         self.sync_failures = 0
-        self.max_sync_failures = 3  # Maximum number of sync failures before triggering reconnection
-        self.last_sync_time = time.time()
+        self.last_sync_time = 0
 
     @with_error_handling("position_manager_start", notify_telegram=True)
     async def start(self):

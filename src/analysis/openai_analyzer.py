@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import os
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import openai
 from pydantic import BaseModel, Field, ValidationError

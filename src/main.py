@@ -94,7 +94,6 @@ async def lifespan(app: FastAPI):
             logger.warning("No platforms connected, continuing with mock mode")
 
         # Initialize managers with platform manager
-
         logger.info("Initializing trading managers...")
         order_manager = OrderManager(platform_manager, config.trading)
         position_manager = PositionManager(platform_manager, config.trading)
@@ -156,11 +155,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
         
-        # Start MT5 connection as background task
-        mt5_task = asyncio.create_task(connect_mt5_background())
-        
         # 4. Start Telegram bot (needed for auto services)
-
         logger.info("Starting Telegram bot...")
         await telegram_bot.start()
         
@@ -244,7 +239,6 @@ async def lifespan(app: FastAPI):
             # Disconnect all trading platforms
             if platform_manager:
                 await platform_manager.disconnect_all()
-
 
             log_system_event(
                 "main", "shutdown", "AI Trading Bot application shut down successfully"
