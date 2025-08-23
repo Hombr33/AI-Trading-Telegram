@@ -35,11 +35,12 @@ class MT5Config(BaseSettings):
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
+    broker_name: str = Field(default="")  # Added broker name for symbol mapping
 
     @property
     def is_configured(self) -> bool:
         """Check if MT5 is properly configured."""
-        return bool(self.login and self.password and self.server)
+        return bool(self.login and self.password and self.server and self.broker_name)
 
     class Config:
         env_prefix = "MT5_"

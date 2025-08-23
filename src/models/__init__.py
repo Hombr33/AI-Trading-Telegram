@@ -18,6 +18,8 @@ from .alerts import Alert
 from .webhooks import Webhook
 from .audits import Audit
 
+from .symbol_mappings import SymbolMapping
+
 __all__ = [
     "Base",
     "User",
@@ -34,4 +36,5 @@ __all__ = [
     "Alert",
     "Webhook",
     "Audit",
+    "SymbolMapping",
 ]

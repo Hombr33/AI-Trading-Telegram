@@ -26,17 +26,12 @@ from .mt5_executor import MT5Executor
 
 logger = get_logger(__name__)
 
-try:
-    import aiomql
-    from aiomql import Account, Terminal
-    _AIOMQL_AVAILABLE = True
-    logger.info("aiomql library loaded successfully")
-except ImportError as e:
-    _AIOMQL_AVAILABLE = False
-    aiomql = None
-    Account = None
-    Terminal = None
-    logger.warning(f"aiomql not installed ({e}); falling back to MT5Executor standard path")
+# Explicitly disable aiomql for Python 3.12 compatibility
+_AIOMQL_AVAILABLE = False
+aiomql = None
+Account = None
+Terminal = None
+logger.info("aiomql disabled - using MT5Executor standard path")
 
 
 class AioMQLExecutor(MT5Executor):

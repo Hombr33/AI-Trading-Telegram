@@ -36,10 +36,32 @@ class BaseTelegramBot:
     async def initialize(self):
         """Initialize the Telegram bot application."""
         try:
-            # Create application
-            self.application = (
-                Application.builder().token(self.config.bot_token).build()
-            )
+            # Create application with better network configuration
+            builder = Application.builder().token(self.config.bot_token)
+            
+            # Set connection and read timeouts for better network handling
+            builder = builder.read_timeout(10).write_timeout(10).connect_timeout(10)
+            
+            # Build the application
+            self.application = builder.build()
+            
+            # Add error handler for network issues
+            async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+                """Handle errors in the bot."""
+                import traceback
+                logger.error(f"Exception while handling an update: {context.error}")
+                
+                # Handle specific network errors gracefully
+                from telegram.error import NetworkError, TimedOut, BadRequest
+                if isinstance(context.error, (NetworkError, TimedOut)):
+                    logger.warning("Network error occurred, will retry automatically")
+                elif isinstance(context.error, BadRequest):
+                    logger.warning(f"Bad request error: {context.error}")
+                else:
+                    logger.error(f"Unexpected error: {traceback.format_exc()}")
+            
+            self.application.add_error_handler(error_handler)
+            
             logger.info("Telegram bot application initialized")
             return True
         except Exception as e:
@@ -73,7 +95,32 @@ class BaseTelegramBot:
 
             await self.application.initialize()
             await self.application.start()
-            await self.application.updater.start_polling()
+            
+            # Configure better error handling for network issues
+            from telegram.error import NetworkError, TimedOut
+            from telegram.ext import ApplicationBuilder
+            
+            # Start polling with network error handling
+            try:
+                await self.application.updater.start_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True,
+                    read_timeout=10,
+                    write_timeout=10,
+                    connect_timeout=10,
+                    pool_timeout=2
+                )
+            except (NetworkError, TimedOut) as e:
+                logger.warning(f"Network error during bot startup, retrying: {e}")
+                await asyncio.sleep(2)
+                await self.application.updater.start_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True,
+                    read_timeout=15,
+                    write_timeout=15,
+                    connect_timeout=15,
+                    pool_timeout=3
+                )
 
             self.running = True
             logger.info("Telegram bot started successfully")
@@ -87,16 +134,25 @@ class BaseTelegramBot:
         """Stop the Telegram bot."""
         try:
             if self.application:
-                await self.application.updater.stop()
-                await self.application.stop()
-                await self.application.shutdown()
+                try:
+                    # Stop the application which includes stopping polling
+                    await asyncio.wait_for(self.application.stop(), timeout=5.0)
+                    
+                    # Final cleanup
+                    await asyncio.wait_for(self.application.shutdown(), timeout=5.0)
+                    
+                except asyncio.TimeoutError:
+                    logger.warning("Telegram bot stop timed out, forcing shutdown")
+                except Exception as e:
+                    logger.warning(f"Non-critical error during bot shutdown: {e}")
 
             self.running = False
             logger.info("Telegram bot stopped")
             return True
 
         except Exception as e:
-            logger.error(f"Error stopping Telegram bot: {e}")
+            logger.error(f"Critical error stopping Telegram bot: {e}")
+            # Don't prevent application shutdown
             return False
 
     async def send_message(self, chat_id: int, message: str, **kwargs):

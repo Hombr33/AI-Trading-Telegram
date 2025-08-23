@@ -344,11 +344,46 @@ from ..models.trades import Trade
 class MT5Executor:
     """MT5 execution engine for automated trading."""
 
-    def __init__(self, config: MT5Config):
+    def __init__(self, config: MT5Config, symbol_service=None):
         self.config = config
         self.connected = False
         self.account_info = None
         self.symbols_info = {}
+        self.symbol_service = symbol_service
+        self.broker_name = getattr(config, 'broker_name', None)
+
+    def _get_broker_symbol(self, standard_symbol: str) -> str:
+        """Get the broker-specific symbol for a standard symbol.
+        
+        Args:
+            standard_symbol: The standard symbol (e.g., EURUSD).
+            
+        Returns:
+            The broker-specific symbol (e.g., EURUSDm for Exness).
+        """
+        if not self.symbol_service or not self.broker_name:
+            return standard_symbol
+            
+        try:
+            # Try to get mapped symbol
+            mapped_symbol = self.symbol_service.map_symbol(standard_symbol, self.broker_name)
+            return mapped_symbol
+        except Exception as e:
+            logger.warning(f"Error getting symbol mapping for {standard_symbol}: {e}")
+            # Fall back to standard symbol if mapping fails
+            return standard_symbol
+
+    async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get symbol information with mapping support.
+        
+        Args:
+            symbol: The standard symbol to get info for.
+            
+        Returns:
+            Symbol information if available, None otherwise.
+        """
+        broker_symbol = self._get_broker_symbol(symbol)
+        return await super().get_symbol_info(broker_symbol)
 
     def _find_mt5_installations(self) -> List[str]:
         """Scan for MT5 installations on the system."""
@@ -430,10 +465,16 @@ class MT5Executor:
         """Connect to MT5 terminal using simplified approach."""
         try:
             
-            # First, try to initialize MT5 without specifying path (let MT5 find the default installation)
+            # First check if MT5 is already initialized
+            if mt5.terminal_info() is not None:
+                logger.info("MT5 already initialized")
+                mt5.shutdown()  # Clean shutdown before reinitializing
+                time.sleep(2)  # Wait for clean shutdown
+                
             logger.info("Initializing MT5 connection...")
             
-            if not mt5.initialize():
+            # Set a shorter timeout for initial connection attempt
+            if not mt5.initialize(timeout=10000):  # 10 second timeout
                 error_code = mt5.last_error()
                 logger.warning(f"Default MT5 initialization failed: {error_code}")
                 
@@ -444,17 +485,64 @@ class MT5Executor:
                 if not paths_to_try:
                     logger.warning("No MT5 installations found, trying fallback paths")
                     paths_to_try = [
+                        "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe",  # Prioritize EXNESS
+                        "C:\\Program Files (x86)\\MetaTrader 5 EXNESS\\terminal64.exe",
                         "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
-                        "C:\\Program Files\\MetaTrader 5 EXNESS\\terminal64.exe",
-                        "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe",
                         "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe"
                     ]
                 
                 initialized = False
                 for path in paths_to_try:
                     logger.info(f"Trying MT5 path: {path}")
-                    if mt5.initialize(path=path):
-                        logger.info(f"MT5 initialized successfully with path: {path}")
+                    try:
+                        # Set a reasonable timeout for each attempt
+                        if mt5.initialize(path=path, timeout=15000):  # 15 second timeout
+                            logger.info(f"MT5 initialized successfully with path: {path}")
+                            break
+                        else:
+                            error = mt5.last_error()
+                            if error[0] == -10005:  # IPC timeout
+                                logger.warning(f"Timeout initializing {path}, trying next path")
+                                continue
+                            logger.warning(f"Failed to initialize {path}: {error}")
+                    except Exception as e:
+                        logger.error(f"Error initializing {path}: {e}")
+                        continue
+                        
+                        # Add detailed initialization checks and debug info
+                        logger.info(f"MT5 Version: {mt5.version()}")
+                        
+                        try:
+                            terminal_info = mt5.terminal_info()
+                            if terminal_info is not None:
+                                logger.info(f"Terminal Info - Connected: {terminal_info.connected}, "
+                                          f"Trade Allowed: {terminal_info.trade_allowed}, "
+                                          f"Path: {terminal_info.path}, "
+                                          f"Community Account: {terminal_info.community_account}, "
+                                          f"Community Connection: {terminal_info.community_connection}, "
+                                          f"DLL Allowed: {terminal_info.dlls_allowed}, "
+                                          f"Trade Allowed: {terminal_info.trade_allowed}, "
+                                          f"Retransmission: {terminal_info.retransmission}")
+                            else:
+                                logger.warning("Could not get terminal info - returned None")
+                        except Exception as e:
+                            logger.error(f"Error getting terminal info: {e}")
+                            
+                        # Check if terminal is ready with shorter timeouts
+                        ready_attempts = 0
+                        while ready_attempts < 3:  # Try for 15 seconds
+                            if mt5.terminal_info() and mt5.terminal_info().connected:
+                                logger.info("MT5 terminal is ready and connected")
+                                break
+                            ready_attempts += 1
+                            logger.info(f"Waiting for MT5 terminal to be ready (attempt {ready_attempts}/6)...")
+                            time.sleep(5)
+                            
+                        if ready_attempts >= 6:
+                            logger.error("MT5 terminal failed to become ready")
+                            mt5.shutdown()
+                            return False
+                            
                         initialized = True
                         break
                     else:
@@ -468,7 +556,21 @@ class MT5Executor:
             
             # Check if we need to login (skip if using mock or if credentials not provided)
             if not self.config.is_configured:
-                logger.info("MT5 credentials not configured, using mock mode")
+                missing_fields = []
+                if not self.config.login or self.config.login == 0:
+                    missing_fields.append("login")
+                if not self.config.password:
+                    missing_fields.append("password")
+                if not self.config.server:
+                    missing_fields.append("server")
+                if not self.config.broker_name:
+                    missing_fields.append("broker_name")
+                
+                logger.warning(
+                    f"MT5 credentials not properly configured (missing: {', '.join(missing_fields)}). "
+                    f"Using mock mode. Please update config/settings.yaml with your MT5 credentials. "
+                    f"See docs/MT5_SETUP_GUIDE.md for setup instructions."
+                )
                 self.connected = True
                 self.account_info = mt5.account_info()
                 return True
@@ -510,15 +612,22 @@ class MT5Executor:
                         return False
                     await asyncio.sleep(retry_delay)
 
-            # Connection successful
+            # Verify connection with comprehensive checks
+            if not self._verify_connection():
+                logger.error("MT5 connection verification failed")
+                mt5.shutdown()
+                return False
+                
+            # Connection verified
             self.connected = True
             self.account_info = mt5.account_info()
             
             if self.account_info:
                 logger.info(f"Successfully connected to MT5. Account: {self.account_info.login}")
                 logger.info(f"Balance: {self.account_info.balance}, Equity: {self.account_info.equity}")
-            else:
-                logger.warning("Connected to MT5 but could not get account info")
+                logger.info(f"Leverage: {self.account_info.leverage}, "
+                          f"Margin Free: {self.account_info.margin_free}, "
+                          f"Margin Level: {self.account_info.margin_level}%")
                 
             return True
             
@@ -529,6 +638,53 @@ class MT5Executor:
                 mt5.shutdown()
             except:
                 pass
+            return False
+
+    def _verify_connection(self) -> bool:
+        """Verify MT5 connection with comprehensive checks."""
+        try:
+            # 1. Check terminal info
+            terminal_info = mt5.terminal_info()
+            if not terminal_info or not terminal_info.connected:
+                logger.error("Terminal not connected")
+                return False
+                
+            # 2. Check account info
+            account_info = mt5.account_info()
+            if not account_info:
+                logger.error("Could not get account info")
+                return False
+                
+            # 3. Test market info retrieval
+            symbols = mt5.symbols_total()
+            if symbols is None:
+                logger.error("Could not get symbols info")
+                return False
+            logger.info(f"Available symbols: {symbols}")
+            
+            # 4. Test specific symbol info
+            eurusd_info = mt5.symbol_info("EURUSD")
+            if not eurusd_info:
+                logger.error("Could not get EURUSD symbol info")
+                return False
+                
+            # 5. Check positions
+            positions = mt5.positions_total()
+            if positions is None:
+                logger.error("Could not check positions")
+                return False
+            logger.info(f"Current positions: {positions}")
+            
+            # 6. Verify trade allowed
+            if not terminal_info.trade_allowed:
+                logger.warning("Trading is not allowed")
+                # Don't fail here as it might be normal for some accounts
+                
+            logger.info("MT5 connection verified successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Connection verification failed: {e}")
             return False
 
     async def disconnect(self):

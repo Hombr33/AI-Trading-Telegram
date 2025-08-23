@@ -24,3 +24,8 @@ def get_db_session() -> Generator[Session, None, None]:
 def get_db_session_direct() -> Session:
     """Get a database session directly (caller must close)."""
     return get_database_connection().get_session()
+
+
+def SessionLocal() -> Session:
+    """Get a database session. This is an alias for get_db_session_direct."""
+    return get_db_session_direct()

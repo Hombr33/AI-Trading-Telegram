@@ -9,7 +9,7 @@ app:
 # API Configuration
 api:
   host: "127.0.0.1"
-  port: 8000
+  port: 8080
   workers: 1
   timeout: 30
   cors_origins: ["*"]
@@ -34,6 +34,7 @@ metatrader5:
   timeout: 60000
   retry_delay: 5
   max_retries: 3
+  broker_name: "Exness"  # Add your broker name here for symbol mapping
 
 # Trading Configuration
 trading:

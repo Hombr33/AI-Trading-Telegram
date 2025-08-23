@@ -30,3 +30,4 @@ aiomql==4.0.14
 rich
 python-socketio
 aiohttp
+psutil

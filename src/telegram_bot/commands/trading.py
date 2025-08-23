@@ -18,6 +18,8 @@ from src.telegram_bot.utils.visual_effects import VisualEffects
 from src.telegram_bot.utils.mock_data import (
     get_positions, get_orders, get_account_info, get_recent_signals
 )
+from src.database.session import SessionLocal
+from src.services.symbol_service import SymbolService
 from .base import BaseCommandHandler
 
 logger = get_logger(__name__)
@@ -26,6 +28,92 @@ logger = get_logger(__name__)
 class TradingCommandHandler(BaseCommandHandler):
     """Trading command handler for Telegram bot."""
 
+    async def symbols_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /symbols command."""
+        try:
+            session = SessionLocal()
+            service = SymbolService(session)
+            
+            broker_name = context.args[0] if context.args else None
+            mappings = service.get_all_mappings(broker_name)
+            
+            if not mappings:
+                response = "No symbol mappings found."
+                if broker_name:
+                    response += f" for broker {broker_name}"
+                await update.message.reply_text(response)
+                return
+
+            response = "Symbol Mappings:\n"
+            for mapping in mappings:
+                response += f"{mapping.standard_symbol} -> {mapping.broker_symbol} ({mapping.broker_name})\n"
+            
+            await update.message.reply_text(response)
+        except Exception as e:
+            logger.error(f"Error listing symbols: {str(e)}")
+            await update.message.reply_text(f"Error listing symbols: {str(e)}")
+        finally:
+            session.close()
+
+    async def add_symbol_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /addsymbol command."""
+        if len(context.args) != 3:
+            await update.message.reply_text(
+                "Usage: /addsymbol <standard_symbol> <broker_symbol> <broker_name>"
+            )
+            return
+
+        standard_symbol, broker_symbol, broker_name = context.args
+        
+        try:
+            session = SessionLocal()
+            service = SymbolService(session)
+            
+            existing = service.get_mapping(standard_symbol, broker_name)
+            if existing:
+                service.update_mapping(standard_symbol, broker_symbol, broker_name)
+                await update.message.reply_text(
+                    f"Updated mapping: {standard_symbol} -> {broker_symbol} for {broker_name}"
+                )
+            else:
+                service.create_mapping(standard_symbol, broker_symbol, broker_name)
+                await update.message.reply_text(
+                    f"Added mapping: {standard_symbol} -> {broker_symbol} for {broker_name}"
+                )
+        except Exception as e:
+            logger.error(f"Error adding symbol mapping: {str(e)}")
+            await update.message.reply_text(f"Error adding symbol mapping: {str(e)}")
+        finally:
+            session.close()
+
+    async def delete_symbol_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /delsymbol command."""
+        if len(context.args) != 2:
+            await update.message.reply_text(
+                "Usage: /delsymbol <standard_symbol> <broker_name>"
+            )
+            return
+
+        standard_symbol, broker_name = context.args
+        
+        try:
+            session = SessionLocal()
+            service = SymbolService(session)
+            
+            if service.delete_mapping(standard_symbol, broker_name):
+                await update.message.reply_text(
+                    f"Deleted mapping for {standard_symbol} ({broker_name})"
+                )
+            else:
+                await update.message.reply_text(
+                    f"No mapping found for {standard_symbol} ({broker_name})"
+                )
+        except Exception as e:
+            logger.error(f"Error deleting symbol mapping: {str(e)}")
+            await update.message.reply_text(f"Error deleting symbol mapping: {str(e)}")
+        finally:
+            session.close()
+
     def _register_commands(self):
         """Register trading commands."""
         self.commands = {
@@ -33,6 +121,9 @@ class TradingCommandHandler(BaseCommandHandler):
             "orders": self.orders_command,
             "account": self.account_command,
             "signals": self.signals_command,
+            "symbols": self.symbols_command,
+            "addsymbol": self.add_symbol_command,
+            "delsymbol": self.delete_symbol_command,
         }
 
     def _register_callbacks(self):
@@ -45,8 +136,12 @@ class TradingCommandHandler(BaseCommandHandler):
             "account": self.account_command,
             "refresh_account": self.account_command,
             "account_history": self.account_history_callback,
+            "symbols": self.symbols_command,
+            "addsymbol": self.add_symbol_command,
+            "delsymbol": self.delete_symbol_command,
             "signals": self.signals_command,
             "refresh_signals": self.signals_command,
+            "refresh_symbols": self.symbols_command,
         }
 
     async def positions_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):

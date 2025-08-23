@@ -33,6 +33,7 @@ class SystemCommandHandler(BaseCommandHandler):
             "status": self.status_command,
             "monitor": self.monitor_command,
             "settings": self.settings_command,
+            "mt5status": self.mt5_status_command,
         }
 
     def _register_callbacks(self):
@@ -44,28 +45,43 @@ class SystemCommandHandler(BaseCommandHandler):
             "monitor": self.monitor_command,
             "refresh_monitor": self.monitor_command,
             "settings": self.settings_command,
+            "mt5status": self.mt5_status_command,
+            "refresh_mt5": self.mt5_status_command,
         }
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle the /start command.
-        
-        Args:
-            update: The update object.
-            context: The context object.
-        """
+        """Handle the /start command."""
         user = update.effective_user
-        message = (
-            f"🚀 **Welcome, {user.first_name}!** 🚀\n\n"
-            f"🤖 **AI Trading Bot** is ready to help you dominate the markets!\n\n"
-            f"✨ **Features Unlocked**:\n"
-            f"📊 Real-time market analysis\n"
-            f"🎯 AI-powered trading signals\n"
-            f"⚠️ Advanced risk management\n"
-            f"💰 Live account monitoring\n"
-            f"📈 Performance analytics\n\n"
-            f"🎮 **Use the keyboard below for quick access!**\n"
-            f"💡 *Or tap the dashboard for advanced features*"
+        welcome_text = (
+            f"🚀 Welcome, {user.first_name}! 🚀\n\n"
+            "🤖 AI Trading Bot is ready to help you dominate the markets!\n\n"
+            "Use /help to see all available commands."
         )
+        await update.message.reply_text(welcome_text)
+
+    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the /help command."""
+        help_text = """
+                    Welcome to AI Trading Bot! Here are the available commands:
+
+                    Trading Commands:
+                    /positions - View open positions
+                    /orders - View pending orders
+                    /account - View account info
+                    /signals - View recent trading signals
+
+                    Symbol Management:
+                    /symbols [broker] - List symbol mappings
+                    /addsymbol <standard> <broker> <broker_name> - Add mapping
+                    /delsymbol <standard> <broker_name> - Delete mapping
+
+                    System Commands:
+                    /status - Check system status
+                    /monitor - View performance metrics
+                    /settings - Configure bot settings
+                    /help - Show this help message
+                    """
+        await update.message.reply_text(help_text)
 
         # Create main trading dashboard
         inline_keyboard = create_trading_dashboard_keyboard()
@@ -292,3 +308,120 @@ class SystemCommandHandler(BaseCommandHandler):
             await self.edit_message(update, context, message, keyboard)
         else:
             await self.send_message(update, context, message, keyboard)
+
+    async def mt5_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle the /mt5status command to show MT5 connection status and setup guide.
+        
+        Args:
+            update: The update object.
+            context: The context object.
+        """
+        try:
+            # Try to get MT5 executor status
+            from src.core.config import AppConfig
+            config = AppConfig()
+            
+            # Check if MT5 is configured
+            is_configured = config.mt5.is_configured
+            
+            if is_configured:
+                # MT5 is configured, check connection status
+                try:
+                    import MetaTrader5 as mt5
+                    if mt5.initialize():
+                        terminal_info = mt5.terminal_info()
+                        account_info = mt5.account_info()
+                        
+                        if terminal_info and account_info:
+                            status_emoji = "🟢"
+                            status_text = "Connected"
+                            connection_details = (
+                                f"**Account**: {account_info.login}\n"
+                                f"**Server**: {account_info.server}\n"
+                                f"**Balance**: ${account_info.balance:.2f}\n"
+                                f"**Equity**: ${account_info.equity:.2f}\n"
+                                f"**Company**: {account_info.company}\n"
+                                f"**Terminal**: {terminal_info.name} v{terminal_info.version}"
+                            )
+                        else:
+                            status_emoji = "🟡"
+                            status_text = "Initialized but not logged in"
+                            connection_details = "MT5 terminal is running but not connected to account"
+                        mt5.shutdown()
+                    else:
+                        status_emoji = "🔴"
+                        status_text = "Failed to initialize"
+                        connection_details = "MT5 terminal could not be initialized"
+                except Exception as e:
+                    status_emoji = "🔴"
+                    status_text = "Connection error"
+                    connection_details = f"Error: {str(e)}"
+            else:
+                # MT5 is not configured
+                status_emoji = "🟡"
+                status_text = "Using Mock Mode"
+                missing_fields = []
+                if not config.mt5.login or config.mt5.login == 0:
+                    missing_fields.append("login")
+                if not config.mt5.password:
+                    missing_fields.append("password")
+                if not config.mt5.server:
+                    missing_fields.append("server")
+                if not config.mt5.broker_name:
+                    missing_fields.append("broker_name")
+                
+                connection_details = (
+                    f"**Missing Configuration**: {', '.join(missing_fields)}\n\n"
+                    f"📋 **Setup Required**:\n"
+                    f"1. Edit `config/settings.yaml`\n"
+                    f"2. Add your MT5 credentials\n"
+                    f"3. Restart the bot\n\n"
+                    f"📖 **See**: `docs/MT5_SETUP_GUIDE.md`"
+                )
+
+            message = (
+                f"🔌 **MetaTrader 5 STATUS** 🔌\n\n"
+                f"{status_emoji} **Status**: {status_text}\n\n"
+                f"{connection_details}\n\n"
+                f"💡 **Why Mock Mode?**\n"
+                f"The bot uses mock (fake) data when:\n"
+                f"• MT5 credentials are not configured\n"
+                f"• MT5 terminal is not running\n"
+                f"• Connection to broker fails\n\n"
+                f"🔧 **To use real data**:\n"
+                f"• Configure MT5 credentials in settings\n"
+                f"• Ensure MT5 terminal is running\n"
+                f"• Enable algorithmic trading in MT5\n\n"
+                f"🕐 **Updated**: {datetime.now().strftime('%H:%M:%S')}"
+            )
+
+            # Create keyboard with helpful actions
+            keyboard = create_keyboard([
+                [("🔄 Refresh", "refresh_mt5"), ("📖 Setup Guide", "setup_guide")],
+                [("📊 Status", "status"), ("⚙️ Settings", "settings")],
+                [("💰 Account", "account"), ("❓ Help", "help")]
+            ])
+
+            # If this is a callback query, edit the message
+            if update.callback_query:
+                await self.edit_message(update, context, message, keyboard)
+            else:
+                await self.send_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in mt5_status_command: {e}")
+            error_message = (
+                f"❌ **Error checking MT5 status**\n\n"
+                f"Could not retrieve MT5 status information.\n"
+                f"Error: {str(e)}\n\n"
+                f"Please check the logs for more details."
+            )
+            
+            keyboard = create_keyboard([
+                [("📊 Status", "status"), ("❓ Help", "help")]
+            ])
+            
+            if update.callback_query:
+                await self.edit_message(update, context, error_message, keyboard)
+            else:
+                await self.send_message(update, context, error_message, keyboard)
