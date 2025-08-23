@@ -55,13 +55,50 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /start command."""
+        from ..utils.keyboards import get_main_menu_keyboard, create_trading_dashboard_keyboard
+        from ..utils.visual_effects import VisualEffects
+        
         user = update.effective_user
-        welcome_text = (
-            f"🚀 Welcome, {user.first_name}! 🚀\n\n"
-            "🤖 AI Trading Bot is ready to help you dominate the markets!\n\n"
-            "Use /help to see all available commands."
+        chat_id = update.effective_chat.id
+        
+        # Show welcome animation
+        await VisualEffects.send_typing_effect(
+            context.bot, chat_id, f"Welcome {user.first_name}"
         )
-        await update.message.reply_text(welcome_text)
+        
+        welcome_text = (
+            f"🚀 **Welcome {user.first_name}!** 🚀\n\n"
+            f"🤖 **AI Trading Bot v2.0** is ready!\n\n"
+            f"🎯 **Features Available**:\n"
+            f"• 📊 Real-time market analysis\n"
+            f"• 🤖 AI-powered trading signals\n"
+            f"• 📈 Live position monitoring\n"
+            f"• 🌐 Advanced WebApp interface\n"
+            f"• 📱 Interactive dashboards\n\n"
+            f"💡 **Choose an option below to get started!**"
+        )
+        
+        # Use main menu keyboard with reply keyboard
+        main_keyboard = get_main_menu_keyboard()
+        
+        # Also provide inline keyboard for quick access
+        inline_keyboard = create_trading_dashboard_keyboard()
+        
+        if update.callback_query:
+            await self.edit_message(update, context, welcome_text, inline_keyboard)
+        else:
+            # Send with reply keyboard
+            await update.message.reply_text(
+                welcome_text, 
+                reply_markup=main_keyboard,
+                parse_mode="Markdown"
+            )
+            # Then send inline options
+            await update.message.reply_text(
+                "🎯 **Quick Actions**:",
+                reply_markup=inline_keyboard,
+                parse_mode="Markdown"
+            )
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /help command.
@@ -82,7 +119,8 @@ class SystemCommandHandler(BaseCommandHandler):
             f"💰 `/account` - Account balance & equity\n"
             f"📈 `/positions` - Active trading positions\n"
             f"📋 `/orders` - Pending order management\n"
-            f"🎯 `/signals` - AI-generated trading signals\n\n"
+            f"🎯 `/signals` - AI-generated trading signals\n"
+            f"🎯 `/signal <pair> [timeframe]` - Get signal for specific pair\n\n"
             f"📈 **Analysis Commands**:\n"
             f"⚠️ `/risk` - Risk metrics & exposure\n"
             f"📊 `/performance` - Trading performance stats\n"

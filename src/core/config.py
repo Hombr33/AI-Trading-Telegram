@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
+from .logging import get_logger
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -24,6 +25,7 @@ class DatabaseConfig(BaseSettings):
 
     class Config:
         env_prefix = "DB_"
+        extra = "ignore"
 
 
 class MT5Config(BaseSettings):
@@ -50,6 +52,7 @@ class MT5Config(BaseSettings):
 
     class Config:
         env_prefix = "MT5_"
+        extra = "ignore"
 
 
 class BridgeConfig(BaseSettings):
@@ -63,6 +66,7 @@ class BridgeConfig(BaseSettings):
 
     class Config:
         env_prefix = "BRIDGE_"
+        extra = "ignore"
 
 
 class TelegramConfig(BaseSettings):
@@ -82,6 +86,10 @@ class TelegramConfig(BaseSettings):
 
     class Config:
         env_prefix = "TELEGRAM_"
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
+        extra = "ignore"
 
 
 class OpenAIConfig(BaseSettings):
@@ -92,29 +100,12 @@ class OpenAIConfig(BaseSettings):
     max_tokens: int = Field(default=2000)
     temperature: float = Field(default=0.1)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Load from YAML if available
-        try:
-            from .yaml_config import get_openai_config_from_yaml
-            yaml_config = get_openai_config_from_yaml()
-            
-            # Override with YAML values if present
-            for key, value in yaml_config.items():
-                if hasattr(self, key) and value:
-                    # Handle environment variable keys
-                    if key.endswith('_env'):
-                        actual_key = key[:-4]  # Remove '_env' suffix
-                        env_value = os.getenv(value)
-                        if env_value and hasattr(self, actual_key):
-                            setattr(self, actual_key, env_value)
-                    else:
-                        setattr(self, key, value)
-        except Exception:
-            pass  # Continue with default/env values
-
     class Config:
         env_prefix = "OPENAI_"
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
+        extra = "ignore"
 
 
 class RiskConfig(BaseSettings):
@@ -129,6 +120,7 @@ class RiskConfig(BaseSettings):
 
     class Config:
         env_prefix = "RISK_"
+        extra = "ignore"
 
 
 class CryptoConfig(BaseSettings):
@@ -168,6 +160,7 @@ class CryptoConfig(BaseSettings):
 
     class Config:
         env_prefix = "CRYPTO_"
+        extra = "ignore"
 
 
 class TradingConfig(BaseSettings):
@@ -221,6 +214,7 @@ class TradingConfig(BaseSettings):
 
     class Config:
         env_prefix = "TRADING_"
+        extra = "ignore"
 
 
 class LoggingConfig(BaseSettings):
@@ -234,6 +228,7 @@ class LoggingConfig(BaseSettings):
 
     class Config:
         env_prefix = "LOG_"
+        extra = "ignore"
 
 
 class AutoTradingConfig(BaseSettings):
@@ -254,6 +249,7 @@ class AutoTradingConfig(BaseSettings):
     class Config:
         env_prefix = "AUTO_"
         env_ignore = {"forex_pairs", "crypto_pairs"}
+        extra = "ignore"
 
 
 class AppConfig(BaseSettings):

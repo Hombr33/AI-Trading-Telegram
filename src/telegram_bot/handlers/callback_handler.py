@@ -9,6 +9,83 @@ from src.telegram_bot.notifications.manager import NotificationManager
 logger = get_logger(__name__)
 
 
+class CallbackRouter:
+    """Routes callbacks to appropriate handlers."""
+    
+    def __init__(self):
+        """Initialize callback router."""
+        self.handlers = {}
+        self._setup_handlers()
+    
+    def _setup_handlers(self):
+        """Setup callback handlers."""
+        # Import handlers
+        from .system_callbacks import SystemCallbackHandler
+        from .trading_callbacks import TradingCallbackHandler
+        from ..commands.system import SystemCommandHandler
+        from ..commands.trading import TradingCommandHandler
+        
+        # Initialize command handlers
+        system_handler = SystemCommandHandler()
+        trading_handler = TradingCommandHandler()
+        
+        # Initialize callback handlers
+        self.system_callbacks = SystemCallbackHandler(system_handler)
+        self.trading_callbacks = TradingCallbackHandler(trading_handler)
+        
+        # Define callback routing
+        self.system_callback_keys = {
+            "start", "help", "status", "settings", "about", 
+            "docs", "support", "rate", "updates", "quick_actions",
+            "risk_settings", "notification_settings", 
+            "theme_settings", "sound_settings", "trading_guide",
+            "risk_guide", "ta_guide", "setup_guide", "email_support",
+            "live_chat", "faq", "rate_5", "rate_4", "leave_review",
+            "feedback", "changelog", "update_alerts", "roadmap",
+            "monitor", "system_monitor", "health_monitor"
+        }
+        
+        self.trading_callback_keys = {
+            "positions", "refresh_positions", "position_details", "quick_close",
+            "orders", "refresh_orders", "account", "refresh_account", 
+            "account_history", "export_history", "symbols", "refresh_symbols",
+            "signals", "refresh_signals", "live_dashboard", "webapp",
+            "webapp_open", "webapp_mobile", "webapp_desktop"
+        }
+    
+    async def route_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Route callback to appropriate handler."""
+        query = update.callback_query
+        callback_data = query.data
+        
+        try:
+            # Handle signal callbacks with pattern matching
+            if callback_data.startswith("signal_"):
+                await self.trading_callbacks.handle_callback(update, context)
+            elif callback_data in self.system_callback_keys:
+                await self.system_callbacks.handle_callback(update, context)
+            elif callback_data in self.trading_callback_keys:
+                await self.trading_callbacks.handle_callback(update, context)
+            else:
+                logger.warning(f"Unknown callback data: {callback_data}")
+                await query.answer("Unknown callback")
+                await query.edit_message_text(
+                    f"❌ **Unknown Command**\n\n"
+                    f"Callback '{callback_data}' not recognized.\n"
+                    f"Use /help to see available commands.",
+                    parse_mode="Markdown"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error routing callback {callback_data}: {e}")
+            await query.answer("Error processing request")
+            raise
+
+
+# Global callback router instance
+callback_router = CallbackRouter()
+
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle callback queries from inline keyboards."""
     try:
@@ -18,19 +95,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         data = query.data
         logger.info(f"Callback query received: {data}")
         
-        # Import command handlers
-        from ..commands.handler import CommandHandler
-        command_handler = CommandHandler()
-        
-        # Handle special live dashboard
-        if data == "live_dashboard":
-            from ..utils.animations import LiveDashboard
-            dashboard = LiveDashboard()
-            await dashboard.start_live_dashboard(update, context)
-            return
-        
-        # Handle other callbacks through command handler
-        await command_handler.handle_callback(update, context)
+        # Route callback to appropriate handler
+        await callback_router.route_callback(update, context)
             
     except Exception as e:
         logger.error(f"Error handling callback query: {e}")

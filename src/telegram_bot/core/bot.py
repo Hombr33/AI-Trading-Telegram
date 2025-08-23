@@ -32,6 +32,7 @@ class BaseTelegramBot:
         self.config = config
         self.application: Optional[Application] = None
         self.running = False
+        self.polling_task: Optional[asyncio.Task] = None
 
     async def initialize(self):
         """Initialize the Telegram bot application."""
@@ -102,24 +103,21 @@ class BaseTelegramBot:
             
             # Start polling with network error handling
             try:
-                await self.application.updater.start_polling(
-                    allowed_updates=Update.ALL_TYPES,
-                    drop_pending_updates=True,
-                    read_timeout=10,
-                    write_timeout=10,
-                    connect_timeout=10,
-                    pool_timeout=2
+                # Store the polling task so we can cancel it later
+                self.polling_task = asyncio.create_task(
+                    self.application.updater.start_polling(
+                        allowed_updates=Update.ALL_TYPES,
+                        drop_pending_updates=True
+                    )
                 )
             except (NetworkError, TimedOut) as e:
                 logger.warning(f"Network error during bot startup, retrying: {e}")
                 await asyncio.sleep(2)
-                await self.application.updater.start_polling(
-                    allowed_updates=Update.ALL_TYPES,
-                    drop_pending_updates=True,
-                    read_timeout=15,
-                    write_timeout=15,
-                    connect_timeout=15,
-                    pool_timeout=3
+                self.polling_task = asyncio.create_task(
+                    self.application.updater.start_polling(
+                        allowed_updates=Update.ALL_TYPES,
+                        drop_pending_updates=True
+                    )
                 )
 
             self.running = True
@@ -131,28 +129,81 @@ class BaseTelegramBot:
             return False
 
     async def stop(self):
-        """Stop the Telegram bot."""
+        """Stop the Telegram bot using the proper shutdown sequence.
+        
+        This follows the recommended python-telegram-bot shutdown pattern:
+        1. Stop the updater first
+        2. Stop the application
+        3. Shutdown the application
+        4. Cancel the polling task gracefully
+        """
         try:
-            if self.application:
-                try:
-                    # Stop the application which includes stopping polling
-                    await asyncio.wait_for(self.application.stop(), timeout=5.0)
-                    
-                    # Final cleanup
-                    await asyncio.wait_for(self.application.shutdown(), timeout=5.0)
-                    
-                except asyncio.TimeoutError:
-                    logger.warning("Telegram bot stop timed out, forcing shutdown")
-                except Exception as e:
-                    logger.warning(f"Non-critical error during bot shutdown: {e}")
+            if not self.application:
+                logger.info("Telegram bot application not initialized, nothing to stop")
+                self.running = False
+                return True
 
+            logger.info("Starting Telegram bot shutdown sequence...")
+            
+            # Step 1: Stop the updater first (this stops polling)
+            if self.application.updater and self.application.updater.running:
+                try:
+                    logger.info("Stopping Telegram bot updater...")
+                    await self.application.updater.stop()
+                    logger.info("Updater stopped successfully")
+                except Exception as e:
+                    logger.warning(f"Error stopping updater: {e}")
+            
+            # Step 2: Stop the application (this stops the updater if not already stopped)
+            try:
+                logger.info("Stopping Telegram bot application...")
+                await self.application.stop()
+                logger.info("Application stopped successfully")
+            except Exception as e:
+                logger.warning(f"Error stopping application: {e}")
+            
+            # Step 3: Shutdown the application
+            try:
+                logger.info("Shutting down Telegram bot application...")
+                await self.application.shutdown()
+                logger.info("Application shutdown completed")
+            except Exception as e:
+                logger.warning(f"Error during application shutdown: {e}")
+            
+            # Step 4: Cancel the polling task gracefully
+            if self.polling_task and not self.polling_task.done():
+                logger.info("Cancelling polling task...")
+                try:
+                    # Cancel the task
+                    self.polling_task.cancel()
+                    
+                    # Wait for the task to complete cancellation
+                    try:
+                        await asyncio.wait_for(self.polling_task, timeout=5.0)
+                    except asyncio.TimeoutError:
+                        logger.warning("Polling task cancellation timed out")
+                    except asyncio.CancelledError:
+                        logger.info("Polling task cancelled successfully")
+                    except Exception as e:
+                        logger.warning(f"Unexpected error during polling task cancellation: {e}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error cancelling polling task: {e}")
+            
+            # Step 5: Final cleanup
+            self.polling_task = None
+            self.application = None
             self.running = False
-            logger.info("Telegram bot stopped")
+            
+            logger.info("Telegram bot shutdown completed successfully")
             return True
 
         except Exception as e:
-            logger.error(f"Critical error stopping Telegram bot: {e}")
-            # Don't prevent application shutdown
+            logger.error(f"Critical error during Telegram bot shutdown: {e}")
+            # Force cleanup even on error
+            self.polling_task = None
+            self.application = None
+            self.running = False
             return False
 
     async def send_message(self, chat_id: int, message: str, **kwargs):

@@ -227,45 +227,20 @@ class AutoTradingCommandHandler(BaseCommandHandler):
     
     async def _start_auto_trading_service(self):
         """Start the auto trading background service."""
-        try:
-            # Import here to avoid circular imports
-            from src.services.auto_trading_service import auto_trading_service
-            await auto_trading_service.start()
-            logger.info("Auto trading service started")
-        except ImportError:
-            logger.warning("Auto trading service not available")
-        except Exception as e:
-            logger.error(f"Failed to start auto trading service: {e}")
+        # This service is managed by the main application
+        logger.info("Auto trading service is managed by main application")
     
     async def _stop_auto_trading_service(self):
         """Stop the auto trading background service."""
-        try:
-            from src.services.auto_trading_service import auto_trading_service
-            await auto_trading_service.stop()
-            logger.info("Auto trading service stopped")
-        except ImportError:
-            logger.warning("Auto trading service not available")
-        except Exception as e:
-            logger.error(f"Failed to stop auto trading service: {e}")
+        # This service is managed by the main application
+        logger.info("Auto trading service is managed by main application")
     
     async def _start_signal_generation_service(self):
         """Start the signal generation background service."""
-        try:
-            from src.services.signal_generation_service import signal_generation_service
-            await signal_generation_service.start()
-            logger.info("Signal generation service started")
-        except ImportError:
-            logger.warning("Signal generation service not available")
-        except Exception as e:
-            logger.error(f"Failed to start signal generation service: {e}")
+        # This service is managed by the main application
+        logger.info("Signal generation service is managed by main application")
     
     async def _stop_signal_generation_service(self):
         """Stop the signal generation background service."""
-        try:
-            from src.services.signal_generation_service import signal_generation_service
-            await signal_generation_service.stop()
-            logger.info("Signal generation service stopped")
-        except ImportError:
-            logger.warning("Signal generation service not available")
-        except Exception as e:
-            logger.error(f"Failed to stop signal generation service: {e}")
+        # This service is managed by the main application
+        logger.info("Signal generation service is managed by main application")

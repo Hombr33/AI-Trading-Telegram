@@ -9,7 +9,7 @@ app:
 # API Configuration
 api:
   host: "127.0.0.1"
-  port: 8080
+  port: 8081
   workers: 1
   timeout: 30
   cors_origins: ["*"]

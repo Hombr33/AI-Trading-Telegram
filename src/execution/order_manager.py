@@ -2,9 +2,7 @@
 Order Manager for handling order lifecycle and signal execution.
 """
 
-import asyncio
-import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union, Any
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -18,6 +16,7 @@ from ..core.logging import (
 from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import OrderValidationError, RiskManagementError
 from ..core.config import TradingConfig
+from ..common.interfaces import IOrderManager, OrderType, OrderSide
 from ..execution.mt5_executor import MT5Executor
 from ..models.orders import Order
 from ..models.instruments import Instrument
@@ -26,14 +25,154 @@ from ..models.signals import Signal
 logger = get_logger(__name__)
 
 
-class OrderManager:
-    """Manages order lifecycle and signal execution."""
+class OrderManager(IOrderManager):
+    """Manages order lifecycle and signal execution.
+    
+    Implements the IOrderManager interface to provide standardized order management
+    functionality across different trading platforms.
+    """
 
-    def __init__(self, mt5_executor: MT5Executor, config: TradingConfig):
-        self.mt5_executor = mt5_executor
+    def __init__(self, platform_manager, config: TradingConfig):
+        self.platform_manager = platform_manager
+        self.mt5_executor = getattr(platform_manager, 'mt5_executor', None)
         self.config = config
         self.active_orders: Dict[str, Order] = {}
         self.order_history: List[Order] = []
+        
+    async def place_order(self, platform: str, symbol: str, order_type: OrderType, side: OrderSide,
+                         volume: float, price: Optional[float] = None, 
+                         stop_loss: Optional[float] = None, 
+                         take_profit: Optional[float] = None, **kwargs) -> Dict[str, Any]:
+        """Place an order on the specified platform."""
+        try:
+            # Create order object
+            order_id = f"order_{uuid4().hex[:8]}"
+            
+            # Map interface order type and side to internal representation
+            internal_order_type = self._map_order_type(order_type, side)
+            
+            order = {
+                "order_id": order_id,
+                "symbol": symbol,
+                "type": internal_order_type,
+                "volume": volume,
+                "price": price,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "platform": platform,
+                **kwargs
+            }
+            
+            # Create Order object from dictionary
+            order_obj = Order(
+                order_id=order_id,
+                symbol=symbol,
+                order_type=internal_order_type,
+                volume=volume,
+                price=price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                status="PENDING"
+            )
+            
+            # Use existing order placement logic
+            result = await self._place_order(order_obj)
+            
+            if result["success"]:
+                # Store the order in active orders
+                self.active_orders[order_id] = order_obj
+                self.order_history.append(order_obj)
+            
+            return result
+        except Exception as e:
+            logger.error(f"Order placement error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def cancel_order(self, platform: str, order_id: str, symbol: str) -> bool:
+        """Cancel an existing order."""
+        try:
+            if order_id not in self.active_orders:
+                return False
+
+            order = self.active_orders[order_id]
+            
+            # Use existing cancel logic
+            result = await self.mt5_executor.close_position(int(order.get("mt_ticket", 0)))
+            
+            if result["success"]:
+                del self.active_orders[order_id]
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Order cancellation error: {e}")
+            return False
+    
+    async def get_order(self, platform: str, order_id: str, symbol: str) -> Dict[str, Any]:
+        """Get information about a specific order."""
+        try:
+            if order_id not in self.active_orders:
+                return {"success": False, "error": "Order not found"}
+                
+            return {"success": True, "order": self.active_orders[order_id]}
+        except Exception as e:
+            logger.error(f"Error getting order: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_open_orders(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open orders, optionally filtered by platform and symbol."""
+        try:
+            orders = list(self.active_orders.values())
+            
+            # Apply filters if provided
+            if platform:
+                orders = [order for order in orders if order.get("platform") == platform]
+            if symbol:
+                orders = [order for order in orders if order.get("symbol") == symbol]
+                
+            return orders
+        except Exception as e:
+            logger.error(f"Error getting open orders: {e}")
+            return []
+    
+    async def get_positions(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open positions, optionally filtered by platform and symbol."""
+        try:
+            # For positions, we need to query the executor
+            if platform and platform != "mt5":
+                # Currently only MT5 is supported
+                return []
+                
+            positions = await self.mt5_executor.get_positions(symbol)
+            
+            # Convert to standard format
+            result = []
+            for pos in positions:
+                result.append({
+                    "symbol": pos.get("symbol"),
+                    "volume": pos.get("volume"),
+                    "open_price": pos.get("price_open"),
+                    "current_price": pos.get("price_current"),
+                    "profit": pos.get("profit"),
+                    "platform": "mt5",
+                    "ticket": pos.get("ticket"),
+                    "type": "BUY" if pos.get("type") == 0 else "SELL"
+                })
+                
+            return result
+        except Exception as e:
+            logger.error(f"Error getting positions: {e}")
+            return []
+            
+    def _map_order_type(self, order_type: OrderType, side: OrderSide) -> str:
+        """Map interface order types to internal representation."""
+        if order_type == OrderType.MARKET:
+            return "BUY" if side == OrderSide.BUY else "SELL"
+        elif order_type == OrderType.LIMIT:
+            return "BUYLIMIT" if side == OrderSide.BUY else "SELLLIMIT"
+        elif order_type == OrderType.STOP:
+            return "BUYSTOP" if side == OrderSide.BUY else "SELLSTOP"
+        else:
+            return "BUY" if side == OrderSide.BUY else "SELL"
 
     async def execute_signal(
         self, signal_data: Union[Signal, Dict], instrument: Optional[Instrument] = None
@@ -401,3 +540,118 @@ class OrderManager:
                 (filled_orders / total_orders * 100) if total_orders > 0 else 0
             ),
         }
+
+    async def cancel_order(self, platform: str, order_id: str, symbol: str) -> bool:
+        """Cancel an existing order."""
+        try:
+            if order_id in self.active_orders:
+                order = self.active_orders[order_id]
+                # Use MT5 executor to cancel the order
+                if platform.lower() == "mt5" and self.mt5_executor:
+                    result = await self.mt5_executor.cancel_order(order_id, symbol)
+                    if result:
+                        order.status = "CANCELLED"
+                        del self.active_orders[order_id]
+                        log_trade_event("order_cancelled", {
+                            "order_id": order_id,
+                            "symbol": symbol,
+                            "platform": platform
+                        })
+                        return True
+                else:
+                    # Mock cancellation for other platforms
+                    order.status = "CANCELLED"
+                    del self.active_orders[order_id]
+                    return True
+            return False
+        except Exception as e:
+            log_error_with_context(e, {"order_id": order_id, "platform": platform})
+            return False
+
+    async def get_order(self, platform: str, order_id: str, symbol: str) -> Dict[str, Any]:
+        """Get information about a specific order."""
+        try:
+            if order_id in self.active_orders:
+                order = self.active_orders[order_id]
+                return {
+                    "order_id": order.order_id,
+                    "symbol": order.symbol,
+                    "type": order.order_type,
+                    "volume": order.volume,
+                    "price": order.price,
+                    "stop_loss": order.stop_loss,
+                    "take_profit": order.take_profit,
+                    "status": order.status,
+                    "platform": platform
+                }
+            
+            # Check order history
+            for order in self.order_history:
+                if order.order_id == order_id:
+                    return {
+                        "order_id": order.order_id,
+                        "symbol": order.symbol,
+                        "type": order.order_type,
+                        "volume": order.volume,
+                        "price": order.price,
+                        "stop_loss": order.stop_loss,
+                        "take_profit": order.take_profit,
+                        "status": order.status,
+                        "platform": platform
+                    }
+            
+            return {}
+        except Exception as e:
+            log_error_with_context(e, {"order_id": order_id, "platform": platform})
+            return {}
+
+    async def get_open_orders(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open orders, optionally filtered by platform and symbol."""
+        try:
+            open_orders = []
+            for order_id, order in self.active_orders.items():
+                if order.status in ["PENDING", "PARTIAL"]:
+                    if symbol and order.symbol != symbol:
+                        continue
+                    open_orders.append({
+                        "order_id": order.order_id,
+                        "symbol": order.symbol,
+                        "type": order.order_type,
+                        "volume": order.volume,
+                        "price": order.price,
+                        "stop_loss": order.stop_loss,
+                        "take_profit": order.take_profit,
+                        "status": order.status,
+                        "platform": platform or "mt5"
+                    })
+            return open_orders
+        except Exception as e:
+            log_error_with_context(e, {"platform": platform, "symbol": symbol})
+            return []
+
+    async def get_positions(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open positions, optionally filtered by platform and symbol."""
+        try:
+            if platform and platform.lower() == "mt5" and self.mt5_executor:
+                # Get positions from MT5
+                positions = await self.mt5_executor.get_positions(symbol)
+                return positions if positions else []
+            else:
+                # Mock positions for other platforms or when MT5 not available
+                mock_positions = []
+                for order_id, order in self.active_orders.items():
+                    if order.status == "FILLED":
+                        if symbol and order.symbol != symbol:
+                            continue
+                        mock_positions.append({
+                            "position_id": order_id,
+                            "symbol": order.symbol,
+                            "volume": order.volume,
+                            "price": order.price,
+                            "profit": 0.0,
+                            "platform": platform or "mt5"
+                        })
+                return mock_positions
+        except Exception as e:
+            log_error_with_context(e, {"platform": platform, "symbol": symbol})
+            return []

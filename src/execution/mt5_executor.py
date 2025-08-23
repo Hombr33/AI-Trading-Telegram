@@ -402,11 +402,8 @@ class MT5Executor(BaseExecutor):
                 if os.path.exists(path):
                     installations.append(path)
         
-        # Remove duplicates while preserving order
-        seen = set()
-        return [x for x in installations if not (x in seen or seen.add(x))]
-                
-                # Check HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+            # Check HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+            try:
                 reg_keys = [
                     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
                     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
@@ -426,7 +423,7 @@ class MT5Executor(BaseExecutor):
                                                 install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
                                                 terminal_path = os.path.join(install_location, "terminal64.exe")
                                                 if os.path.exists(terminal_path):
-                                                    registry_paths.append(terminal_path)
+                                                    installations.append(terminal_path)
                                                     logger.info(f"Found MT5 in registry: {terminal_path}")
                                         except FileNotFoundError:
                                             continue
@@ -434,8 +431,6 @@ class MT5Executor(BaseExecutor):
                                     continue
                     except (OSError, FileNotFoundError):
                         continue
-                
-                installations.extend(registry_paths)
             except ImportError:
                 logger.debug("winreg not available for registry scanning")
             except Exception as e:
@@ -456,10 +451,7 @@ class MT5Executor(BaseExecutor):
                     installations.extend(found_paths)
                 except Exception as e:
                     logger.debug(f"Error scanning pattern {pattern}: {e}")
-            
-            # Remove duplicates while preserving order
-            installations = list(dict.fromkeys(installations))
-            
+        
         elif platform.system() == "Darwin":  # macOS
             # Wine or other compatibility layers
             search_paths = [
@@ -468,6 +460,9 @@ class MT5Executor(BaseExecutor):
             ]
             for pattern in search_paths:
                 installations.extend(glob.glob(os.path.expanduser(pattern)))
+        
+        # Remove duplicates while preserving order
+        installations = list(dict.fromkeys(installations))
         
         logger.info(f"Found {len(installations)} MT5 installations: {installations}")
         return installations

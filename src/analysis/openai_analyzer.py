@@ -1,155 +1,111 @@
-import base64
-import json
 import logging
-import os
-from typing import Any
-
-import openai
-from pydantic import BaseModel, Field, ValidationError
+from typing import Any, Dict, Optional
+from datetime import datetime
 
 from src.common.interfaces import IAnalyzer
-from src.api.models import SignalResponse
-from src.core.config import AppConfig
+from .modules import (
+    PromptManager,
+    RealtimeDataProvider,
+    SignalValidator,
+    OpenAIClientWrapper,
+    TradingSignal
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-class TradingSetup(BaseModel):
-    """Trading setup schema matching app-code-prompt.json signal_schema"""
-    type: str = Field(description="SELL or BUY")
-    entry_zone: List[float] = Field(description="[float_low, float_high] entry zone")
-    entry_style: str = Field(description="limit, market, or stop")
-    sl: float = Field(description="Stop loss level")
-    tp: List[float] = Field(description="Take profit levels [tp1, tp2_optional]")
-    confidence: int = Field(description="Confidence level 0-100")
-    notes: str = Field(description="Short trading notes")
-    
-    class Config:
-        extra = "forbid"
-
-
-class TradingSignal(BaseModel):
-    """Complete trading signal schema matching app-code-prompt.json"""
-    id: str = Field(description="Unique signal ID")
-    symbol: str = Field(description="Trading symbol")
-    bias: str = Field(description="BULLISH, BEARISH, or NEUTRAL")
-    setups: List[TradingSetup] = Field(description="List of trading setups")
-    risk_per_trade_pct: float = Field(description="Risk percentage per trade")
-    move_to_BE_at_R1: bool = Field(description="Move to breakeven at R1")
-    tp1_close_pct: float = Field(description="Percentage to close at TP1")
-    
-    class Config:
-        extra = "forbid"
-
-
 class OpenAIAnalyzer(IAnalyzer):
     """
-    An analyzer that uses OpenAI's GPT models to analyze market screenshots.
+    Modular OpenAI analyzer that uses GPT models to analyze market data and generate trading signals.
+    
+    This analyzer is built with modular components:
+    - PromptManager: Handles system prompts and context from app-code-prompt.json
+    - RealtimeDataProvider: Fetches current market data using OpenAI search
+    - SignalValidator: Validates signals against schema and business rules
+    - OpenAIClientWrapper: Enhanced OpenAI client with retry logic and error handling
     """
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
-        """Initialize the OpenAI analyzer."""
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o", 
+                 prompt_config_path: Optional[str] = None):
+        """Initialize the modular OpenAI analyzer.
+        
+        Args:
+            api_key: OpenAI API key
+            model: OpenAI model to use (default: gpt-4o)
+            prompt_config_path: Path to app-code-prompt.json file
+        """
         self.api_key = api_key
         self.model = model
-        self.client = None
-        self.system_prompt = self._load_system_prompt()
         
+        # Initialize modular components
+        self.prompt_manager = PromptManager(prompt_config_path)
+        self.realtime_provider = None
+        self.signal_validator = SignalValidator(self.prompt_manager.get_config())
+        self.openai_client = None
+        
+        # Initialize OpenAI client if API key provided
         if api_key:
-            try:
-                from openai import AsyncOpenAI
-                self.client = AsyncOpenAI(api_key=api_key)
-                logger.info("OpenAI client initialized successfully")
-            except ImportError:
-                logger.warning("OpenAI library not available, using mock responses")
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenAI client: {e}")
+            self.openai_client = OpenAIClientWrapper(api_key, model)
+            self.realtime_provider = RealtimeDataProvider(self.openai_client.client)
+            logger.info(f"OpenAI analyzer initialized with model: {model}")
         else:
             logger.warning("No OpenAI API key provided, using mock responses")
 
-    def _load_system_prompt(self) -> str:
-        """Loads the detailed system prompt from the JSON file."""
-        try:
-            # Look for app-code-prompt.json in project root
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            prompt_path = os.path.join(project_root, "app-code-prompt.json")
-            
-            with open(prompt_path, "r") as f:
-                prompt_data = json.load(f)
-            
-            # Construct system prompt from JSON data
-            system_prompt = f"""
-You are {prompt_data['agent_name']}, an {prompt_data['identity']['role']}
-
-TRADING METHODOLOGY:
-- Timeframes: {prompt_data['trading_SOP']['timeframes']}
-- Entry Rules: Minimum {prompt_data['trading_SOP']['entry_rules']['confluences_min']} confluences required
-- Required Signals: {', '.join(prompt_data['trading_SOP']['entry_rules']['required_signals'])}
-- Risk Management: {prompt_data['trading_SOP']['risk']['risk_per_trade_pct']}% risk per trade
-
-ANALYSIS STRUCTURE:
-Provide analysis in these sections: {', '.join(prompt_data['outputs_contract']['analysis_sections'])}
-
-SIGNAL FORMAT:
-Return signals in JSON format matching this schema:
-{json.dumps(prompt_data['outputs_contract']['signal_schema'], indent=2)}
-
-PRINCIPLES:
-{chr(10).join('- ' + p for p in prompt_data['identity']['principles'])}
-
-Always include: {', '.join(prompt_data['response_style']['always_include'])}
-Tone: {prompt_data['response_style']['tone']}
-"""
-            
-            logger.info("System prompt loaded successfully from app-code-prompt.json")
-            return system_prompt.strip()
-            
-        except FileNotFoundError:
-            logger.warning("Could not load or parse app-code-prompt.json: File not found")
-            return self._get_default_system_prompt()
-        except Exception as e:
-            logger.warning(f"Could not load or parse app-code-prompt.json: {e}")
-            return self._get_default_system_prompt()
+    @property
+    def is_available(self) -> bool:
+        """Check if analyzer is available.
+        
+        Returns:
+            True if the analyzer is available and ready to use, False otherwise.
+        """
+        return self.openai_client is not None and self.openai_client.is_available()
     
-    def _get_default_system_prompt(self) -> str:
-        """Returns a default system prompt if JSON loading fails."""
-        return """
-You are an expert trading analyst focused on scalping and precision execution.
-
-Analyze market data and provide trading signals with:
-- Clear entry zones and stop losses
-- Risk/reward ratios of at least 1:1.5
-- Confidence levels (0-100%)
-- Support/resistance levels
-- Market structure analysis
-
-Return signals in JSON format with fields: symbol, bias, setups (type, entry_zone, sl, tp, confidence).
-"""
+    async def test_connection(self) -> bool:
+        """Test OpenAI API connection.
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
+        if not self.openai_client:
+            return False
+        return await self.openai_client.test_connection()
 
     async def analyze_market(self, symbol: str) -> str:
-        """Analyze market data using OpenAI Responses API with real-time web search."""
+        """Analyze market data using OpenAI with real-time search capabilities.
+        
+        Args:
+            symbol: Trading symbol to analyze
+            
+        Returns:
+            Market analysis text
+        """
         try:
-            if not self.client:
-                logger.warning("OpenAI API key not configured - using mock response")
+            if not self.openai_client:
+                logger.warning("OpenAI client not available - using mock response")
                 return self._create_mock_analysis_response(symbol)
             
-            # Create real-time prompt for web search
-            prompt = self._create_realtime_prompt(symbol)
+            # Get real-time market data
+            if self.realtime_provider:
+                realtime_data = await self.realtime_provider.get_current_market_data([symbol])
+            else:
+                realtime_data = None
             
-            # Make API call with system prompt and real-time search
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=1000
-            )
-            return response.choices[0].message.content
+            # Create analysis prompt
+            search_prompt = self.prompt_manager.create_realtime_search_prompt([symbol])
+            
+            # Perform real-time search
+            analysis_result = await self.openai_client.search_realtime_data(search_prompt)
+            
+            if analysis_result:
+                logger.info(f"Real-time market analysis completed for {symbol}")
+                return analysis_result
+            else:
+                logger.warning(f"Real-time analysis failed for {symbol}, using mock response")
+                return self._create_mock_analysis_response(symbol)
         
         except Exception as e:
-            logger.error(f"Error in OpenAI real-time analysis: {e}")
+            logger.error(f"Error in market analysis: {e}")
             return self._create_mock_analysis_response(symbol)
     
     def _create_realtime_prompt(self, symbol: str) -> str:
@@ -232,150 +188,153 @@ Return signals in JSON format with fields: symbol, bias, setups (type, entry_zon
         
         return json.dumps(mock_response)
 
-    async def analyze(self, screenshot_data: bytes, market_context: dict) -> Any:
-        """
-        Analyzes the market data using OpenAI's vision and structured outputs.
+    def _create_mock_signal_response(self, market_context: dict) -> Any:
+        """Create a mock signal response for testing."""
+        try:
+            from datetime import datetime
+            import random
+            
+            symbols = market_context.get('symbols', ['EURUSD'])
+            symbol = symbols[0]
+            
+            # Create mock signal data
+            signal_data = {
+                "id": f"{symbol.lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}",
+                "symbol": symbol,
+                "bias": random.choice(["BULLISH", "BEARISH"]),
+                "setups": [
+                    {
+                        "type": random.choice(["BUY", "SELL"]),
+                        "entry_zone": [1.1000, 1.1050],
+                        "entry_style": "limit",
+                        "sl": 1.0950,
+                        "tp": [1.1100, 1.1150],
+                        "confidence": random.randint(70, 90),
+                        "notes": "Mock signal for testing purposes"
+                    }
+                ],
+                "risk_per_trade_pct": 2.0,
+                "move_to_BE_at_R1": True,
+                "tp1_close_pct": 0.5
+            }
+            
+            # Validate and return
+            validated_signal = TradingSignal(**signal_data)
+            logger.info(f"Created mock signal for {symbol}")
+            return validated_signal.model_dump()
+            
+        except Exception as e:
+            logger.error(f"Failed to create mock signal: {e}")
+            return None
 
+    async def analyze(self, screenshot_data: bytes, market_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyzes market data using OpenAI's vision and structured outputs with modular components.
+
+        Args:
+            screenshot_data: Chart screenshot as bytes
+            market_context: Market context dictionary with trading information
+            
         Returns:
-            A validated SignalResponse object or None.
+            A dictionary containing the trading signal data or None.
         """
-        logger.info("Starting OpenAI analysis with real-time market data...")
-        base64_image = base64.b64encode(screenshot_data).decode("utf-8")
-
-        # First, get real-time market data
-        market_data = await self._get_realtime_market_data(market_context)
-        
-        # Generate unique signal ID
-        from datetime import datetime
-        signal_id = f"{market_context.get('symbols', ['EURUSD'])[0].lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}"
-        
-        user_message = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": f"""Analyze this chart screenshot with the following context:
-                    
-Market Context: {json.dumps(market_context)}
-Real-time Market Data: {market_data}
-
-Signal ID: {signal_id}
-
-Follow your trading SOP methodology to analyze the chart:
-1. H4_BigPicture: Identify overall trend, supply/demand zones, liquidity pools
-2. H1_Structure: Market structure, support/resistance levels
-3. M15_EntryZone: Refined entry zones, Quasimodo patterns, FVG/imbalance
-4. M5_Execution: Candle rejection signals, entry confirmation
-5. Scalping_Liquidity_Sweep_Option: Identify sweep areas for M1 entries
-
-Provide a complete trading signal following the exact signal_schema format. 
-Include multiple confluences and ensure minimum RR of 1.5.
-Focus on high-probability setups with proper risk management.""",
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                },
-            ],
-        }
+        logger.info("Starting modular OpenAI analysis with real-time market data...")
 
         try:
             # If no OpenAI client, return mock response
-            if not self.client:
-                logger.info("Using mock OpenAI response (no API key configured)")
+            if not self.openai_client:
+                logger.info("Using mock signal response (no OpenAI client available)")
                 return self._create_mock_signal_response(market_context)
-            
-            response = await self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    user_message,
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "trading_signal",
-                        "schema": TradingSignal.model_json_schema(),
-                        "strict": True
-                    }
-                },
-                max_tokens=2000,
-                temperature=0.3
-            )
 
-            response_content = response.choices[0].message.content
-            if not response_content:
-                logger.warning("OpenAI response was empty.")
-                return None
-
-            # Parse and validate the structured output
-            signal_data = json.loads(response_content)
-            validated_signal = TradingSignal(**signal_data)
-            
-            logger.info(f"Successfully received and validated signal for {validated_signal.symbol}")
-            
-            # The validated signal already matches our simplified structure
-            return validated_signal
-
-        except openai.APIError as e:
-            logger.error(f"Error during OpenAI analysis: {e}")
-            return self._create_mock_signal_response(market_context)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from OpenAI response: {e}")
-            logger.error(f"Raw response content: {response_content}")
-            return None
-        except ValidationError as e:
-            logger.error(f"Failed to validate signal data against Pydantic model: {e}")
-            logger.error(f"Received data: {signal_data}")
-            return None
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during analysis: {e}")
-            return None
-
-    async def _get_realtime_market_data(self, market_context: dict) -> str:
-        """
-        Get real-time market data using OpenAI's chat completions with web search.
-        
-        Args:
-            market_context: Market context with symbols and timeframes
-            
-        Returns:
-            String containing real-time market information
-        """
-        try:
+            # Get real-time market data
             symbols = market_context.get('symbols', ['EURUSD'])
-            symbol_query = ', '.join(symbols)
-            
-            # Use OpenAI chat completions for real-time market data
-            response = await self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a financial market data analyst. Search for current market information and provide concise, actionable data."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"""Search for current market data for forex pairs: {symbol_query}
-                        
-Please provide:
-1. Current prices and recent price movements (today)
-2. Major economic news affecting these currencies today
-3. Market sentiment and volatility levels
-4. Any upcoming economic events or announcements
-5. Technical analysis insights from financial websites
+            realtime_data = None
+            if self.realtime_provider:
+                realtime_data = await self.realtime_provider.get_current_market_data(symbols)
 
-Focus on actionable trading information for scalping and intraday strategies. Keep response concise and factual."""
-                    }
-                ],
-                max_tokens=800,
-                temperature=0.3
+            # Generate unique signal ID
+            signal_id = f"{symbols[0].lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}"
+            market_context['signal_id'] = signal_id
+
+            # Create analysis prompt using prompt manager
+            analysis_prompt = self.prompt_manager.create_analysis_prompt(
+                market_context, realtime_data
             )
-            
-            market_data = response.choices[0].message.content
-            logger.info("Successfully retrieved real-time market data")
-            return market_data or "Real-time market data unavailable"
-            
+
+            # Get system prompt and signal schema
+            system_prompt = self.prompt_manager.get_system_prompt()
+            signal_schema = self.prompt_manager.get_config().get('outputs_contract', {}).get('signal_schema', {})
+
+            # Generate structured signal using OpenAI client wrapper
+            signal_data = await self.openai_client.generate_structured_signal(
+                system_prompt=system_prompt,
+                analysis_prompt=analysis_prompt,
+                signal_schema=TradingSignal.model_json_schema(),
+                image_data=screenshot_data
+            )
+
+            if not signal_data:
+                logger.warning("Failed to generate structured signal, using mock response")
+                return self._create_mock_signal_response(market_context)
+
+            # Validate signal using signal validator
+            validated_signal, validation_errors = self.signal_validator.validate_signal(signal_data)
+
+            if validation_errors:
+                logger.warning(f"Signal validation errors: {validation_errors}")
+                # Try to use mock signal if validation fails
+                return self._create_mock_signal_response(market_context)
+
+            if validated_signal:
+                logger.info(f"Successfully generated and validated signal for {validated_signal.symbol}")
+                
+                # Log validation summary
+                summary = self.signal_validator.get_validation_summary(validated_signal)
+                logger.info(f"Signal summary: {summary}")
+                
+                # Convert TradingSignal object to dictionary
+                return validated_signal.model_dump()
+            else:
+                logger.error("Signal validation failed")
+                return self._create_mock_signal_response(market_context)
+
         except Exception as e:
-            logger.warning(f"Failed to get real-time market data: {e}")
-            return "Real-time market data unavailable - using chart analysis only"
+            logger.error(f"Unexpected error in modular analysis: {e}")
+            return self._create_mock_signal_response(market_context)
+
+    def get_prompt_manager(self) -> PromptManager:
+        """Get the prompt manager instance.
+        
+        Returns:
+            PromptManager instance
+        """
+        return self.prompt_manager
+    
+    def get_signal_validator(self) -> SignalValidator:
+        """Get the signal validator instance.
+        
+        Returns:
+            SignalValidator instance
+        """
+        return self.signal_validator
+    
+    def get_realtime_provider(self) -> Optional[RealtimeDataProvider]:
+        """Get the realtime data provider instance.
+        
+        Returns:
+            RealtimeDataProvider instance or None
+        """
+        return self.realtime_provider
+    
+    def reload_configuration(self) -> bool:
+        """Reload configuration from app-code-prompt.json.
+        
+        Returns:
+            True if reload successful, False otherwise
+        """
+        success = self.prompt_manager.reload_config()
+        if success:
+            # Update signal validator with new config
+            self.signal_validator = SignalValidator(self.prompt_manager.get_config())
+            logger.info("OpenAI analyzer configuration reloaded successfully")
+        return success

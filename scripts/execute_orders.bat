@@ -1,0 +1,3 @@
+@echo off
+echo Running Order Execution Script...
+python "%~dp0..\scripts\execute_orders.py" %*

@@ -126,11 +126,14 @@ def setup_logging(
     # Add custom levels
     for level_config in loguru_config["levels"]:
         try:
-            logger.level(
-                level_config["name"], level_config["no"], color=level_config["color"]
-            )
-        except ValueError:
-            # Level already exists, skip
+            # Check if level already exists before adding
+            existing_levels = logger._core.min_levels
+            if level_config["name"] not in existing_levels:
+                logger.level(
+                    level_config["name"], level_config["no"], color=level_config["color"]
+                )
+        except (ValueError, AttributeError):
+            # Level already exists or logger not properly initialized, skip
             pass
 
 

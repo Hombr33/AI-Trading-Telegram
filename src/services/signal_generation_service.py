@@ -10,43 +10,46 @@ from typing import Dict, List, Optional, Any
 
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event
+from src.common.interfaces import ISignalGenerationService, IAnalyzer, IPlatformManager
 from src.analysis.openai_analyzer import OpenAIAnalyzer
-from src.execution.platform_manager import PlatformManager
 from src.telegram_bot.notifications.trading import send_signal_notification
 
 logger = get_logger(__name__)
 
 
-class SignalGenerationService:
-    """Service for automatic signal generation."""
+class SignalGenerationService(ISignalGenerationService):
+    """Service for automatic signal generation and management of analyzers."""
+    
     
     def __init__(self, config, telegram_bot):
         self.config = config
         self.telegram_bot = telegram_bot
         self.running = False
         self.task: Optional[asyncio.Task] = None
-        self.analyzer = OpenAIAnalyzer(config)
-        self.platform_manager: Optional[PlatformManager] = None
+        self.analyzers: Dict[str, IAnalyzer] = {}
+        self.analyzer_priorities: Dict[str, int] = {}
+        # Initialize default analyzer
+        default_analyzer = OpenAIAnalyzer(api_key=config.openai.api_key, model=config.openai.model)
+        self.add_analyzer(default_analyzer)
+        self.platform_manager: Optional[IPlatformManager] = None
         self.last_signal_time = 0
         self.signal_count_today = 0
         self.daily_reset_time = 0
     
-    async def start(self):
+    async def start(self) -> None:
         """Start the signal generation service."""
         if self.running:
-            logger.warning("Signal generation service is already running")
             return
         
         self.running = True
         self.task = asyncio.create_task(self._signal_generation_loop())
+        self.daily_reset_time = time.time()
+        
         log_system_event("signal_service", "started", "Signal generation service started")
         logger.info("Signal generation service started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the signal generation service."""
-        if not self.running:
-            return
-        
         self.running = False
         if self.task:
             self.task.cancel()
@@ -58,9 +61,53 @@ class SignalGenerationService:
         log_system_event("signal_service", "stopped", "Signal generation service stopped")
         logger.info("Signal generation service stopped")
     
-    def set_platform_manager(self, platform_manager: PlatformManager):
+    def set_platform_manager(self, platform_manager: IPlatformManager):
         """Set the platform manager for market data access."""
         self.platform_manager = platform_manager
+        
+    def add_analyzer(self, analyzer: IAnalyzer, priority: int = 0) -> None:
+        """Add an analyzer to the service with a priority level.
+        
+        Args:
+            analyzer: The analyzer to add
+            priority: Priority level (higher number means higher priority)
+        """
+        analyzer_id = id(analyzer)
+        self.analyzers[str(analyzer_id)] = analyzer
+        self.analyzer_priorities[str(analyzer_id)] = priority
+        logger.info(f"Added analyzer with priority {priority}")
+        
+    def remove_analyzer(self, analyzer_id: str) -> bool:
+        """Remove an analyzer from the service.
+        
+        Args:
+            analyzer_id: The ID of the analyzer to remove
+            
+        Returns:
+            True if the analyzer was removed, False otherwise
+        """
+        if analyzer_id in self.analyzers:
+            del self.analyzers[analyzer_id]
+            del self.analyzer_priorities[analyzer_id]
+            logger.info(f"Removed analyzer {analyzer_id}")
+            return True
+        return False
+        
+    async def get_available_analyzers(self) -> List[Dict[str, Any]]:
+        """Get a list of available analyzers.
+        
+        Returns:
+            List of analyzer information dictionaries
+        """
+        result = []
+        for analyzer_id, analyzer in self.analyzers.items():
+            result.append({
+                "id": analyzer_id,
+                "type": analyzer.__class__.__name__,
+                "priority": self.analyzer_priorities[analyzer_id],
+                "available": analyzer.is_available
+            })
+        return result
     
     async def _signal_generation_loop(self):
         """Main signal generation loop."""
@@ -92,22 +139,77 @@ class SignalGenerationService:
                 logger.error(f"Error in signal generation loop: {e}")
                 await asyncio.sleep(60)
     
-    async def _generate_signals(self):
-        """Generate signals for all configured trading pairs."""
+    async def generate_signal(self, screenshot_data: bytes, market_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a trading signal from screenshot and market context.
+        
+        Args:
+            screenshot_data: The byte content of the market screenshot
+            market_context: A dictionary containing additional context about the market
+            
+        Returns:
+            A structured trading signal dictionary
+        """
         try:
-            # Get all trading pairs
-            all_pairs = config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
+            # Sort analyzers by priority (highest first)
+            sorted_analyzers = sorted(
+                [(analyzer_id, analyzer) for analyzer_id, analyzer in self.analyzers.items()],
+                key=lambda x: self.analyzer_priorities[x[0]],
+                reverse=True
+            )
             
-            logger.info(f"Generating signals for {len(all_pairs)} pairs")
+            # Try each analyzer in order of priority
+            for analyzer_id, analyzer in sorted_analyzers:
+                if not analyzer.is_available:
+                    logger.debug(f"Analyzer {analyzer_id} is not available, skipping")
+                    continue
+                    
+                try:
+                    logger.info(f"Using analyzer {analyzer_id} for screenshot analysis")
+                    signal = await analyzer.analyze(screenshot_data, market_context)
+                    
+                    # Validate the signal
+                    if signal and await self.validate_signal(signal):
+                        return signal
+                        
+                except Exception as e:
+                    logger.error(f"Error in analyzer {analyzer_id}: {e}")
+                    continue
             
-            for symbol in all_pairs:
+            # If we get here, no analyzer was able to generate a valid signal
+            logger.warning("No analyzer was able to generate a valid signal")
+            return self._create_error_signal(market_context.get("symbol", "unknown"), market_context)
+            
+        except Exception as e:
+            logger.error(f"Error generating signal: {e}")
+            return self._create_error_signal(market_context.get("symbol", "unknown"), market_context)
+    
+    async def generate_signals(self, symbols: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """Generate signals for the specified symbols or all configured pairs.
+        
+        Args:
+            symbols: Optional list of symbols to analyze. If None, all configured pairs will be used.
+            
+        Returns:
+            List of generated signals
+        """
+        signals = []
+        try:
+            # Get all trading pairs if symbols not specified
+            if symbols is None:
+                symbols = config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
+            
+            logger.info(f"Generating signals for {len(symbols)} pairs")
+            
+            for symbol in symbols:
                 try:
                     signal = await self._analyze_symbol(symbol)
-                    if signal and signal.get("action") != "hold":
-                        await self._send_signal_notification(signal)
-                        self.signal_count_today += 1
+                    if signal:
+                        signals.append(signal)
                         
-                        logger.info(f"Generated signal for {symbol}: {signal.get('action')} @ {signal.get('entry_price')}")
+                        if signal.get("action") != "hold":
+                            await self._send_signal_notification(signal)
+                            self.signal_count_today += 1
+                            logger.info(f"Generated signal for {symbol}: {signal.get('action')} @ {signal.get('entry_price')}")
                 
                 except Exception as e:
                     logger.error(f"Error generating signal for {symbol}: {e}")
@@ -115,31 +217,110 @@ class SignalGenerationService:
                 
                 # Small delay between symbols to avoid overwhelming APIs
                 await asyncio.sleep(1)
+            
+            return signals
         
         except Exception as e:
             logger.error(f"Error in signal generation: {e}")
+            return signals
+            
+    async def _generate_signals(self):
+        """Internal method for the signal generation loop."""
+        await self.generate_signals()
     
     async def _analyze_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Analyze a symbol and generate trading signal."""
+        """Analyze a symbol and generate trading signal using available analyzers."""
         try:
-            # Get AI analysis using real-time web search
-            try:
-                analysis = await self.analyzer.analyze_market(symbol)
-                signal = self._parse_analysis_to_signal(symbol, analysis, {"current_price": 0})  # Price comes from AI analysis now
-                
-                # Send notification if signal is actionable
-                if signal and signal.get("action") != "hold":
-                    await self._send_signal_notification(signal)
-                
-                return signal
+            # Sort analyzers by priority (highest first)
+            sorted_analyzers = sorted(
+                [(analyzer_id, analyzer) for analyzer_id, analyzer in self.analyzers.items()],
+                key=lambda x: self.analyzer_priorities[x[0]],
+                reverse=True
+            )
             
-            except Exception as e:
-                logger.error(f"Error in AI analysis for {symbol}: {e}")
-                return self._create_error_signal(symbol, {"current_price": 0})
+            # Try each analyzer in order of priority
+            for analyzer_id, analyzer in sorted_analyzers:
+                if not analyzer.is_available:
+                    logger.debug(f"Analyzer {analyzer_id} is not available, skipping")
+                    continue
+                    
+                try:
+                    logger.info(f"Using analyzer {analyzer_id} for {symbol}")
+                    analysis = await analyzer.analyze_market(symbol)
+                    signal = self._parse_analysis_to_signal(symbol, analysis, {"current_price": 0})
+                    
+                    # If we got a valid signal, return it
+                    if signal and await self.validate_signal(signal):
+                        return signal
+                        
+                except Exception as e:
+                    logger.error(f"Error in analyzer {analyzer_id} for {symbol}: {e}")
+                    continue
+            
+            # If we get here, no analyzer was able to generate a signal
+            logger.warning(f"No analyzer was able to generate a signal for {symbol}")
+            return self._create_error_signal(symbol, {"current_price": 0})
         
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
             return None
+            
+    async def validate_signal(self, signal: Dict[str, Any]) -> bool:
+        """Validate a trading signal.
+        
+        Args:
+            signal: The trading signal to validate
+            
+        Returns:
+            True if the signal is valid, False otherwise
+        """
+        try:
+            # Check required fields
+            required_fields = ["symbol", "action", "entry_price", "stop_loss", "take_profit"]
+            for field in required_fields:
+                if field not in signal:
+                    logger.warning(f"Signal missing required field: {field}")
+                    return False
+            
+            # Validate action
+            valid_actions = ["buy", "sell", "hold"]
+            if signal["action"].lower() not in valid_actions:
+                logger.warning(f"Invalid action: {signal['action']}")
+                return False
+                
+            # Skip further validation for hold signals
+            if signal["action"].lower() == "hold":
+                return True
+                
+            # Validate prices
+            try:
+                entry_price = float(signal["entry_price"])
+                stop_loss = float(signal["stop_loss"])
+                take_profit = float(signal["take_profit"])
+                
+                # Ensure prices are positive
+                if entry_price <= 0 or stop_loss <= 0 or take_profit <= 0:
+                    logger.warning("Prices must be positive")
+                    return False
+                    
+                # Validate price relationships
+                if signal["action"].lower() == "buy":
+                    if stop_loss >= entry_price or take_profit <= entry_price:
+                        logger.warning("Invalid price relationships for buy signal")
+                        return False
+                elif signal["action"].lower() == "sell":
+                    if stop_loss <= entry_price or take_profit >= entry_price:
+                        logger.warning("Invalid price relationships for sell signal")
+                        return False
+            except (ValueError, TypeError):
+                logger.warning("Invalid price values")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error validating signal: {e}")
+            return False
     
     async def _get_market_data(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get real-time market data for analysis."""

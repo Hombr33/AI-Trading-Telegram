@@ -10,30 +10,48 @@ from typing import Dict, List, Optional, Any
 
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event, log_trade_event
-from src.execution.platform_manager import PlatformManager
-from src.execution.order_manager import OrderManager
-from src.services.signal_generation_service import signal_generation_service
-from src.telegram_bot.notifications.trading import send_trade_notification
+from src.common.interfaces import IAutoTradingService, IPlatformManager, IOrderManager
 
 logger = get_logger(__name__)
 
 
-class AutoTradingService:
-    """Service for automatic trade execution."""
+class AutoTradingService(IAutoTradingService):
+    """Service for automatic trade execution.
     
-    def __init__(self, config, platform_manager, telegram_bot):
+    Implements the IAutoTradingService interface to provide automatic trade execution
+    based on signals. Uses dependency injection for platform and order management.
+    """
+    
+    def __init__(self, config, platform_manager: IPlatformManager, telegram_bot=None):
+        """
+        Initialize the auto trading service.
+        
+        Args:
+            config: Application configuration
+            platform_manager: Trading platform manager implementing IPlatformManager
+            telegram_bot: Optional telegram bot for notifications
+        """
         self.config = config
         self.platform_manager = platform_manager
         self.telegram_bot = telegram_bot
         self.running = False
         self.task: Optional[asyncio.Task] = None
-        self.order_manager: Optional[OrderManager] = None
+        self.order_manager: Optional[IOrderManager] = None
         self.trades_today = 0
         self.daily_reset_time = 0
         self.pending_signals: List[Dict[str, Any]] = []
         self.active_trades: Dict[str, Dict[str, Any]] = {}
     
-    async def start(self):
+    def set_order_manager(self, order_manager: IOrderManager) -> None:
+        """Set the order manager instance.
+        
+        Args:
+            order_manager: Order manager implementing IOrderManager interface
+        """
+        self.order_manager = order_manager
+        logger.info("Order manager set for auto trading service")
+    
+    async def start(self) -> None:
         """Start the auto trading service."""
         if self.running:
             logger.warning("Auto trading service is already running")
@@ -43,14 +61,19 @@ class AutoTradingService:
             logger.info("Auto trading is disabled in config")
             return
         
+        if not self.order_manager:
+            logger.error("Cannot start auto trading service: Order manager not set")
+            return
+            
         self.running = True
         self.task = asyncio.create_task(self._trading_loop())
         log_system_event("auto_trading_service", "started", "Auto trading service started")
         logger.info("Auto trading service started")
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the auto trading service."""
         if not self.running:
+            logger.warning("Auto trading service is not running")
             return
         
         self.running = False
@@ -60,15 +83,16 @@ class AutoTradingService:
                 await self.task
             except asyncio.CancelledError:
                 pass
+            self.task = None
         
         log_system_event("auto_trading_service", "stopped", "Auto trading service stopped")
         logger.info("Auto trading service stopped")
     
-    def set_platform_manager(self, platform_manager: PlatformManager):
+    def set_platform_manager(self, platform_manager: IPlatformManager):
         """Set the platform manager."""
         self.platform_manager = platform_manager
     
-    def set_order_manager(self, order_manager: OrderManager):
+    def set_order_manager(self, order_manager: IOrderManager):
         """Set the order manager."""
         self.order_manager = order_manager
     
@@ -380,10 +404,29 @@ class AutoTradingService:
         except Exception as e:
             logger.error(f"Error sending trade notification: {e}")
     
-    def add_signal(self, signal: Dict[str, Any]):
-        """Add a signal for execution."""
+    def add_signal(self, signal: Dict[str, Any]) -> bool:
+        """Add a trading signal to the pending queue.
+        
+        Args:
+            signal: Trading signal dictionary with symbol, side, entry_price, etc.
+            
+        Returns:
+            bool: True if signal was added, False otherwise
+        """
+        if not self.running:
+            logger.warning("Auto trading service is not running, signal ignored")
+            return False
+        
+        # Validate signal format
+        required_fields = ['symbol', 'side', 'entry_price']
+        if not all(field in signal for field in required_fields):
+            logger.error(f"Invalid signal format, missing required fields: {required_fields}")
+            return False
+        
+        # Add signal to pending queue
         self.pending_signals.append(signal)
-        logger.info(f"Added signal for {signal.get('symbol')} to pending queue")
+        logger.info(f"Added signal to auto trading queue: {signal['symbol']} {signal['side']} {signal['entry_price']}")
+        return True
     
     def get_status(self) -> Dict[str, Any]:
         """Get service status."""

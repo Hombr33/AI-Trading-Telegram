@@ -68,22 +68,21 @@ class VisualEffects:
             return f"💥 {pct:.2f}%"
     
     @staticmethod
-    def create_trading_card(position: Dict[str, Any]) -> str:
+    def create_trading_card(symbol: str, direction: str, entry_price: float, 
+                          current_price: float, profit: float, profit_pct: float,
+                          volume: float, price_history: List[float]) -> str:
         """Create a visual trading card for a position."""
-        type_emoji = "📈" if position["type"] == "BUY" else "📉"
-        profit = position.get("profit", 0)
-        profit_pct = position.get("profit_pct", 0)
+        type_emoji = "📈" if direction == "BUY" else "📉"
         
         # Create mini chart
-        price_history = position.get("price_history", [position.get("price_current", 0)])
         chart = VisualEffects.create_sparkline(price_history)
         
         card = (
-            f"┌─ {type_emoji} **{position['symbol']}** ─┐\n"
+            f"┌─ {type_emoji} **{symbol}** ─┐\n"
             f"│ {chart} │\n"
-            f"│ Entry: ${position['price_open']:.5f} │\n"
-            f"│ Current: ${position['price_current']:.5f} │\n"
-            f"│ Volume: {position['volume']} │\n"
+            f"│ Entry: ${entry_price:.5f} │\n"
+            f"│ Current: ${current_price:.5f} │\n"
+            f"│ Volume: {volume} │\n"
             f"│ P&L: {VisualEffects.format_currency(profit)} │\n"
             f"│ Change: {VisualEffects.format_percentage(profit_pct)} │\n"
             f"└─────────────────────┘"

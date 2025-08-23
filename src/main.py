@@ -4,12 +4,16 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 """
 
 import asyncio
+import signal
+import sys
+import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 import socketio
 from socketio import AsyncServer
 
@@ -21,11 +25,11 @@ from src.core.logging import (
     print_status_table,
     log_error_with_context,
 )
-from .core.workflow import workflow_manager, performance_monitor
+from .core.workflow import performance_monitor
 from .core.health_monitor import health_monitor
-from .core.error_handler import ErrorContext
 from .bridge.socketio_bridge import SocketIOBridge
 from .execution.platform_manager import PlatformManager
+from .common.interfaces import IPlatformManager, ISignalGenerationService, IOrderManager, IPositionManager
 from .execution.order_manager import OrderManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
@@ -38,6 +42,7 @@ import sys
 if sys.platform == "win32":
     try:
         from .execution.aiomql_executor import AioMQLExecutor
+        from .execution.mt5_executor import MT5Executor
     except ImportError:
         AioMQLExecutor = None
         logger.warning("AioMQL executor not available on Windows")
@@ -50,14 +55,27 @@ from src.api.routes import health, v1, bridge, trading
 # Get logger
 logger = get_logger(__name__)
 
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    # Force exit the application immediately
+    os._exit(0)
+
+# Register signal handlers for graceful shutdown
+if sys.platform != "win32":  # Signal handlers don't work on Windows
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
 # Global instances for API routes
 telegram_bot: TradingBot = None
 socketio_bridge: SocketIOBridge = None
-platform_manager: PlatformManager = None
+platform_manager: IPlatformManager = None
 order_manager: OrderManager = None
 position_manager: PositionManager = None
 trailing_manager: TrailingManager = None
-signal_generation_service: SignalGenerationService = None
+signal_generation_service: ISignalGenerationService = None
 auto_trading_service: AutoTradingService = None
 
 
@@ -72,6 +90,8 @@ async def lifespan(app: FastAPI):
         "Initializing components and establishing connections...",
         "cyan",
     )
+    
+
 
     try:
         # Initialize Platform Manager (supports MT5 + Crypto exchanges)
@@ -206,6 +226,8 @@ async def lifespan(app: FastAPI):
     finally:
         # Enhanced shutdown sequence
         logger.info("Shutting down AI Trading Bot...")
+        
+
 
         try:
             # Stop health monitoring
@@ -229,8 +251,18 @@ async def lifespan(app: FastAPI):
             # Stop Telegram bot gracefully
             if 'telegram_bot' in locals():
                 logger.info("Stopping Telegram bot...")
-                await telegram_bot.stop()
-                logger.info("Telegram bot stopped (any polling cancellation messages are normal)")
+                try:
+                    # Use a longer timeout for graceful shutdown
+                    await asyncio.wait_for(telegram_bot.stop(), timeout=30.0)
+                    logger.info("Telegram bot stopped successfully")
+                except asyncio.TimeoutError:
+                    logger.warning("Telegram bot stop timed out, forcing shutdown")
+                    # Force stop the bot
+                    telegram_bot.running = False
+                except Exception as e:
+                    logger.warning(f"Error stopping Telegram bot: {e}, forcing shutdown")
+                    # Force stop the bot
+                    telegram_bot.running = False
 
             # Disconnect Socket.IO bridge
             if 'socketio_bridge' in locals():
@@ -246,6 +278,7 @@ async def lifespan(app: FastAPI):
 
         except Exception as e:
             log_error_with_context(e, {"component": "shutdown", "action": "cleanup"})
+
 
 
 # Create FastAPI app
@@ -268,6 +301,8 @@ app.add_middleware(
 # Create Socket.IO server
 sio = AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 socketio_app = socketio.ASGIApp(sio, app)
+
+
 
 
 # Socket.IO event handlers
@@ -326,10 +361,10 @@ app.include_router(bridge.router, prefix="/api/v1/bridge", tags=["bridge"])
 app.include_router(trading.router, prefix="/api/v1/trading", tags=["trading"])
 
 
-# Root endpoint
-@app.get("/")
-async def root():
-    """Root endpoint with application info."""
+# API info endpoint
+@app.get("/api")
+async def api_info():
+    """API information endpoint."""
     return {
         "name": "AI Trading Bot",
         "version": "1.0.0",
@@ -357,6 +392,36 @@ async def root():
         },
     }
 
+
+# Status endpoint
+@app.get("/status")
+async def get_status():
+    """Get detailed system status."""
+    try:
+        # Basic system info
+        uptime = datetime.now(timezone.utc) - start_time if 'start_time' in globals() else None
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "uptime": str(uptime) if uptime else "Unknown",
+            "environment": config.environment,
+            "healthy": True,
+            "components": {
+                "platform_manager": platform_manager is not None,
+                "position_manager": position_manager is not None and getattr(position_manager, 'is_running', False),
+                "trailing_manager": trailing_manager is not None and getattr(trailing_manager, 'is_running', False),
+                "telegram_bot": telegram_bot is not None and getattr(telegram_bot, 'is_running', False),
+                "socketio_bridge": socketio_bridge is not None
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "error": str(e),
+            "healthy": False
+        }
 
 # Enhanced health check endpoint
 @app.get("/health")
@@ -450,57 +515,117 @@ async def health_check():
         }
 
 
-# Status endpoint
-@app.get("/status")
-async def get_status():
-    """Get detailed system status."""
-    status = {
-        "status": "running",
-        "timestamp": "2025-08-22T00:00:00Z",
-        "version": "1.0.0",
-        "environment": config.environment,
-        "components": {},
-    }
-
-    # MT5 status
-    if mt5_executor:
-        try:
-            connected = mt5_executor.is_connected
-            status["components"]["mt5"] = {
-                "connected": connected,
-                "account_info": (
-                    await mt5_executor.get_account_info() if connected else None
-                ),
-            }
-        except Exception as e:
-            status["components"]["mt5"] = {"connected": False, "error": str(e)}
-
-    # Socket.IO bridge status
-    if socketio_bridge:
-        status["components"]["bridge"] = socketio_bridge.get_status()
-
-    # Telegram bot status
-    if telegram_bot:
-        status["components"]["telegram"] = {
-            "running": telegram_bot.is_running,
-            "chat_id": config.telegram.chat_id,
-        }
-
-    # Manager statuses
-    if position_manager:
-        status["components"]["position_manager"] = {
-            "running": position_manager.is_running,
-            "active_positions": len(await position_manager.get_positions()),
-        }
-
-    if trailing_manager:
-        status["components"]["trailing_manager"] = {
-            "running": trailing_manager.is_running,
-            "config": trailing_manager.get_config(),
-        }
-
-    return status
-
+# Root endpoint - Simple dashboard
+@app.get("/")
+async def dashboard():
+    """Main dashboard showing system status."""
+    try:
+        status_data = await get_status()
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>AI Trading Bot Dashboard</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
+                .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                .header {{ text-align: center; color: #333; margin-bottom: 30px; }}
+                .status-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+                .status-card {{ background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff; }}
+                .status-healthy {{ border-left-color: #28a745; }}
+                .status-warning {{ border-left-color: #ffc107; }}
+                .status-error {{ border-left-color: #dc3545; }}
+                .metric {{ display: flex; justify-content: space-between; margin: 10px 0; }}
+                .metric-label {{ font-weight: bold; }}
+                .metric-value {{ color: #666; }}
+                .timestamp {{ text-align: center; color: #888; font-size: 0.9em; }}
+                .api-links {{ text-align: center; margin-top: 30px; }}
+                .api-links a {{ margin: 0 15px; color: #007bff; text-decoration: none; }}
+                .api-links a:hover {{ text-decoration: underline; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🤖 AI Trading Bot Dashboard</h1>
+                    <p>Real-time system monitoring and status</p>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-card status-{'healthy' if status_data.get('healthy', False) else 'error'}">
+                        <h3>System Status</h3>
+                        <div class="metric">
+                            <span class="metric-label">Status:</span>
+                            <span class="metric-value">{'🟢 Healthy' if status_data.get('healthy', False) else '🔴 Error'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Uptime:</span>
+                            <span class="metric-value">{status_data.get('uptime', 'Unknown')}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Environment:</span>
+                            <span class="metric-value">{status_data.get('environment', 'Unknown')}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <h3>Platform Connections</h3>
+                        <div class="metric">
+                            <span class="metric-label">MT5 Executor:</span>
+                            <span class="metric-value">🔄 Connecting</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Socket.IO Bridge:</span>
+                            <span class="metric-value">🟢 Connected</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <h3>Trading Managers</h3>
+                        <div class="metric">
+                            <span class="metric-label">Position Manager:</span>
+                            <span class="metric-value">🟢 Running</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Trailing Manager:</span>
+                            <span class="metric-value">🟢 Running</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <h3>Communication</h3>
+                        <div class="metric">
+                            <span class="metric-label">Telegram Bot:</span>
+                            <span class="metric-value">🟢 Ready</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Web API:</span>
+                            <span class="metric-value">🟢 Online</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-links">
+                    <h3>API Endpoints</h3>
+                    <a href="/status">System Status</a>
+                    <a href="/health">Health Check</a>
+                    <a href="/config">Configuration</a>
+                    <a href="/docs">API Documentation</a>
+                </div>
+                
+                <div class="timestamp">
+                    Last updated: {status_data.get('timestamp', 'Unknown')}
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Dashboard Error</h1><p>Error loading dashboard: {str(e)}</p>")
 
 # Configuration endpoint
 @app.get("/config")

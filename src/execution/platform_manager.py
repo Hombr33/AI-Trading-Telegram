@@ -1,50 +1,66 @@
-"""
-Platform manager for multi-exchange trading support.
-"""
+"""Platform manager for multi-exchange trading support."""
 
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List, Optional, Any, Union
+import importlib
+import sys
+from typing import Dict, List, Optional, Any, Union, Type
 from datetime import datetime, timezone
 
 from ..core.logging import get_logger, log_system_event, log_error_with_context
 from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import TradingBotException
-from .base_executor import BaseExecutor, PlatformType
+from ..common.interfaces import IExecutor, IPlatformManager, PlatformType
 
 logger = get_logger(__name__)
 
-# Import executors  
-import sys
+# Define executor registry for dynamic loading
+EXECUTOR_REGISTRY = {
+    "binance": {
+        "module": "src.execution.crypto.binance_executor",
+        "class": "BinanceExecutor",
+        "platform_type": PlatformType.BINANCE,
+        "os_constraint": None  # Available on all platforms
+    },
+    "bybit": {
+        "module": "src.execution.crypto.bybit_executor",
+        "class": "BybitExecutor",
+        "platform_type": PlatformType.BYBIT,
+        "os_constraint": None  # Available on all platforms
+    },
+    "bitget": {
+        "module": "src.execution.crypto.bitget_executor",
+        "class": "BitgetExecutor",
+        "platform_type": PlatformType.BITGET,
+        "os_constraint": None  # Available on all platforms
+    },
+    "mt5": {
+        "module": "src.execution.mt5_executor",
+        "class": "MT5Executor",
+        "platform_type": PlatformType.MT5,
+        "os_constraint": "win32"  # Only available on Windows
+    },
+    "aiomql": {
+        "module": "src.execution.aiomql_executor",
+        "class": "AioMQLExecutor",
+        "platform_type": PlatformType.MT5,
+        "os_constraint": "win32"  # Only available on Windows
+    }
+}
 
-# Import crypto executors (always available)
-from .crypto.binance_executor import BinanceExecutor
-from .crypto.bybit_executor import BybitExecutor
-from .crypto.bitget_executor import BitgetExecutor
 
-# Import MT5 executors only on Windows or if explicitly available
-MT5Executor = None
-AioMQLExecutor = None
-
-if sys.platform == "win32":
-    try:
-        from .mt5_executor import MT5Executor
-        from .aiomql_executor import AioMQLExecutor
-        logger.info("MT5 executors loaded (Windows platform)")
-    except ImportError as e:
-        logger.warning(f"MT5 executors not available: {e}")
-        logger.info("Continuing with crypto-only functionality")
-else:
-    logger.info(f"MT5 executors disabled on {sys.platform} (crypto-only mode)")
-
-
-class PlatformManager:
-    """Manages multiple trading platforms and routes orders intelligently."""
+class PlatformManager(IPlatformManager):
+    """Manages multiple trading platforms and routes orders intelligently.
+    
+    Implements the IPlatformManager interface to provide a standardized way to interact
+    with various trading platforms, handling connections, disconnections, and routing
+    orders to the appropriate platform based on symbol preferences.
+    """
     
     def __init__(self, config):
         self.config = config
-        self.platforms: Dict[str, BaseExecutor] = {}
+        self.platforms: Dict[str, IExecutor] = {}
         self.primary_platform: Optional[str] = None
         self.platform_preferences: Dict[str, str] = {}  # Symbol -> Platform mapping
         
@@ -52,63 +68,86 @@ class PlatformManager:
         self._initialize_platforms()
     
     def _initialize_platforms(self):
-        """Initialize all configured trading platforms."""
-        # MT5/Forex platforms (Windows only)
-        if AioMQLExecutor is not None and self.config.mt5.is_configured:
-            try:
-                # Use AioMQL if available, fallback to MT5Executor
-                mt5_executor = AioMQLExecutor(self.config.mt5)
-                self.platforms["mt5"] = mt5_executor
-                if not self.primary_platform:
-                    self.primary_platform = "mt5"
-                logger.info("Initialized MT5/AioMQL executor")
-            except Exception as e:
-                logger.warning(f"Failed to initialize MT5 executor: {e}")
-        elif MT5Executor is not None and self.config.mt5.is_configured:
-            try:
-                mt5_executor = MT5Executor(self.config.mt5)
-                self.platforms["mt5"] = mt5_executor
-                if not self.primary_platform:
-                    self.primary_platform = "mt5"
-                logger.info("Initialized MT5 executor")
-            except Exception as e:
-                logger.warning(f"Failed to initialize MT5 executor: {e}")
-        elif self.config.mt5.is_configured:
-            logger.warning("MT5 configured but not available on this platform (Linux/macOS)")
+        """Initialize all configured trading platforms using dynamic loading."""
+        # Initialize MT5/Forex platforms
+        if self.config.mt5.is_configured:
+            # Try AioMQL first, then fallback to MT5Executor
+            self._load_executor("aiomql", self.config.mt5)
+            
+            # If AioMQL failed, try MT5Executor
+            if "mt5" not in self.platforms:
+                self._load_executor("mt5", self.config.mt5)
+            
+            # If still not loaded, log warning
+            if "mt5" not in self.platforms:
+                logger.warning("MT5 configured but not available on this platform")
         
-        # Crypto platforms
+        # Initialize Crypto platforms
         if self.config.crypto.binance_configured:
-            try:
-                binance_executor = BinanceExecutor(self.config.crypto)
-                self.platforms["binance"] = binance_executor
-                if not self.primary_platform:
-                    self.primary_platform = "binance"
-                logger.info("Initialized Binance executor")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Binance executor: {e}")
+            self._load_executor("binance", self.config.crypto)
         
         if self.config.crypto.bybit_configured:
-            try:
-                bybit_executor = BybitExecutor(self.config.crypto)
-                self.platforms["bybit"] = bybit_executor
-                if not self.primary_platform:
-                    self.primary_platform = "bybit"
-                logger.info("Initialized Bybit executor")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Bybit executor: {e}")
+            self._load_executor("bybit", self.config.crypto)
         
         if self.config.crypto.bitget_configured:
-            try:
-                bitget_executor = BitgetExecutor(self.config.crypto)
-                self.platforms["bitget"] = bitget_executor
-                if not self.primary_platform:
-                    self.primary_platform = "bitget"
-                logger.info("Initialized Bitget executor")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Bitget executor: {e}")
+            self._load_executor("bitget", self.config.crypto)
         
         # Set platform preferences for different asset types
         self._setup_platform_preferences()
+        
+        # Log initialization summary
+        if self.platforms:
+            logger.info(f"Initialized {len(self.platforms)} trading platforms: {', '.join(self.platforms.keys())}")
+            logger.info(f"Primary platform: {self.primary_platform}")
+        else:
+            logger.warning("No trading platforms initialized. Check your configuration.")
+    
+    def _load_executor(self, executor_name: str, config) -> bool:
+        """Dynamically load and initialize an executor.
+        
+        Args:
+            executor_name: Name of the executor in the registry
+            config: Configuration for the executor
+            
+        Returns:
+            True if executor was loaded successfully, False otherwise
+        """
+        if executor_name not in EXECUTOR_REGISTRY:
+            logger.warning(f"Unknown executor: {executor_name}")
+            return False
+        
+        executor_info = EXECUTOR_REGISTRY[executor_name]
+        
+        # Check OS constraint
+        if executor_info["os_constraint"] and sys.platform != executor_info["os_constraint"]:
+            logger.info(f"{executor_name} not available on {sys.platform}")
+            return False
+        
+        try:
+            # Dynamically import the module and class
+            module = importlib.import_module(executor_info["module"])
+            executor_class = getattr(module, executor_info["class"])
+            
+            # Initialize the executor
+            executor = executor_class(config)
+            
+            # Store the executor
+            platform_name = executor_name if executor_name != "aiomql" else "mt5"
+            self.platforms[platform_name] = executor
+            
+            # Set as primary platform if none set yet
+            if not self.primary_platform:
+                self.primary_platform = platform_name
+                
+            logger.info(f"Initialized {executor_info['class']}")
+            return True
+            
+        except ImportError as e:
+            logger.warning(f"Failed to import {executor_name} executor: {e}")
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to initialize {executor_name} executor: {e}")
+            return False
     
     def _setup_platform_preferences(self):
         """Setup default platform preferences for different symbols."""
@@ -218,11 +257,11 @@ class PlatformManager:
         
         return None
     
-    def get_executor(self, platform_name: str) -> Optional[BaseExecutor]:
+    def get_executor(self, platform_name: str) -> Optional[IExecutor]:
         """Get executor for specific platform."""
         return self.platforms.get(platform_name)
     
-    def get_executor_for_symbol(self, symbol: str, platform_hint: Optional[str] = None) -> Optional[BaseExecutor]:
+    def get_executor_for_symbol(self, symbol: str, platform_hint: Optional[str] = None) -> Optional[IExecutor]:
         """Get executor for trading a specific symbol."""
         platform_name = self.get_platform_for_symbol(symbol, platform_hint)
         if platform_name:

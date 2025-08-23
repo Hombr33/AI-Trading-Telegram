@@ -19,14 +19,16 @@ async def test_complete_workflow():
         from src.core.config import config
         from src.execution.aiomql_executor import AioMQLExecutor
         from src.execution.order_manager import OrderManager
-        from src.execution.position_manager import PositionManager
+        from src.common.interfaces import IPositionManager
         from src.telegram_bot.core.trading_bot import TradingBot
         from src.bridge.socketio_bridge import SocketIOBridge
         
         # Initialize components
         mt5_executor = AioMQLExecutor(config.mt5)
         order_manager = OrderManager(mt5_executor, config.trading)
-        position_manager = PositionManager(mt5_executor, config.trading)
+        # Use the implementation through the interface
+        from src.execution.position_manager import PositionManager
+        position_manager: IPositionManager = PositionManager(mt5_executor, config.trading)
         telegram_bot = TradingBot(config.telegram)
         bridge = SocketIOBridge(config.bridge)
         

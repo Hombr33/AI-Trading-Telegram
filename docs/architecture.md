@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AI Trading Bot system follows a modular, event-driven architecture designed for high performance, reliability, and maintainability. The system is built around a Python-based API server that communicates with MetaTrader 4/5 through HTTP REST endpoints.
+The AI Trading Bot system follows a modular, event-driven architecture designed for high performance, reliability, and maintainability. The system is built around a Python-based API server that communicates with MetaTrader 4/5 and various crypto exchanges through standardized interfaces.
 
 ## Architecture Principles
 
@@ -291,3 +291,131 @@ Order Request → Risk Validation → Position Sizing → Execution
 ## Bridge Interactions
 
 - Socket.IO and HTTP fallbacks remain unchanged (`src/bridge/socketio_bridge.py`, `src/bridge/order_bridge.py`). The executor layer is independent from bridge transport and can be evolved without touching API routes/managers.
+
+## Core Interfaces
+
+The system is built around several key interfaces that define the contracts between different components:
+
+### IPlatformManager
+
+The `IPlatformManager` interface defines the contract for managing multiple trading platforms and routing orders to the appropriate platform based on the trading symbol.
+
+```python
+class IPlatformManager(ABC):
+    """Interface for platform management services."""
+    
+    @abstractmethod
+    async def connect_all(self) -> Dict[str, bool]:
+        """Connect to all configured platforms."""
+        pass
+    
+    @abstractmethod
+    async def disconnect_all(self) -> Dict[str, bool]:
+        """Disconnect from all platforms."""
+        pass
+    
+    @abstractmethod
+    def get_platform_for_symbol(self, symbol: str, platform_hint: Optional[str] = None) -> Optional[str]:
+        """Get the appropriate platform for a given symbol."""
+        pass
+    
+    @abstractmethod
+    def get_executor(self, platform_name: str) -> Optional[IExecutor]:
+        """Get the executor for a specific platform."""
+        pass
+```
+
+Implemented by `PlatformManager` in `src/execution/platform_manager.py`.
+
+### IOrderManager
+
+The `IOrderManager` interface defines the contract for order management services that handle order lifecycle and execution.
+
+```python
+class IOrderManager(ABC):
+    """Interface for order management services."""
+    
+    @abstractmethod
+    async def place_order(self, platform: str, symbol: str, order_type: OrderType, side: OrderSide,
+                         volume: float, price: Optional[float] = None, 
+                         stop_loss: Optional[float] = None, 
+                         take_profit: Optional[float] = None, **kwargs) -> Dict[str, Any]:
+        """Place an order on the specified platform."""
+        pass
+    
+    @abstractmethod
+    async def cancel_order(self, platform: str, order_id: str, symbol: str) -> bool:
+        """Cancel an existing order."""
+        pass
+    
+    @abstractmethod
+    async def get_order(self, platform: str, order_id: str, symbol: str) -> Dict[str, Any]:
+        """Get information about a specific order."""
+        pass
+    
+    @abstractmethod
+    async def get_open_orders(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open orders, optionally filtered by platform and symbol."""
+        pass
+    
+    @abstractmethod
+    async def get_positions(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+        """Get all open positions, optionally filtered by platform and symbol."""
+        pass
+```
+
+Implemented by `OrderManager` in `src/execution/order_manager.py`.
+
+### ISignalGenerationService
+
+The `ISignalGenerationService` interface defines the contract for signal generation services that analyze market data and generate trading signals.
+
+```python
+class ISignalGenerationService(ABC):
+    """Interface for signal generation services."""
+    
+    @abstractmethod
+    def add_analyzer(self, analyzer: IAnalyzer) -> None:
+        """Add an analyzer to the service."""
+        pass
+    
+    @abstractmethod
+    def remove_analyzer(self, analyzer_id: str) -> bool:
+        """Remove an analyzer from the service."""
+        pass
+    
+    @abstractmethod
+    def get_available_analyzers(self) -> List[Dict[str, Any]]:
+        """Get a list of available analyzers."""
+        pass
+    
+    @abstractmethod
+    def generate_signal(self, screenshot_data: bytes, market_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a trading signal from screenshot data and market context."""
+        pass
+    
+    @abstractmethod
+    def validate_signal(self, signal: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Validate a trading signal."""
+        pass
+```
+
+Implemented by `SignalGenerationService` in `src/services/signal_generation_service.py`.
+
+## Dependency Injection
+
+The system uses dependency injection to manage dependencies between components. This allows for better testability and flexibility in component implementation.
+
+Example from `main.py`:
+
+```python
+# Create platform manager
+platform_manager: IPlatformManager = PlatformManager(config)
+
+# Create signal generation service
+signal_generation_service: ISignalGenerationService = SignalGenerationService()
+
+# Create auto trading service
+auto_trading_service = AutoTradingService(config)
+auto_trading_service.set_platform_manager(platform_manager)
+```

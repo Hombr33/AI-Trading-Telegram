@@ -4,7 +4,7 @@ Position Manager for monitoring and managing open positions.
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timezone
 
 from ..core.logging import (
@@ -18,6 +18,7 @@ from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.workflow import Component, ComponentStatus
 from ..core.config import TradingConfig
+from ..common.interfaces import IPositionManager
 from ..execution.mt5_executor import MT5Executor
 from ..models.positions import Position
 from ..models.trades import Trade
@@ -25,8 +26,12 @@ from ..models.trades import Trade
 logger = get_logger(__name__)
 
 
-class PositionManager:
-    """Manages position monitoring and management."""
+class PositionManager(IPositionManager):
+    """Manages position monitoring and management.
+    
+    Implements the IPositionManager interface to provide standardized position management
+    functionality across different trading platforms.
+    """
 
     def __init__(self, mt5_executor: MT5Executor, config: TradingConfig):
         self.mt5_executor = mt5_executor
