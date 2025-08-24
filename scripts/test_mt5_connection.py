@@ -1016,18 +1016,41 @@ Return your analysis as JSON with this structure:
                 
                 analysis_prompt = "Analyze this EURUSD chart and provide a trading recommendation in JSON format."
                 
-                signal_result = await client.generate_structured_signal(
+                signal_result = await client.analyze_image_with_context(
+                    image_data=eurusd_chart,
                     system_prompt=system_prompt,
-                    analysis_prompt=analysis_prompt,
-                    signal_schema=TradingSignal.model_json_schema(),
-                    image_data=eurusd_chart
+                    user_prompt=analysis_prompt
                 )
                 
                 if signal_result:
                     print("     Structured signal: Success ✅")
-                    print(f"       Symbol: {signal_result.get('symbol', 'N/A')}")
-                    print(f"       Action: {signal_result.get('action', 'N/A')}")
-                    print(f"       Confidence: {signal_result.get('confidence', 'N/A')}")
+                    
+                    # Parse JSON response with improved extraction
+                    try:
+                        import json
+                        import re
+                        
+                        # Extract JSON from markdown code blocks or plain response
+                        json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', signal_result, re.DOTALL)
+                        if json_match:
+                            json_str = json_match.group(1)
+                        else:
+                            # Try to find JSON in the response
+                            json_start = signal_result.find('{')
+                            json_end = signal_result.rfind('}') + 1
+                            if json_start >= 0 and json_end > json_start:
+                                json_str = signal_result[json_start:json_end]
+                            else:
+                                json_str = signal_result.strip()
+                        
+                        parsed_signal = json.loads(json_str)
+                        print(f"       Symbol: {parsed_signal.get('symbol', 'N/A')}")
+                        print(f"       Action: {parsed_signal.get('action', 'N/A')}")
+                        print(f"       Confidence: {parsed_signal.get('confidence', 'N/A')}")
+                        
+                    except (json.JSONDecodeError, Exception) as e:
+                        print(f"       JSON parsing failed: {e}")
+                        print(f"       Raw response: {signal_result[:200]}...")
                 else:
                     print("     Structured signal: Failed ❌")
         
@@ -1199,11 +1222,23 @@ Return ONLY a JSON response with this exact structure:
                     # Try to parse JSON from the response
                     try:
                         import json
-                        # Extract JSON from response if it contains other text
-                        json_start = signal_result.find('{')
-                        json_end = signal_result.rfind('}') + 1
-                        if json_start >= 0 and json_end > json_start:
-                            json_str = signal_result[json_start:json_end]
+                        import re
+                        
+                        # Method 1: Extract JSON from markdown code blocks
+                        json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', signal_result, re.DOTALL)
+                        if json_match:
+                            json_str = json_match.group(1)
+                        else:
+                            # Method 2: Extract JSON from response if it contains other text
+                            json_start = signal_result.find('{')
+                            json_end = signal_result.rfind('}') + 1
+                            if json_start >= 0 and json_end > json_start:
+                                json_str = signal_result[json_start:json_end]
+                            else:
+                                # Method 3: Try the entire response as JSON
+                                json_str = signal_result.strip()
+                        
+                        if json_str:
                             parsed_signal = json.loads(json_str)
                             
                             print(f"       Symbol: {parsed_signal.get('symbol', 'N/A')}")
@@ -1215,8 +1250,14 @@ Return ONLY a JSON response with this exact structure:
                             print(f"       Take Profit: {parsed_signal.get('take_profit', 'N/A')}")
                             print(f"       R:R Ratio: {parsed_signal.get('risk_reward_ratio', 'N/A')}")
                         else:
+                            print(f"       No JSON found in response")
                             print(f"       Raw response: {signal_result[:200]}...")
-                    except json.JSONDecodeError:
+                            
+                    except json.JSONDecodeError as e:
+                        print(f"       Failed to parse signal JSON: {e}")
+                        print(f"       Raw response content: {signal_result[:300]}...")
+                    except Exception as e:
+                        print(f"       JSON extraction error: {e}")
                         print(f"       Raw response: {signal_result[:200]}...")
                 else:
                     print("     Structured signal: Failed ❌")
@@ -1422,13 +1463,13 @@ async def test_openai_signal_generation(mt5):
             return False
         
         # Test signal validation with real signal
-        if real_signal:
+        if ai_signal:
             try:
                 # Test signal schema validation
                 from src.analysis.signal_validator import SignalValidator
                 validator = SignalValidator()
                 
-                is_valid = validator.validate_signal(real_signal)
+                is_valid = validator.validate_signal(ai_signal)
                 if is_valid:
                     print("   Signal validation: Success ✅")
                 else:
@@ -1450,8 +1491,8 @@ async def test_openai_signal_generation(mt5):
                 account_info = mt5.account_info()
                 account_balance = account_info.balance if account_info else 10000
                 
-                if real_signal.get('setups'):
-                    setup = real_signal['setups'][0]
+                if ai_signal.get('setups'):
+                    setup = ai_signal['setups'][0]
                     entry_price = setup['entry_zone'][0] if isinstance(setup['entry_zone'], list) else setup['entry_zone']
                     sl_price = setup['sl']
                     sl_distance = abs(sl_price - entry_price)
@@ -1474,7 +1515,7 @@ async def test_openai_signal_generation(mt5):
                 print(f"   Risk calculation: Error ❌ ({e})")
         
         print("   AI Signal Generation: Complete ✅")
-        return real_signal if real_signal else True
+        return ai_signal if ai_signal else True
         
     except Exception as e:
         print(f"   Exception: {e} ❌")
@@ -1578,9 +1619,14 @@ async def test_end_to_end_trading_flow(mt5):
                 return False
                 
             print("   Real AI signal: Generated ✅")
-            print(f"     Symbol: {ai_signal.get('symbol')}")
-            print(f"     Bias: {ai_signal.get('bias')}")
-            print(f"     Confidence: {ai_signal.get('confidence')}%")
+            print(f"     Symbol: {ai_signal.get('symbol', 'N/A')}")
+            print(f"     Bias: {ai_signal.get('bias', 'N/A')}")
+            
+            # Get confidence from first setup if available
+            confidence = ai_signal.get('confidence', 'N/A')
+            if ai_signal.get('setups') and len(ai_signal['setups']) > 0:
+                confidence = ai_signal['setups'][0].get('confidence', confidence)
+            print(f"     Confidence: {confidence}%")
             
         except Exception as e:
             print(f"   AI signal generation: Failed ❌ ({e})")
