@@ -12,8 +12,14 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Also add src directory explicitly
+src_path = project_root / "src"
+if src_path.exists():
+    sys.path.insert(0, str(src_path))
 
 def test_platform_compatibility():
     """Test if current platform supports MT5."""
@@ -111,25 +117,16 @@ def test_terminal_info(mt5):
         if terminal_info:
             print("   Terminal info: Available ✅")
             print(f"   Build: {terminal_info.build}")
-            print(f"   Version: {terminal_info.version}")
-            print(f"   Name: {terminal_info.name}")
-            print(f"   Company: {terminal_info.company}")
-            print(f"   Language: {terminal_info.language}")
-            print(f"   Path: {terminal_info.path}")
-            print(f"   Data path: {terminal_info.data_path}")
-            print(f"   Connected: {terminal_info.connected}")
-            print(f"   DLLs allowed: {terminal_info.dlls_allowed}")
-            print(f"   Trade allowed: {terminal_info.trade_allowed}")
-            print(f"   Tradeapi disabled: {terminal_info.tradeapi_disabled}")
-            print(f"   Email enabled: {terminal_info.email_enabled}")
-            print(f"   FTP enabled: {terminal_info.ftp_enabled}")
-            print(f"   Notifications enabled: {terminal_info.notifications_enabled}")
-            print(f"   MQ ID: {terminal_info.mqid}")
-            print(f"   CPU cores: {terminal_info.cpu_cores}")
-            print(f"   Memory physical: {terminal_info.memory_physical} MB")
-            print(f"   Memory total: {terminal_info.memory_total} MB")
-            print(f"   Memory available: {terminal_info.memory_available} MB")
-            print(f"   Memory used: {terminal_info.memory_used} MB")
+            # Print only available attributes
+            for attr in ['name', 'company', 'language', 'path', 'data_path', 'connected',
+                        'dlls_allowed', 'trade_allowed', 'email_enabled', 'ftp_enabled',
+                        'notifications_enabled', 'mqid', 'cpu_cores', 'memory_physical',
+                        'memory_total', 'memory_available', 'memory_used']:
+                if hasattr(terminal_info, attr):
+                    value = getattr(terminal_info, attr)
+                    if 'memory' in attr:
+                        value = f"{value} MB"
+                    print(f"   {attr.replace('_', ' ').title()}: {value}")
             return True
         else:
             print("   Terminal info: Not available ❌")
@@ -310,7 +307,24 @@ def test_market_data(mt5):
     print("-" * 17)
     
     try:
-        test_symbol = "EURUSD"
+        # First try to get all available symbols
+        symbols = mt5.symbols_get()
+        test_symbol = None
+        
+        # Try to find EURUSD or any USD pair
+        for symbol in symbols:
+            if symbol.name == "EURUSD":
+                test_symbol = "EURUSD"
+                break
+            elif "USD" in symbol.name and len(symbol.name) <= 6:  # Standard forex pair length
+                test_symbol = symbol.name
+                break
+        
+        if test_symbol is None:
+            print("   No suitable forex pairs found ❌")
+            return False
+            
+        print(f"   Testing with symbol: {test_symbol}")
         
         # Ensure symbol is selected
         if not mt5.symbol_select(test_symbol, True):
@@ -421,13 +435,38 @@ def test_order_operations(mt5):
             print("   Trading not allowed on this account ❌")
             return False
         
-        test_symbol = "EURUSD"
+        # Find an available symbol that we can trade
+        symbols = mt5.symbols_get()
+        test_symbol = None
         
+        # Try to find a suitable trading symbol
+        preferred_symbols = ["EURUSD", "USDRUB", "GBPUSD", "USDCHF", "AUDUSD"]
+        for symbol_name in preferred_symbols:
+            for symbol in symbols:
+                if symbol.name == symbol_name:
+                    test_symbol = symbol_name
+                    break
+            if test_symbol:
+                break
+                
+        if not test_symbol:
+            # Fallback to any forex pair
+            for symbol in symbols:
+                if len(symbol.name) <= 6 and "USD" in symbol.name:
+                    test_symbol = symbol.name
+                    break
+        
+        if not test_symbol:
+            print("   No suitable trading symbols found ❌")
+            return False
+            
         # Get symbol info for proper lot size and price
         symbol_info = mt5.symbol_info(test_symbol)
         if not symbol_info:
             print(f"   {test_symbol} not available ❌")
             return False
+            
+        print(f"   Testing with symbol: {test_symbol} ✅")
         
         # Test order_send (BUY STOP order - safe for demo)
         lot_size = symbol_info.volume_min
@@ -492,7 +531,7 @@ def test_order_operations(mt5):
         print(f"   Exception: {e} ❌")
         return False
 
-def test_openai_signal_generation(mt5):
+async def test_openai_signal_generation(mt5):
     """Test OpenAI trading signal generation and analysis."""
     print("\n🤖 OpenAI Signal Generation Test")
     print("-" * 31)
@@ -512,15 +551,46 @@ def test_openai_signal_generation(mt5):
         
         # Test OpenAI analyzer import
         try:
-            from src.analysis.openai_analyzer import OpenAIAnalyzer
+            from analysis.openai_analyzer import OpenAIAnalyzer
             print("   OpenAI Analyzer: Available ✅")
+            
+            # Initialize analyzer with API key
+            analyzer = OpenAIAnalyzer(api_key=openai_api_key)
+            print("   AI Analyzer init: Success ✅")
+            
         except ImportError as e:
             print(f"   OpenAI Analyzer: Not available ❌")
             print(f"   Error: {e}")
+            print("   💡 Ensure you have installed all requirements:")
+            print("   pip install -r requirements.txt")
             return False
+            
+        # Find an available symbol that we can analyze
+        symbols = mt5.symbols_get()
+        test_symbol = None
         
-        # Test market data collection for analysis
-        test_symbol = "EURUSD"
+        # Try to find a suitable trading symbol
+        preferred_symbols = ["EURUSD", "USDRUB", "GBPUSD", "USDCHF", "AUDUSD"]
+        for symbol_name in preferred_symbols:
+            for symbol in symbols:
+                if symbol.name == symbol_name:
+                    test_symbol = symbol_name
+                    break
+            if test_symbol:
+                break
+                
+        if not test_symbol:
+            # Fallback to any forex pair
+            for symbol in symbols:
+                if len(symbol.name) <= 6 and "USD" in symbol.name:
+                    test_symbol = symbol.name
+                    break
+        
+        if not test_symbol:
+            print("   No suitable symbols found for analysis ❌")
+            return False
+            
+        print(f"   Testing with symbol: {test_symbol} ✅")
         
         # Get current market data
         rates = mt5.copy_rates_from_pos(test_symbol, mt5.TIMEFRAME_M15, 0, 100)
@@ -550,17 +620,16 @@ def test_openai_signal_generation(mt5):
             print(f"   Error: {e}")
             return False
         
-        # Create mock market context for analysis
+        # Create market context for analysis
         market_context = {
-            "symbol": test_symbol,
+            "symbols": [test_symbol],
             "timeframe": "M15",
-            "current_price": symbol_info.bid,
-            "spread": symbol_info.spread,
             "session": "London" if 7 <= datetime.now().hour <= 16 else "Asian",
-            "volatility": "normal",
-            "news_impact": "low",
-            "rates_data": rates[-50:].tolist(),  # Last 50 bars
-            "timestamp": datetime.now().isoformat()
+            "current_data": {
+                "price": symbol_info.bid,
+                "spread": symbol_info.spread,
+                "market_data": rates[-100:].tolist()  # Last 100 bars
+            }
         }
         
         print("   Market context: Prepared ✅")
@@ -569,14 +638,14 @@ def test_openai_signal_generation(mt5):
         try:
             print("   Testing real AI signal generation...")
             
-            # Use the actual OpenAI analyzer to generate real signals
-            real_signal = analyzer.analyze_market_data(
-                symbol=test_symbol,
-                timeframe="M15",
-                market_data=rates[-100:],  # Last 100 bars
-                current_price=symbol_info.bid,
-                spread=symbol_info.spread,
-                session=market_context['session']
+            # Create a dummy screenshot for testing
+            import numpy as np
+            screenshot_data = np.zeros((800, 600, 3), dtype=np.uint8).tobytes()
+            
+            # Use the existing analyze function
+            real_signal = await analyzer.analyze(
+                screenshot_data=screenshot_data,
+                market_context=market_context
             )
             
             if real_signal:
@@ -685,14 +754,40 @@ def test_end_to_end_trading_flow(mt5):
             return False
         
         # Test the complete flow: Data -> AI -> Signal -> Risk -> Execution
-        test_symbol = "EURUSD"
+        print("   Step 1: Finding suitable symbol...")
+        # Find an available symbol that we can trade
+        symbols = mt5.symbols_get()
+        test_symbol = None
         
-        print("   Step 1: Market data collection...")
+        # Try to find a suitable trading symbol
+        preferred_symbols = ["EURUSD", "USDRUB", "GBPUSD", "USDCHF", "AUDUSD"]
+        for symbol_name in preferred_symbols:
+            for symbol in symbols:
+                if symbol.name == symbol_name:
+                    test_symbol = symbol_name
+                    break
+            if test_symbol:
+                break
+                
+        if not test_symbol:
+            # Fallback to any forex pair
+            for symbol in symbols:
+                if len(symbol.name) <= 6 and "USD" in symbol.name:
+                    test_symbol = symbol.name
+                    break
+        
+        if not test_symbol:
+            print("   No suitable trading symbols found ❌")
+            return False
+            
+        print(f"   Testing with symbol: {test_symbol} ✅")
+        
+        print("   Step 2: Market data collection...")
         # Get market data
         rates = mt5.copy_rates_from_pos(test_symbol, mt5.TIMEFRAME_M15, 0, 100)
         symbol_info = mt5.symbol_info(test_symbol)
         
-        if not rates or not symbol_info:
+        if rates is None or len(rates) == 0 or not symbol_info:
             print("   Market data: Failed ❌")
             return False
         print("   Market data: Success ✅")
@@ -704,7 +799,7 @@ def test_end_to_end_trading_flow(mt5):
             analyzer = OpenAIAnalyzer()
             
             # Generate real AI signal using market data
-            ai_signal = analyzer.analyze_market_data(
+            ai_signal = analyzer.analyze_market(
                 symbol=test_symbol,
                 timeframe="M15",
                 market_data=rates[-100:],  # Last 100 bars
@@ -823,7 +918,7 @@ def test_end_to_end_trading_flow(mt5):
         print(f"   Exception: {e} ❌")
         return False
 
-def run_comprehensive_mt5_test():
+async def run_comprehensive_mt5_test():
     """Run comprehensive MT5 test suite."""
     print("=" * 60)
     print("🚀 COMPREHENSIVE MT5 API TEST SUITE")
@@ -877,7 +972,7 @@ def run_comprehensive_mt5_test():
         print("\n⚠️  Skipping order operations test (not logged in)")
     
     # 11. OpenAI signal generation
-    results['openai_signals'] = test_openai_signal_generation(mt5)
+    results['openai_signals'] = await test_openai_signal_generation(mt5)
     
     # 12. End-to-end trading flow (if OpenAI available)
     if results['openai_signals']:
@@ -894,7 +989,7 @@ def run_comprehensive_mt5_test():
     print("📊 TEST RESULTS SUMMARY")
     print("=" * 60)
     
-    passed = sum(results.values())
+    passed = sum(1 for result in results.values() if result is True)
     total = len(results)
     
     for test_name, result in results.items():
@@ -953,7 +1048,7 @@ def test_config():
         print(f"   Exception: {e} ❌")
         return False
 
-if __name__ == "__main__":
+async def main():
     print("Choose test mode:")
     print("1. Quick connection test (original)")
     print("2. Comprehensive MT5 API test (recommended)")
@@ -976,13 +1071,13 @@ if __name__ == "__main__":
                     mt5.shutdown()
     elif choice == "2":
         # Comprehensive test suite
-        success = run_comprehensive_mt5_test()
+        success = await run_comprehensive_mt5_test()
     elif choice == "3":
         # Configuration test only
         success = test_config()
     else:
         print("Invalid choice. Running comprehensive test...")
-        success = run_comprehensive_mt5_test()
+        success = await run_comprehensive_mt5_test()
     
     if success:
         print("\n🎉 MT5 test completed successfully!")
@@ -990,3 +1085,7 @@ if __name__ == "__main__":
     else:
         print("\n💥 MT5 test failed!")
         sys.exit(1)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
