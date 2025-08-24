@@ -268,7 +268,7 @@ Focus on specific price levels, recent movements, and relevant news. Return ONLY
                         logger.info("Structured signal generated successfully")
                         return signal_data
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse signal JSON: {e}")
+                        logger.error(f"Failed to parse signal JSON: {e}\nRaw response content: {content[:500]}...")
                         return None
                 else:
                     logger.error("Empty response from signal generation")

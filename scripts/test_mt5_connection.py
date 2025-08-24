@@ -561,6 +561,363 @@ def test_order_operations(mt5):
         print(f"   Exception: {e} ❌")
         return False
 
+def create_test_chart_image(width: int = 800, height: int = 600, symbol: str = "EURUSD") -> bytes:
+    """Create a realistic-looking test chart image for screenshot testing."""
+    try:
+        import numpy as np
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        import random
+        
+        # Create base image
+        image = Image.new('RGB', (width, height), color=(20, 20, 20))  # Dark background
+        draw = ImageDraw.Draw(image)
+        
+        # Add chart title
+        try:
+            font = ImageFont.truetype("arial.ttf", 24)
+        except:
+            font = ImageFont.load_default()
+        
+        draw.text((20, 20), f"{symbol} M15 Chart", fill=(255, 255, 255), font=font)
+        
+        # Add price axis
+        draw.line([(width-80, 60), (width-80, height-60)], fill=(100, 100, 100), width=2)
+        draw.line([(80, height-60), (width-80, height-60)], fill=(100, 100, 100), width=2)
+        
+        # Generate realistic price data
+        base_price = 1.1000
+        prices = [base_price]
+        for i in range(100):
+            change = random.uniform(-0.0020, 0.0020)
+            new_price = max(0.9500, min(1.2500, prices[-1] + change))
+            prices.append(new_price)
+        
+        # Normalize prices to chart height
+        min_price = min(prices)
+        max_price = max(prices)
+        price_range = max_price - min_price
+        chart_height = height - 120
+        chart_width = width - 160
+        
+        # Draw candlesticks
+        bar_width = chart_width // len(prices)
+        
+        for i, price in enumerate(prices[1:], 1):
+            x = 80 + i * bar_width
+            
+            # Generate OHLC from price
+            open_price = prices[i-1]
+            close_price = price
+            high_price = max(open_price, close_price) + random.uniform(0, 0.0010)
+            low_price = min(open_price, close_price) - random.uniform(0, 0.0010)
+            
+            # Convert to screen coordinates
+            open_y = height - 60 - int(((open_price - min_price) / price_range) * chart_height)
+            close_y = height - 60 - int(((close_price - min_price) / price_range) * chart_height)
+            high_y = height - 60 - int(((high_price - min_price) / price_range) * chart_height)
+            low_y = height - 60 - int(((low_price - min_price) / price_range) * chart_height)
+            
+            # Draw high-low line
+            draw.line([(x, high_y), (x, low_y)], fill=(150, 150, 150), width=1)
+            
+            # Draw body
+            if close_price > open_price:
+                # Bullish candle (green)
+                draw.rectangle([x-2, close_y, x+2, open_y], fill=(0, 200, 0))
+            else:
+                # Bearish candle (red)
+                draw.rectangle([x-2, open_y, x+2, close_y], fill=(200, 0, 0))
+        
+        # Add some indicators
+        # Simple moving average
+        ma_points = []
+        window = 20
+        for i in range(window, len(prices)):
+            ma = sum(prices[i-window:i]) / window
+            x = 80 + i * bar_width
+            y = height - 60 - int(((ma - min_price) / price_range) * chart_height)
+            ma_points.append((x, y))
+        
+        # Draw moving average line
+        if len(ma_points) > 1:
+            for i in range(1, len(ma_points)):
+                draw.line([ma_points[i-1], ma_points[i]], fill=(255, 255, 0), width=2)
+        
+        # Add price labels
+        for i in range(5):
+            price_level = min_price + (price_range * i / 4)
+            y = height - 60 - int((i / 4) * chart_height)
+            draw.text((width-75, y-10), f"{price_level:.4f}", fill=(200, 200, 200))
+        
+        # Convert to PNG bytes
+        png_buffer = io.BytesIO()
+        image.save(png_buffer, format='PNG')
+        return png_buffer.getvalue()
+        
+    except Exception as e:
+        logger.error(f"Failed to create test chart image: {e}")
+        # Fallback to simple image
+        import numpy as np
+        from PIL import Image
+        import io
+        
+        # Create simple fallback image
+        image_array = np.zeros((height, width, 3), dtype=np.uint8)
+        image_array[100:500, 100:700] = [50, 50, 50]  # Dark background
+        image_array[200:400, 200:600] = [0, 255, 0]   # Green area
+        
+        image = Image.fromarray(image_array)
+        png_buffer = io.BytesIO()
+        image.save(png_buffer, format='PNG')
+        return png_buffer.getvalue()
+
+async def test_screenshot_functions():
+    """Test screenshot creation and image analysis functions."""
+    print("\n📸 Screenshot Functions Test")
+    print("-" * 26)
+    
+    try:
+        # Test 1: Basic image creation
+        print("   Testing basic image creation...")
+        basic_image = create_test_chart_image(800, 600, "EURUSD")
+        if basic_image and len(basic_image) > 1000:  # Should be substantial PNG data
+            print(f"   Basic image creation: Success ✅ ({len(basic_image)} bytes)")
+        else:
+            print("   Basic image creation: Failed ❌")
+            return False
+        
+        # Test 2: Different chart sizes
+        print("   Testing different chart sizes...")
+        sizes = [(640, 480), (1024, 768), (1200, 800)]
+        for width, height in sizes:
+            test_image = create_test_chart_image(width, height, "GBPUSD")
+            if test_image and len(test_image) > 500:
+                print(f"     Size {width}x{height}: Success ✅")
+            else:
+                print(f"     Size {width}x{height}: Failed ❌")
+        
+        # Test 3: Different symbols
+        print("   Testing different symbols...")
+        symbols = ["EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "XAUUSD"]
+        for symbol in symbols:
+            test_image = create_test_chart_image(800, 600, symbol)
+            if test_image and len(test_image) > 500:
+                print(f"     Symbol {symbol}: Success ✅")
+            else:
+                print(f"     Symbol {symbol}: Failed ❌")
+        
+        # Test 4: Image format validation
+        print("   Testing image format validation...")
+        try:
+            from PIL import Image
+            import io
+            
+            # Load and validate the image
+            test_image = create_test_chart_image(800, 600, "EURUSD")
+            image_stream = io.BytesIO(test_image)
+            pil_image = Image.open(image_stream)
+            
+            print(f"     Format: {pil_image.format} ✅")
+            print(f"     Mode: {pil_image.mode} ✅")
+            print(f"     Size: {pil_image.size} ✅")
+            
+            # Check if image has content
+            if pil_image.getbbox():
+                print("     Content validation: Success ✅")
+            else:
+                print("     Content validation: Empty image ❌")
+        
+        except Exception as e:
+            print(f"     Image validation: Failed ❌ ({e})")
+        
+        # Test 5: Base64 encoding (for OpenAI API)
+        print("   Testing Base64 encoding...")
+        try:
+            import base64
+            test_image = create_test_chart_image(800, 600, "EURUSD")
+            base64_data = base64.b64encode(test_image).decode('utf-8')
+            
+            if base64_data and len(base64_data) > 1000:
+                print(f"     Base64 encoding: Success ✅ ({len(base64_data)} chars)")
+                
+                # Test decoding
+                decoded_data = base64.b64decode(base64_data)
+                if decoded_data == test_image:
+                    print("     Base64 round-trip: Success ✅")
+                else:
+                    print("     Base64 round-trip: Failed ❌")
+            else:
+                print("     Base64 encoding: Failed ❌")
+        
+        except Exception as e:
+            print(f"     Base64 test: Failed ❌ ({e})")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   Exception: {e} ❌")
+        return False
+
+async def test_image_analysis_capabilities():
+    """Test image analysis capabilities with OpenAI Vision API."""
+    print("\n🔍 Image Analysis Capabilities Test")
+    print("-" * 34)
+    
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        # Check OpenAI API key
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            print("   OpenAI API Key: Not configured ❌")
+            print("   💡 Set OPENAI_API_KEY in .env file for full testing")
+            return False
+        
+        print("   OpenAI API Key: Configured ✅")
+        
+        # Test OpenAI client wrapper import
+        try:
+            from src.analysis.modules.openai_client_wrapper import OpenAIClientWrapper
+            print("   OpenAI Client Wrapper: Available ✅")
+        except ImportError as e:
+            print(f"   OpenAI Client Wrapper: Not available ❌ ({e})")
+            return False
+        
+        # Initialize client
+        client = OpenAIClientWrapper(openai_api_key, "gpt-4o")
+        if not client.is_available():
+            print("   OpenAI Client: Initialization failed ❌")
+            return False
+        
+        print("   OpenAI Client: Initialized ✅")
+        
+        # Test connection
+        connection_test = await client.test_connection()
+        if connection_test:
+            print("   API Connection: Success ✅")
+        else:
+            print("   API Connection: Failed ❌")
+            return False
+        
+        # Create test chart images
+        print("   Creating test chart images...")
+        test_charts = {
+            "EURUSD_Bullish": create_test_chart_image(800, 600, "EURUSD"),
+            "GBPUSD_Complex": create_test_chart_image(1024, 768, "GBPUSD"),
+            "BTCUSD_Simple": create_test_chart_image(640, 480, "BTCUSD")
+        }
+        
+        for chart_name, chart_data in test_charts.items():
+            if chart_data and len(chart_data) > 1000:
+                print(f"     {chart_name}: Created ✅ ({len(chart_data)} bytes)")
+            else:
+                print(f"     {chart_name}: Failed ❌")
+        
+        # Test image analysis with different prompts
+        test_prompts = [
+            {
+                "name": "Basic Analysis",
+                "system": "You are a technical analysis expert. Analyze the trading chart image.",
+                "user": "Analyze this forex chart. What do you see in terms of price action, trends, and potential trading opportunities?"
+            },
+            {
+                "name": "Signal Generation",
+                "system": "You are a trading signal generator. Analyze charts and provide specific trade recommendations.",
+                "user": "Based on this chart, should I BUY, SELL, or HOLD? Provide entry price, stop loss, and take profit levels."
+            },
+            {
+                "name": "Pattern Recognition",
+                "system": "You are a chart pattern recognition expert.",
+                "user": "Identify any technical patterns in this chart: support/resistance levels, trend lines, candlestick patterns, or chart formations."
+            }
+        ]
+        
+        # Test each prompt with each chart
+        success_count = 0
+        total_tests = len(test_charts) * len(test_prompts)
+        
+        for chart_name, chart_data in test_charts.items():
+            if not chart_data:
+                continue
+                
+            for prompt_config in test_prompts:
+                try:
+                    print(f"   Testing {prompt_config['name']} on {chart_name}...")
+                    
+                    result = await client.analyze_image_with_context(
+                        image_data=chart_data,
+                        system_prompt=prompt_config['system'],
+                        user_prompt=prompt_config['user']
+                    )
+                    
+                    if result and len(result) > 50:  # Should be substantial analysis
+                        print(f"     Result: Success ✅ ({len(result)} chars)")
+                        success_count += 1
+                        
+                        # Show snippet of analysis
+                        snippet = result[:100] + "..." if len(result) > 100 else result
+                        print(f"     Preview: {snippet}")
+                    else:
+                        print(f"     Result: Failed ❌ (empty or short response)")
+                        
+                except Exception as e:
+                    print(f"     Result: Error ❌ ({e})")
+        
+        # Test structured signal generation with image
+        print("   Testing structured signal generation with image...")
+        try:
+            from src.analysis.modules.signal_validator import TradingSignal
+            
+            eurusd_chart = test_charts.get("EURUSD_Bullish")
+            if eurusd_chart:
+                system_prompt = """You are an expert forex trader. Analyze the chart and generate a trading signal.
+Return your analysis as JSON with this structure:
+{
+    "symbol": "EURUSD",
+    "action": "BUY|SELL|HOLD",
+    "confidence": 1-10,
+    "entry_price": number,
+    "stop_loss": number,
+    "take_profit": number,
+    "reasoning": "explanation"
+}"""
+                
+                analysis_prompt = "Analyze this EURUSD chart and provide a trading recommendation in JSON format."
+                
+                signal_result = await client.generate_structured_signal(
+                    system_prompt=system_prompt,
+                    analysis_prompt=analysis_prompt,
+                    signal_schema=TradingSignal.model_json_schema(),
+                    image_data=eurusd_chart
+                )
+                
+                if signal_result:
+                    print("     Structured signal: Success ✅")
+                    print(f"       Symbol: {signal_result.get('symbol', 'N/A')}")
+                    print(f"       Action: {signal_result.get('action', 'N/A')}")
+                    print(f"       Confidence: {signal_result.get('confidence', 'N/A')}")
+                else:
+                    print("     Structured signal: Failed ❌")
+        
+        except Exception as e:
+            print(f"     Structured signal: Error ❌ ({e})")
+        
+        # Summary
+        print(f"\n   Analysis Tests: {success_count}/{total_tests} successful ({success_count/total_tests*100:.1f}%)")
+        
+        if success_count >= total_tests * 0.7:
+            print("   Image Analysis: Overall Success ✅")
+            return True
+        else:
+            print("   Image Analysis: Needs improvement ⚠️")
+            return False
+        
+    except Exception as e:
+        print(f"   Exception: {e} ❌")
+        return False
+
 async def test_openai_signal_generation(mt5):
     """Test OpenAI trading signal generation and analysis."""
     print("\n🤖 OpenAI Signal Generation Test")
@@ -677,21 +1034,12 @@ async def test_openai_signal_generation(mt5):
                 print("   PIL not available, using mock response...")
                 raise ImportError("PIL required for image processing")
             
-            # Create a dummy image array
-            image_array = np.zeros((600, 800, 3), dtype=np.uint8)
-            # Add some pattern to make it look like a chart
-            image_array[100:500, 100:700] = [50, 50, 50]  # Dark background
-            image_array[200:400, 200:600] = [0, 255, 0]   # Green candlesticks
-            
-            # Convert to PIL Image and then to PNG bytes
-            image = Image.fromarray(image_array, 'RGB')
-            png_buffer = io.BytesIO()
-            image.save(png_buffer, format='PNG')
-            screenshot_data = png_buffer.getvalue()
+            # Create a more realistic chart image for better testing
+            test_image_data = create_test_chart_image(800, 600, test_symbol)
             
             # Use the existing analyze function
             real_signal = await analyzer.analyze(
-                screenshot_data=screenshot_data,
+                screenshot_data=test_image_data,
                 market_context=market_context
             )
             
@@ -699,7 +1047,12 @@ async def test_openai_signal_generation(mt5):
                 print("   Real AI signal: Generated ✅")
                 print(f"     Symbol: {real_signal.get('symbol', 'N/A')}")
                 print(f"     Bias: {real_signal.get('bias', 'N/A')}")
-                print(f"     Confidence: {real_signal.get('confidence', 0)}%")
+                
+                # Get confidence from first setup
+                setup_confidence = "N/A"
+                if real_signal.get('setups'):
+                    setup_confidence = real_signal['setups'][0].get('confidence', 'N/A')
+                print(f"     Confidence: {setup_confidence}%")
                 
                 if real_signal.get('setups'):
                     setup = real_signal['setups'][0]
@@ -870,21 +1223,12 @@ async def test_end_to_end_trading_flow(mt5):
                 print("   PIL not available, using mock response...")
                 raise ImportError("PIL required for image processing")
             
-            # Create a dummy image array
-            image_array = np.zeros((600, 800, 3), dtype=np.uint8)
-            # Add some pattern to make it look like a chart
-            image_array[100:500, 100:700] = [50, 50, 50]  # Dark background
-            image_array[200:400, 200:600] = [0, 255, 0]   # Green candlesticks
-            
-            # Convert to PIL Image and then to PNG bytes
-            image = Image.fromarray(image_array, 'RGB')
-            png_buffer = io.BytesIO()
-            image.save(png_buffer, format='PNG')
-            screenshot_data = png_buffer.getvalue()
+            # Create a more realistic chart image for testing
+            test_image_data = create_test_chart_image(800, 600, test_symbol)
             
             # Use the analyze method that exists
             ai_signal = await analyzer.analyze(
-                screenshot_data=screenshot_data,
+                screenshot_data=test_image_data,
                 market_context=market_context
             )
             
@@ -904,7 +1248,6 @@ async def test_end_to_end_trading_flow(mt5):
             ai_signal = {
                 "symbol": test_symbol,
                 "bias": "BULLISH",
-                "confidence": 78,
                 "setups": [{
                     "type": "BUY",
                     "entry_zone": [symbol_info.ask, symbol_info.ask + 0.0005],
@@ -929,8 +1272,8 @@ async def test_end_to_end_trading_flow(mt5):
             reward = abs(tp_price - entry_price)
             rr_ratio = reward / risk if risk > 0 else 0
             
-            # Handle None confidence values
-            confidence = ai_signal.get("confidence", 0)
+            # Get confidence from setup (not top level)
+            confidence = setup.get("confidence", 0)
             if confidence is None:
                 confidence = 0
             
@@ -1067,7 +1410,14 @@ async def run_comprehensive_mt5_test():
     # 9. Trading functions
     results['trading_functions'] = test_trading_functions(mt5)
     
-    # 10. Order operations (if logged in and AutoTrading enabled)
+    # 10. Screenshot functions test
+    results['screenshot_functions'] = await test_screenshot_functions()
+    
+    # 11. Image analysis capabilities test
+    results['image_analysis'] = await test_image_analysis_capabilities()
+    
+    # 12. Order operations (if logged in and AutoTrading enabled)
+    # 12. Order operations (if logged in and AutoTrading enabled)
     if results['login']:
         terminal_info = mt5.terminal_info()
         if terminal_info and terminal_info.trade_allowed:
@@ -1079,10 +1429,11 @@ async def run_comprehensive_mt5_test():
         results['order_operations'] = False
         print("\n⚠️  Skipping order operations test (not logged in)")
     
-    # 11. OpenAI signal generation
+    # 13. OpenAI signal generation
+    # 13. OpenAI signal generation
     results['openai_signals'] = await test_openai_signal_generation(mt5)
     
-    # 12. End-to-end trading flow (if OpenAI available)
+    # 14. End-to-end trading flow (if OpenAI available)
     if results['openai_signals']:
         results['e2e_trading'] = await test_end_to_end_trading_flow(mt5)
     else:
