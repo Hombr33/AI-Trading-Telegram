@@ -19,7 +19,7 @@ from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.workflow import Component, ComponentStatus
 from ..core.config import TradingConfig
 from ..common.interfaces import IPositionManager
-from ..execution.mt5_executor import MT5Executor
+# MT5Executor will be injected via platform manager
 from ..models.positions import Position
 from ..models.trades import Trade
 
@@ -33,8 +33,9 @@ class PositionManager(IPositionManager):
     functionality across different trading platforms.
     """
 
-    def __init__(self, mt5_executor: MT5Executor, config: TradingConfig):
-        self.mt5_executor = mt5_executor
+    def __init__(self, platform_manager, config: TradingConfig):
+        # Get MT5 executor from platform manager
+        self.mt5_executor = platform_manager.platforms.get('mt5') if hasattr(platform_manager, 'platforms') else None
         self.config = config
         self.active_positions: Dict[int, Position] = {}
         self.position_history: List[Position] = []
@@ -103,6 +104,14 @@ class PositionManager(IPositionManager):
     async def _update_positions(self):
         """Update position information from MT5."""
         try:
+            # Check if MT5 executor is available and connected
+            if not self.mt5_executor or not hasattr(self.mt5_executor, 'get_positions'):
+                return  # Silently skip if executor not available
+                
+            # Additional safety check for connection
+            if hasattr(self.mt5_executor, 'connected') and not self.mt5_executor.connected:
+                return  # Skip if not connected
+                
             positions = await self.mt5_executor.get_positions()
 
             # Update existing positions

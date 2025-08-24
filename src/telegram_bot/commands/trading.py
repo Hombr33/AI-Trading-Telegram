@@ -896,7 +896,7 @@ class TradingCommandHandler(BaseCommandHandler):
         try:
             # Try to get positions from MT5 executor
             from src.core.config import AppConfig
-            from src.execution.mt5_executor import MT5Executor
+            from src.execution.platforms.forex.mt5_executor import MT5Executor
             
             config = AppConfig()
             mt5_executor = MT5Executor(config.mt5)
@@ -935,7 +935,7 @@ class TradingCommandHandler(BaseCommandHandler):
         try:
             # Try to get orders from MT5 executor
             from src.core.config import AppConfig
-            from src.execution.mt5_executor import MT5Executor
+            from src.execution.platforms.forex.mt5_executor import MT5Executor
             
             config = AppConfig()
             mt5_executor = MT5Executor(config.mt5)
@@ -972,7 +972,7 @@ class TradingCommandHandler(BaseCommandHandler):
         try:
             # Try to get account info from MT5 executor
             from src.core.config import AppConfig
-            from src.execution.mt5_executor import MT5Executor
+            from src.execution.platforms.forex.mt5_executor import MT5Executor
             
             config = AppConfig()
             mt5_executor = MT5Executor(config.mt5)

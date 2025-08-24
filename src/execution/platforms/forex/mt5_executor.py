@@ -10,17 +10,18 @@ import platform
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 
-from ..core.logging import (
+from ....core.logging import (
     get_logger,
     log_error_with_context,
     log_system_event,
     log_trade_event,
     log_operation_timing
 )
-from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import MT5ConnectionError, MT5ExecutionError
-from ..core.config import MT5Config
-from .base_executor import BaseExecutor, PlatformType
+from ....core.error_handler import with_error_handling, ErrorContext
+from ....core.exceptions import MT5ConnectionError, MT5ExecutionError
+from ....core.config import MT5Config
+from ...base_executor import BaseExecutor
+from ...interfaces import PlatformType
 
 logger = get_logger(__name__)
 
@@ -336,10 +337,20 @@ except ImportError:
 
     mt5 = MockMT5()
 
-from ..core.config import TradingConfig
-from ..models.orders import Order
-from ..models.positions import Position
-from ..models.trades import Trade
+# Note: These imports are optional and may not be available in all setups
+try:
+    from ....core.config import TradingConfig
+except ImportError:
+    TradingConfig = None
+
+try:
+    from ....models.orders import Order
+    from ....models.positions import Position
+    from ....models.trades import Trade
+except ImportError:
+    Order = None
+    Position = None
+    Trade = None
 
 
 class MT5Executor(BaseExecutor):

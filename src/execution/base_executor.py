@@ -1,5 +1,5 @@
 """
-Base executor interface for all trading platforms.
+Base executor implementation for all trading platforms.
 """
 
 from __future__ import annotations
@@ -8,8 +8,13 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timezone
-from enum import Enum
+import time
 
+from .interfaces import (
+    IExecutor, PlatformType, OrderRequest, OrderResponse, 
+    PositionData, AccountInfo, MarketData, OrderStatus, HealthStatus
+)
+from .monitoring import get_executor_monitor
 from ..core.logging import get_logger, log_trade_event
 from ..core.error_handler import with_error_handling
 from ..core.exceptions import TradingBotException
@@ -17,48 +22,37 @@ from ..core.exceptions import TradingBotException
 logger = get_logger(__name__)
 
 
-class PlatformType(Enum):
-    """Trading platform types."""
-    MT5 = "mt5"
-    BINANCE = "binance"
-    BYBIT = "bybit"
-    BITGET = "bitget"
-    DEMO = "demo"
-
-
-class OrderType(Enum):
-    """Universal order types."""
-    MARKET = "market"
-    LIMIT = "limit"
-    STOP = "stop"
-    STOP_LIMIT = "stop_limit"
-
-
-class OrderSide(Enum):
-    """Universal order sides."""
-    BUY = "buy"
-    SELL = "sell"
-
-
-class OrderStatus(Enum):
-    """Universal order status."""
-    PENDING = "pending"
-    OPEN = "open"
-    FILLED = "filled"
-    CANCELLED = "cancelled"
-    REJECTED = "rejected"
-
-
 class BaseExecutor(ABC):
-    """Base executor interface for all trading platforms."""
+    """Production-grade base executor implementation."""
     
-    def __init__(self, config, platform_type: PlatformType):
+    def __init__(self, config: Dict[str, Any], platform_type: PlatformType):
         self.config = config
         self.platform_type = platform_type
         self.connected = False
         self.account_info = None
-        self.is_demo = False
+        self.is_demo = config.get("demo", False)
         
+        # Monitoring and metrics
+        self._monitor = get_executor_monitor()
+        self._connection_attempts = 0
+        self._last_health_check = None
+        self._performance_metrics = {}
+        
+        # Connection settings
+        self._max_retries = config.get("max_retries", 3)
+        self._retry_delay = config.get("retry_delay", 1.0)
+        self._timeout = config.get("timeout", 30.0)
+        
+        # Register with monitor
+        self._monitor.register_executor(self.platform_name, self)
+        
+    def __del__(self):
+        """Cleanup on destruction."""
+        try:
+            self._monitor.unregister_executor(self.platform_name)
+        except:
+            pass
+    
     @property
     @abstractmethod
     def platform_name(self) -> str:
@@ -70,10 +64,51 @@ class BaseExecutor(ABC):
         """Check if connected to platform."""
         return self.connected
     
-    # Connection Management
-    @abstractmethod
+    # Connection Management with retry logic and monitoring
+    async def connect_with_retry(self) -> bool:
+        """Connect to platform with retry logic."""
+        for attempt in range(self._max_retries):
+            try:
+                self._connection_attempts += 1
+                start_time = time.time()
+                
+                result = await asyncio.wait_for(
+                    self._connect_impl(),
+                    timeout=self._timeout
+                )
+                
+                response_time = (time.time() - start_time) * 1000
+                
+                if result:
+                    self.connected = True
+                    self._monitor.record_connection_event(self.platform_name, "connected")
+                    self._monitor.record_api_call(
+                        self.platform_name, "connect", response_time, True
+                    )
+                    logger.info(f"Connected to {self.platform_name} (attempt {attempt + 1})")
+                    return True
+                else:
+                    logger.warning(f"Connection failed for {self.platform_name} (attempt {attempt + 1})")
+                    
+            except asyncio.TimeoutError:
+                logger.error(f"Connection timeout for {self.platform_name} (attempt {attempt + 1})")
+            except Exception as e:
+                logger.error(f"Connection error for {self.platform_name}: {e} (attempt {attempt + 1})")
+                self._monitor.record_connection_event(self.platform_name, "connection_failed")
+                
+            if attempt < self._max_retries - 1:
+                await asyncio.sleep(self._retry_delay * (attempt + 1))  # Exponential backoff
+        
+        logger.error(f"Failed to connect to {self.platform_name} after {self._max_retries} attempts")
+        return False
+    
     async def connect(self) -> bool:
         """Connect to trading platform."""
+        return await self.connect_with_retry()
+    
+    @abstractmethod
+    async def _connect_impl(self) -> bool:
+        """Platform-specific connection implementation."""
         pass
     
     @abstractmethod
@@ -97,10 +132,64 @@ class BaseExecutor(ABC):
         """Get account balance for specific asset."""
         pass
     
-    # Order Management
+    # Order Management with monitoring and validation
+    async def place_order(self, request: OrderRequest) -> OrderResponse:
+        """Place order with monitoring and validation."""
+        start_time = time.time()
+        success = False
+        
+        try:
+            # Validate order request
+            self._validate_order_request(request)
+            
+            # Execute platform-specific order placement
+            response = await self._place_order_impl(request)
+            
+            success = True
+            response_time = (time.time() - start_time) * 1000
+            
+            # Record metrics
+            self._monitor.record_order_placed(self.platform_name, response_time, success)
+            self._monitor.record_api_call(self.platform_name, "place_order", response_time, success)
+            
+            # Log trade event
+            log_trade_event("order_placed", {
+                "platform": self.platform_name,
+                "order_id": response.order_id,
+                "symbol": response.symbol,
+                "side": response.side,
+                "type": response.type,
+                "amount": response.amount,
+                "price": response.price,
+                "status": response.status
+            })
+            
+            return response
+            
+        except Exception as e:
+            response_time = (time.time() - start_time) * 1000
+            self._monitor.record_order_placed(self.platform_name, response_time, False)
+            self._monitor.record_api_call(self.platform_name, "place_order", response_time, False)
+            
+            logger.error(f"Order placement failed on {self.platform_name}: {e}")
+            raise
+    
+    def _validate_order_request(self, request: OrderRequest) -> None:
+        """Validate order request parameters."""
+        if not request.symbol:
+            raise ValueError("Symbol is required")
+        if not request.side or request.side not in ["buy", "sell"]:
+            raise ValueError("Invalid order side")
+        if not request.type or request.type not in ["market", "limit", "stop", "stop_limit"]:
+            raise ValueError("Invalid order type")
+        if request.amount <= 0:
+            raise ValueError("Amount must be positive")
+        if request.type in ["limit", "stop_limit"] and (not request.price or request.price <= 0):
+            raise ValueError("Price is required for limit orders")
+    
     @abstractmethod
-    async def place_order(self, order: Dict[str, Any]) -> Dict[str, Any]:
-        """Place a new order."""
+    async def _place_order_impl(self, request: OrderRequest) -> OrderResponse:
+        """Platform-specific order placement implementation."""
         pass
     
     @abstractmethod
@@ -202,18 +291,74 @@ class BaseExecutor(ABC):
             "platform": self.platform_type.value
         }
     
-    @with_error_handling("health_check", fallback_value=False)
-    async def health_check(self) -> bool:
-        """Perform health check."""
+    @with_error_handling("health_check", fallback_value={"status": "unknown"})
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform comprehensive health check with metrics."""
+        start_time = time.time()
+        self._last_health_check = datetime.now(timezone.utc)
+        
         try:
             if not self.connected:
-                return False
+                return {
+                    "status": HealthStatus.UNHEALTHY.value,
+                    "platform": self.platform_name,
+                    "connected": False,
+                    "error": "Not connected",
+                    "response_time_ms": (time.time() - start_time) * 1000,
+                    "timestamp": self._last_health_check.isoformat()
+                }
             
-            # Test basic connectivity
-            return await self.test_connection()
+            # Test connection
+            connection_ok = await self.test_connection()
+            
+            # Get account info to verify API access
+            account_info = None
+            try:
+                account_info = await self.get_account_info()
+            except Exception as e:
+                logger.warning(f"Failed to get account info during health check: {e}")
+            
+            response_time = (time.time() - start_time) * 1000
+            
+            # Determine overall health status
+            if connection_ok and account_info is not None:
+                status = HealthStatus.HEALTHY
+                error = None
+            elif connection_ok:
+                status = HealthStatus.DEGRADED
+                error = "Connection OK but API access limited"
+            else:
+                status = HealthStatus.UNHEALTHY
+                error = "Connection test failed"
+            
+            # Update account balance metric if available
+            if account_info and hasattr(account_info, 'balance'):
+                for currency, balance in account_info.balance.items():
+                    self._monitor.set_account_balance(self.platform_name, balance, currency)
+            
+            return {
+                "status": status.value,
+                "platform": self.platform_name,
+                "connected": self.connected,
+                "connection_test": connection_ok,
+                "api_access": account_info is not None,
+                "connection_attempts": self._connection_attempts,
+                "response_time_ms": response_time,
+                "timestamp": self._last_health_check.isoformat(),
+                "error": error
+            }
+            
         except Exception as e:
+            response_time = (time.time() - start_time) * 1000
             logger.error(f"{self.platform_name} health check failed: {e}")
-            return False
+            return {
+                "status": HealthStatus.UNHEALTHY.value,
+                "platform": self.platform_name,
+                "connected": self.connected,
+                "error": str(e),
+                "response_time_ms": response_time,
+                "timestamp": self._last_health_check.isoformat()
+            }
     
     def get_status(self) -> Dict[str, Any]:
         """Get platform status."""

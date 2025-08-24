@@ -34,7 +34,9 @@ python-socketio
 aiohttp
 psutil
 openai>=1.0.0
-ccxt>=4.0.0
+
+# Crypto Exchange Library
+ccxt>=4.4.0
 
 # Windows-only MT5 dependencies (optional)
 # Install only on Windows or if you need MT5 functionality:

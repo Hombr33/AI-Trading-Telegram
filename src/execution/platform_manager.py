@@ -18,31 +18,34 @@ logger = get_logger(__name__)
 # Define executor registry for dynamic loading
 EXECUTOR_REGISTRY = {
     "binance": {
-        "module": "src.execution.crypto.binance_executor",
-        "class": "BinanceExecutor",
+        "module": "src.execution.platforms.crypto.ccxt_executor",
+        "class": "CCXTExecutor",
         "platform_type": PlatformType.BINANCE,
-        "os_constraint": None  # Available on all platforms
+        "os_constraint": None,  # Available on all platforms
+        "exchange_name": "binance"
     },
     "bybit": {
-        "module": "src.execution.crypto.bybit_executor",
-        "class": "BybitExecutor",
+        "module": "src.execution.platforms.crypto.ccxt_executor",
+        "class": "CCXTExecutor",
         "platform_type": PlatformType.BYBIT,
-        "os_constraint": None  # Available on all platforms
+        "os_constraint": None,  # Available on all platforms
+        "exchange_name": "bybit"
     },
     "bitget": {
-        "module": "src.execution.crypto.bitget_executor",
-        "class": "BitgetExecutor",
+        "module": "src.execution.platforms.crypto.ccxt_executor",
+        "class": "CCXTExecutor",
         "platform_type": PlatformType.BITGET,
-        "os_constraint": None  # Available on all platforms
+        "os_constraint": None,  # Available on all platforms
+        "exchange_name": "bitget"
     },
     "mt5": {
-        "module": "src.execution.mt5_executor",
+        "module": "src.execution.platforms.forex.mt5_executor",
         "class": "MT5Executor",
         "platform_type": PlatformType.MT5,
         "os_constraint": "win32"  # Only available on Windows
     },
     "aiomql": {
-        "module": "src.execution.aiomql_executor",
+        "module": "src.execution.platforms.forex.aiomql_executor",
         "class": "AioMQLExecutor",
         "platform_type": PlatformType.MT5,
         "os_constraint": "win32"  # Only available on Windows
@@ -128,8 +131,11 @@ class PlatformManager(IPlatformManager):
             module = importlib.import_module(executor_info["module"])
             executor_class = getattr(module, executor_info["class"])
             
-            # Initialize the executor
-            executor = executor_class(config)
+            # Initialize the executor with exchange_name if it's a CCXT executor
+            if "exchange_name" in executor_info:
+                executor = executor_class(config, executor_info["exchange_name"])
+            else:
+                executor = executor_class(config)
             
             # Store the executor
             platform_name = executor_name if executor_name != "aiomql" else "mt5"

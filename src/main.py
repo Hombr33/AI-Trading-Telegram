@@ -4,14 +4,16 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 """
 
 import asyncio
-import signal
-import sys
-import os
+import logging
+import signal as signal_module
 from contextlib import asynccontextmanager
-from typing import Dict, Any
-from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 
-from fastapi import FastAPI, HTTPException
+import uvicorn
+from fastapi import FastAPI
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import socketio
@@ -41,8 +43,8 @@ from .services.auto_trading_service import AutoTradingService
 import sys
 if sys.platform == "win32":
     try:
-        from .execution.aiomql_executor import AioMQLExecutor
-        from .execution.mt5_executor import MT5Executor
+        from .execution.platforms.forex.aiomql_executor import AioMQLExecutor
+        from .execution.platforms.forex.mt5_executor import MT5Executor
     except ImportError:
         AioMQLExecutor = None
         logger.warning("AioMQL executor not available on Windows")
@@ -57,16 +59,7 @@ logger = get_logger(__name__)
 
 
 
-def signal_handler(signum, frame):
-    """Handle shutdown signals gracefully."""
-    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
-    # Force exit the application immediately
-    os._exit(0)
-
-# Register signal handlers for graceful shutdown
-if sys.platform != "win32":  # Signal handlers don't work on Windows
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+# Remove conflicting signal handlers - let uvicorn handle shutdown gracefully
 
 # Global instances for API routes
 telegram_bot: TradingBot = None
@@ -79,10 +72,36 @@ signal_generation_service: ISignalGenerationService = None
 auto_trading_service: AutoTradingService = None
 
 
+# Global shutdown flag
+shutdown_event = asyncio.Event()
+
+async def shutdown_handler(sig, loop):
+    """Graceful shutdown handler for signals."""
+    logger.info(f"Received exit signal {sig.name}...")
+    shutdown_event.set()
+    
+    # Cancel all running tasks except current one
+    tasks = [task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
+    logger.info(f"Cancelling {len(tasks)} outstanding tasks")
+    
+    for task in tasks:
+        task.cancel()
+    
+    # Wait for tasks to complete cancellation
+    if tasks:
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("Some tasks did not complete cancellation in time")
+    
+    loop.stop()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service
+
+    # Let uvicorn handle signal processing - no custom signal handlers needed
 
     # Print startup banner
     print_banner(
@@ -117,7 +136,11 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing trading managers...")
         order_manager = OrderManager(platform_manager, config.trading)
         position_manager = PositionManager(platform_manager, config.trading)
-        trailing_manager = TrailingManager(platform_manager, config.trading)
+        
+        # Initialize trailing manager with proper TrailingConfig
+        from .execution.trailing_manager import TrailingConfig
+        trailing_config = TrailingConfig()
+        trailing_manager = TrailingManager(platform_manager, trailing_config)
 
         # Initialize Socket.IO bridge
         logger.info("Initializing Socket.IO bridge...")
@@ -235,35 +258,40 @@ async def lifespan(app: FastAPI):
             # Stop health monitoring
             await health_monitor.stop_monitoring()
 
-            # Stop auto trading services first
-            if auto_trading_service:
-                logger.info("Stopping auto trading service...")
-                await auto_trading_service.stop()
-            
-            if signal_generation_service:
-                logger.info("Stopping signal generation service...")
-                await signal_generation_service.stop()
+            # Stop background managers first to prevent errors during shutdown
+            logger.info("Stopping background managers...")
+            try:
+                if position_manager:
+                    await position_manager.stop()
+                if trailing_manager:
+                    trailing_manager.running = False
+            except Exception as e:
+                logger.error(f"Error stopping managers: {e}")
 
-            # Stop managers in reverse order
-            if 'trailing_manager' in locals():
-                await trailing_manager.stop()
-            if 'position_manager' in locals():
-                await position_manager.stop()
+            # Stop services in reverse order
+            logger.info("Stopping auto trading service...")
+            try:
+                await auto_trading_service.stop()
+            except Exception as e:
+                logger.error(f"Error stopping auto trading service: {e}")
+
+            logger.info("Stopping signal generation service...")
+            try:
+                await signal_generation_service.stop()
+            except Exception as e:
+                logger.error(f"Error stopping signal generation service: {e}")
 
             # Stop Telegram bot gracefully
-            if 'telegram_bot' in locals():
+            if telegram_bot:
                 logger.info("Stopping Telegram bot...")
                 try:
-                    # Use a longer timeout for graceful shutdown
-                    await asyncio.wait_for(telegram_bot.stop(), timeout=30.0)
+                    # Use a shorter timeout to prevent hanging
+                    await asyncio.wait_for(telegram_bot.stop(), timeout=5.0)
                     logger.info("Telegram bot stopped successfully")
-                except asyncio.TimeoutError:
-                    logger.warning("Telegram bot stop timed out, forcing shutdown")
-                    # Force stop the bot
-                    telegram_bot.running = False
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    logger.info("Telegram bot shutdown completed")
                 except Exception as e:
-                    logger.warning(f"Error stopping Telegram bot: {e}, forcing shutdown")
-                    # Force stop the bot
+                    logger.warning(f"Error stopping Telegram bot: {e}")
                     telegram_bot.running = False
 
             # Disconnect Socket.IO bridge

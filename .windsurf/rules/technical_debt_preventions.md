@@ -1,0 +1,163 @@
+---
+trigger: always_on
+description: Comprehensive rules for preventing and managing technical debt through systematic processes and tools.
+globs:
+---
+{
+  "code_review": {
+    "requirements": {
+      "process": [
+        "Pull request required for all changes",
+        "At least two reviewer approvals",
+        "All automated checks must pass",
+        "Architecture review for major changes"
+      ],
+      "checklist": [
+        "Code follows style guide",
+        "Tests are comprehensive",
+        "Documentation is updated",
+        "No security vulnerabilities",
+        "Performance impact considered"
+      ],
+      "tools": [
+        "SonarQube for static analysis",
+        "GitHub Actions for CI/CD",
+        "Coverage reports",
+        "Performance benchmarks"
+      ]
+    }
+  },
+  "refactoring": {
+    "triggers": [
+      "Cyclomatic complexity > 10",
+      "Method length > 30 lines",
+      "Code duplication > 5%",
+      "Test coverage < 80%",
+      "Outdated dependencies"
+    ],
+    "schedule": {
+      "daily": "Small improvements",
+      "weekly": "Module-level refactoring",
+      "monthly": "System-wide reviews",
+      "quarterly": "Major refactoring sprints"
+    },
+    "priority_areas": [
+      "Core trading logic",
+      "Risk management",
+      "Data processing",
+      "API integrations"
+    ]
+  },
+  "monitoring": {
+    "metrics": {
+      "code_quality": [
+        "Test coverage",
+        "Code complexity",
+        "Duplication percentage",
+        "Documentation coverage"
+      ],
+      "performance": [
+        "Response times",
+        "Memory usage",
+        "CPU utilization",
+        "Error rates"
+      ],
+      "maintenance": [
+        "Time to fix bugs",
+        "Technical debt ratio",
+        "Dependency freshness",
+        "Code churn"
+      ]
+    },
+    "alerts": {
+      "thresholds": {
+        "coverage_drop": "5%",
+        "complexity_increase": "20%",
+        "error_rate": "1%",
+        "response_time": "500ms"
+      }
+    }
+  },
+  "testing": {
+    "requirements": {
+      "unit_tests": {
+        "coverage": "> 80%",
+        "mutation_score": "> 60%"
+      },
+      "integration_tests": {
+        "critical_paths": "100% coverage",
+        "api_contracts": "100% verified"
+      },
+      "performance_tests": {
+        "load_testing": "2x expected load",
+        "stress_testing": "4x expected load"
+      }
+    }
+  },
+  "documentation": {
+    "required": {
+      "code_level": [
+        "Function documentation",
+        "Class documentation",
+        "Module documentation",
+        "Architecture decisions"
+      ],
+      "operational": [
+        "Setup guides",
+        "Deployment procedures",
+        "Monitoring guides",
+        "Troubleshooting guides"
+      ],
+      "maintenance": [
+        "Known issues",
+        "Planned improvements",
+        "Dependencies",
+        "Technical debt tracking"
+      ]
+    },
+    "format": {
+      "code": "Google Style Python Docstrings",
+      "api": "OpenAPI/Swagger",
+      "architecture": "C4 Model",
+      "procedures": "Markdown with examples"
+    }
+  },
+  "debt_management": {
+    "categorization": {
+      "critical": {
+        "fix_timeframe": "immediate",
+        "examples": [
+          "Security vulnerabilities",
+          "Data integrity issues",
+          "System stability problems"
+        ]
+      },
+      "major": {
+        "fix_timeframe": "next sprint",
+        "examples": [
+          "Performance bottlenecks",
+          "Outdated dependencies",
+          "Complex code paths"
+        ]
+      },
+      "minor": {
+        "fix_timeframe": "within quarter",
+        "examples": [
+          "Code style issues",
+          "Minor optimizations",
+          "Documentation updates"
+        ]
+      }
+    },
+    "tracking": {
+      "tool": "GitHub Issues",
+      "labels": [
+        "technical-debt",
+        "priority-critical",
+        "priority-major",
+        "priority-minor"
+      ],
+      "review_cycle": "bi-weekly"
+    }
+  }
+}

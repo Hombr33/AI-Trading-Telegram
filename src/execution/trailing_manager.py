@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from ..core.logging import get_logger
-from ..execution.mt5_executor import MT5Executor
+# MT5Executor will be injected via platform manager
 
 logger = get_logger(__name__)
 
@@ -46,8 +46,9 @@ class PositionState:
 class TrailingManager:
     """Manages trailing stops and take profit for open positions."""
 
-    def __init__(self, mt5_executor: MT5Executor, config: TrailingConfig):
-        self.mt5_executor = mt5_executor
+    def __init__(self, platform_manager, config: TrailingConfig):
+        # Get MT5 executor from platform manager
+        self.mt5_executor = platform_manager.platforms.get('mt5') if hasattr(platform_manager, 'platforms') else None
         self.config = config
         self.active_positions: Dict[int, PositionState] = {}
         self.running = False
@@ -97,6 +98,14 @@ class TrailingManager:
     async def _update_positions(self):
         """Update current position states from MT5."""
         try:
+            # Check if MT5 executor is available and connected
+            if not self.mt5_executor or not hasattr(self.mt5_executor, 'get_positions'):
+                return  # Silently skip if executor not available
+                
+            # Additional safety check for connection
+            if hasattr(self.mt5_executor, 'connected') and not self.mt5_executor.connected:
+                return  # Skip if not connected
+                
             positions = await self.mt5_executor.get_positions()
 
             for position in positions:

@@ -1,0 +1,30 @@
+---
+trigger: always_on
+description: Trading system rules, todos, and memory for Cursor AI agents
+globs: ["src/**", "docs/**", "scripts/**", "runtime/**", "ea/**"]
+---
+
+# Agent Preferences
+- Use structured logging via src/core/logging.get_logger; prefer rich output in CLI tools.
+- Adhere to SOLID/DRY; domain folders under src/; docs under /docs.
+- Prefer async I/O throughout; do not block event loop.
+- For Python imports, use relative imports within src packages.
+
+# Execution & Risk
+- Never exceed 2% risk per trade; max daily drawdown 6%.
+- Never widen stop loss; breakeven at 1R; partial TP at 1.5R and 3R.
+- Trailing stop after 250 points; step 50; distance 200.
+
+# MT5 Connectivity
+- Prefer AioMQLExecutor if aiomql is installed; otherwise fallback to MT5Executor.
+- Bridge fallbacks: Socket.IO -> HTTP; ensure retries with backoff where applicable.
+
+# Testing
+- Unit tests >= 80% coverage for core execution paths; mock external deps.
+
+# Todos for Agents
+- When adding features, create concise TODOS and delete them on completion.
+- Keep adapter interfaces stable; avoid leaking vendor specifics above execution layer.
+
+# Memory Notes
+- Persist decision logs and risk actions via core logging.

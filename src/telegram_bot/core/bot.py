@@ -1,6 +1,7 @@
 """Base Telegram bot implementation."""
 
 import asyncio
+import contextlib
 import logging
 from typing import Dict, List, Optional, Any
 
@@ -33,6 +34,39 @@ class BaseTelegramBot:
         self.application: Optional[Application] = None
         self.running = False
         self.polling_task: Optional[asyncio.Task] = None
+
+    async def _polling_worker(self) -> None:
+        """Internal polling worker that handles cancellation cleanly.
+
+        This wrapper ensures asyncio.CancelledError does not produce
+        noisy tracebacks during shutdown and logs other unexpected errors.
+        """
+        assert self.application is not None
+        try:
+            await self.application.updater.start_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=True,
+            )
+        except asyncio.CancelledError:
+            # Expected on shutdown; suppress to prevent warning messages
+            logger.debug("Telegram polling task cancelled during shutdown")
+            # Don't re-raise to prevent the warning message
+            return
+        except Exception as e:  # pragma: no cover - defensive logging
+            logger.error(f"Unexpected error in polling worker: {e}")
+            raise
+
+    def _attach_polling_done_callback(self) -> None:
+        """Attach a done-callback that swallows CancelledError to avoid warnings."""
+        if not self.polling_task:
+            return
+
+        def _done(task: asyncio.Task) -> None:
+            # Completely suppress all exceptions from polling task during shutdown
+            with contextlib.suppress(Exception):
+                task.result()
+
+        self.polling_task.add_done_callback(_done)
 
     async def initialize(self):
         """Initialize the Telegram bot application."""
@@ -104,21 +138,13 @@ class BaseTelegramBot:
             # Start polling with network error handling
             try:
                 # Store the polling task so we can cancel it later
-                self.polling_task = asyncio.create_task(
-                    self.application.updater.start_polling(
-                        allowed_updates=Update.ALL_TYPES,
-                        drop_pending_updates=True
-                    )
-                )
+                self.polling_task = asyncio.create_task(self._polling_worker(), name="tg-polling")
+                self._attach_polling_done_callback()
             except (NetworkError, TimedOut) as e:
                 logger.warning(f"Network error during bot startup, retrying: {e}")
                 await asyncio.sleep(2)
-                self.polling_task = asyncio.create_task(
-                    self.application.updater.start_polling(
-                        allowed_updates=Update.ALL_TYPES,
-                        drop_pending_updates=True
-                    )
-                )
+                self.polling_task = asyncio.create_task(self._polling_worker(), name="tg-polling")
+                self._attach_polling_done_callback()
 
             self.running = True
             logger.info("Telegram bot started successfully")
@@ -177,7 +203,7 @@ class BaseTelegramBot:
                     # Cancel the task
                     self.polling_task.cancel()
                     
-                    # Wait for the task to complete cancellation
+                    # Wait for the task to complete cancellation with full exception suppression
                     try:
                         await asyncio.wait_for(self.polling_task, timeout=5.0)
                     except asyncio.TimeoutError:

@@ -17,7 +17,7 @@ from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import OrderValidationError, RiskManagementError
 from ..core.config import TradingConfig
 from ..common.interfaces import IOrderManager, OrderType, OrderSide
-from ..execution.mt5_executor import MT5Executor
+# MT5Executor will be injected via platform manager
 from ..models.orders import Order
 from ..models.instruments import Instrument
 from ..models.signals import Signal
@@ -34,7 +34,8 @@ class OrderManager(IOrderManager):
 
     def __init__(self, platform_manager, config: TradingConfig):
         self.platform_manager = platform_manager
-        self.mt5_executor = getattr(platform_manager, 'mt5_executor', None)
+        # Get MT5 executor from platform manager
+        self.mt5_executor = platform_manager.platforms.get('mt5') if hasattr(platform_manager, 'platforms') else None
         self.config = config
         self.active_orders: Dict[str, Order] = {}
         self.order_history: List[Order] = []

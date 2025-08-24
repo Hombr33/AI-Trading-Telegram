@@ -1,41 +1,49 @@
 #!/usr/bin/env python3
-"""
-Startup script for the AI Trading Bot.
-"""
+"""Run the AI Trading Bot application."""
 
 import asyncio
-import uvicorn
-from src.core.config import config
-from src.core.logging import get_logger
+import signal
+import sys
+from pathlib import Path
 
-logger = get_logger(__name__)
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+from src.main import app
 
-def main():
-    """Main entry point."""
+async def main():
+    """Main entry point with proper signal handling."""
+    import uvicorn
+    
+    # Create server config
+    config = uvicorn.Config(
+        app,
+        host="127.0.0.1",
+        port=8081,
+        log_level="info",
+        access_log=False,
+        reload=False
+    )
+    
+    server = uvicorn.Server(config)
+    
+    # Let uvicorn handle signals naturally - no custom handlers needed
+    
     try:
-        logger.info("Starting AI Trading Bot...")
-        logger.info(f"Environment: {config.environment}")
-        logger.info(f"Debug mode: {config.debug}")
-        logger.info(f"Host: {config.host}")
-        logger.info(f"Port: {config.port}")
-        
-        # Run the FastAPI application
-        uvicorn.run(
-            "src.main:app",
-            host=config.host,
-            port=config.port,
-            reload=config.reload,
-            log_level=config.logging.level.lower(),
-            access_log=True
-        )
-        
+        # Run the server
+        await server.serve()
     except KeyboardInterrupt:
-        logger.info("Shutdown requested by user")
-    except Exception as e:
-        logger.error(f"Failed to start application: {e}")
-        raise
-
+        pass
+    finally:
+        # Ensure clean shutdown
+        if hasattr(server, 'shutdown'):
+            await server.shutdown()
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # Force exit to prevent hanging
+        sys.exit(0)
