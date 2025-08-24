@@ -63,9 +63,11 @@ class SignalValidator:
             'valid_biases': ['BULLISH', 'BEARISH', 'NEUTRAL'],
             'valid_setup_types': ['BUY', 'SELL'],
             'valid_entry_styles': ['limit', 'market', 'stop'],
-            'max_entry_zone_spread_pips': 50,  # Maximum spread between entry zone levels
+            'max_entry_zone_spread_pips': 50,  # Maximum spread between entry zone levels (forex majors)
+            'max_entry_zone_spread_pips_exotic': 200,  # Maximum spread for exotic pairs
             'min_sl_distance_pips': 10,       # Minimum SL distance from entry
             'max_sl_distance_pips': 500,      # Maximum SL distance from entry
+            'max_sl_distance_pips_exotic': 1000,  # Maximum SL distance for exotic pairs
         }
     
     def validate_signal(self, signal_data: Union[Dict[str, Any], str]) -> tuple[Optional[TradingSignal], List[str]]:
@@ -77,6 +79,17 @@ class SignalValidator:
         Returns:
             Tuple of (validated_signal, validation_errors)
         """
+        # Store symbol for symbol-specific validation
+        if isinstance(signal_data, dict):
+            self._current_symbol = signal_data.get('symbol', 'UNKNOWN')
+        elif isinstance(signal_data, str):
+            try:
+                temp_data = json.loads(signal_data)
+                self._current_symbol = temp_data.get('symbol', 'UNKNOWN')
+            except:
+                self._current_symbol = 'UNKNOWN'
+        else:
+            self._current_symbol = 'UNKNOWN'
         errors = []
         
         # Parse JSON if string
@@ -171,20 +184,39 @@ class SignalValidator:
         elif setup.entry_zone[0] >= setup.entry_zone[1]:
             errors.append(f"{prefix}Entry zone low ({setup.entry_zone[0]}) must be less than high ({setup.entry_zone[1]})")
         else:
-            # Check entry zone spread
-            entry_spread_pips = abs(setup.entry_zone[1] - setup.entry_zone[0]) * 10000  # Assuming 4-decimal forex
-            if entry_spread_pips > self.validation_rules['max_entry_zone_spread_pips']:
-                errors.append(f"{prefix}Entry zone spread {entry_spread_pips:.1f} pips exceeds maximum {self.validation_rules['max_entry_zone_spread_pips']} pips")
+            # Check entry zone spread with symbol-specific limits
+            symbol = getattr(self, '_current_symbol', 'UNKNOWN')
+            is_exotic = any(exotic in symbol for exotic in ['RUB', 'TRY', 'ZAR', 'MXN', 'BRL'])
+            
+            if is_exotic:
+                # For exotic pairs, use different pip calculation and limits
+                entry_spread_pips = abs(setup.entry_zone[1] - setup.entry_zone[0]) * 1000  # 3-decimal for exotics
+                max_spread = self.validation_rules['max_entry_zone_spread_pips_exotic']
+            else:
+                # For major pairs, use standard calculation
+                entry_spread_pips = abs(setup.entry_zone[1] - setup.entry_zone[0]) * 10000  # 4-decimal for majors
+                max_spread = self.validation_rules['max_entry_zone_spread_pips']
+            
+            if entry_spread_pips > max_spread:
+                errors.append(f"{prefix}Entry zone spread {entry_spread_pips:.1f} pips exceeds maximum {max_spread} pips for {'exotic' if is_exotic else 'major'} pair")
         
-        # Validate stop loss
+        # Validate stop loss with symbol-specific limits
         if len(setup.entry_zone) == 2:
             entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
-            sl_distance_pips = abs(setup.sl - entry_mid) * 10000
+            symbol = getattr(self, '_current_symbol', 'UNKNOWN')
+            is_exotic = any(exotic in symbol for exotic in ['RUB', 'TRY', 'ZAR', 'MXN', 'BRL'])
+            
+            if is_exotic:
+                sl_distance_pips = abs(setup.sl - entry_mid) * 1000  # 3-decimal for exotics
+                max_sl_distance = self.validation_rules['max_sl_distance_pips_exotic']
+            else:
+                sl_distance_pips = abs(setup.sl - entry_mid) * 10000  # 4-decimal for majors
+                max_sl_distance = self.validation_rules['max_sl_distance_pips']
             
             if sl_distance_pips < self.validation_rules['min_sl_distance_pips']:
                 errors.append(f"{prefix}SL distance {sl_distance_pips:.1f} pips below minimum {self.validation_rules['min_sl_distance_pips']} pips")
-            elif sl_distance_pips > self.validation_rules['max_sl_distance_pips']:
-                errors.append(f"{prefix}SL distance {sl_distance_pips:.1f} pips exceeds maximum {self.validation_rules['max_sl_distance_pips']} pips")
+            elif sl_distance_pips > max_sl_distance:
+                errors.append(f"{prefix}SL distance {sl_distance_pips:.1f} pips exceeds maximum {max_sl_distance} pips for {'exotic' if is_exotic else 'major'} pair")
             
             # Validate SL direction
             if setup.type == "BUY" and setup.sl >= entry_mid:

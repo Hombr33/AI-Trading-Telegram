@@ -240,34 +240,25 @@ class PromptManager:
         prompt_parts.append("You MUST include every field below. Missing fields cause validation failure.")
         prompt_parts.append("")
         prompt_parts.append("Required JSON Structure:")
-        prompt_parts.append("""{
-    "id": "string - Format: symbol-YYYY-MM-DD-HHMM",
-    "symbol": "string - Trading symbol",
-    "bias": "string - BULLISH/BEARISH/NEUTRAL",
-    "risk_per_trade_pct": "number - Risk percentage (default: 2.0)",
-    "move_to_BE_at_R1": "boolean - Move to breakeven at R1 (default: true)",
-    "tp1_close_pct": "number - Close percentage at TP1 (default: 0.5)",
+        prompt_parts.append(f"""{{
+    "id": "{signal_id}",
+    "symbol": "{symbol}",
+    "bias": "BULLISH|BEARISH|NEUTRAL",
+    "risk_per_trade_pct": 2.0,
+    "move_to_BE_at_R1": true,
+    "tp1_close_pct": 0.5,
     "setups": [
-        {
-            "type": "string - BUY or SELL",
-            "entry_zone": "array - [low_price, high_price]",
-            "entry_style": "string - limit/market/stop",
-            "sl": "number - Stop loss price",
-            "tp": "array - [tp1_price, tp2_price]",
-            "confidence": "number - 0-100",
-            "notes": "string - Setup explanation"
-        }
+        {{
+            "type": "BUY|SELL",
+            "entry_zone": [entry_low, entry_high],
+            "entry_style": "limit",
+            "sl": stop_loss_price,
+            "tp": [tp1_price, tp2_price],
+            "confidence": 60-100,
+            "notes": "Brief setup explanation"
+        }}
     ]
-}""")
-        prompt_parts.append("")
-        prompt_parts.append(f"Example for {symbol}:")
-        prompt_parts.append(f"""{{\n    "id": "{signal_id}",\n    "symbol": "{symbol}",\n    "bias": "BULLISH",\n    "risk_per_trade_pct": 2.0,\n    "move_to_BE_at_R1": true,\n    "tp1_close_pct": 0.5,\n    "setups": [{{\n        "type": "BUY",\n        "entry_zone": [1.0850, 1.0870],\n        "entry_style": "limit",\n        "sl": 1.0820,\n        "tp": [1.0895, 1.0920],\n        "confidence": 75,\n        "notes": "Clear bullish setup with good risk-reward"\n    }}]\n}}""")
-        prompt_parts.append("")
-        
-        # Market context
-        prompt_parts.append("Market Context:")
-        prompt_parts.append(json.dumps(market_context, indent=2))
-        
+}}""")
         # Real-time data if available
         if realtime_data:
             prompt_parts.append("\nReal-time Market Data:")
@@ -281,6 +272,8 @@ class PromptManager:
         prompt_parts.append("4. Generate signals in the exact JSON format specified above")
         prompt_parts.append("5. Include confidence scores and risk management parameters")
         prompt_parts.append("6. Return ONLY the JSON object - no additional text or markdown")
+        prompt_parts.append("7. Ensure all validation requirements are met before generating signal")
+        prompt_parts.append("8. If no valid setup exists, return NEUTRAL bias with confidence 0")
         
         # Current timestamp for context
         prompt_parts.append(f"\nCurrent Time: {datetime.now().isoformat()}")
