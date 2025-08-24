@@ -17,6 +17,7 @@ import io
 try:
     import pyautogui
     import pygetwindow as gw
+    from loguru import logger
     from PIL import Image, ImageDraw, ImageFont
     SCREENSHOT_AVAILABLE = True
 except ImportError:
