@@ -27,9 +27,10 @@ logger = get_logger(__name__)
 
 try:
     import MetaTrader5 as mt5
-
+    _use_real_mt5 = True
     logger.info("Using real MetaTrader5 library")
 except ImportError:
+    _use_real_mt5 = False
     logger.warning("MetaTrader5 library not found, using mock implementation")
 
     # Create a comprehensive mock that matches the official MetaTrader5 interface
@@ -367,7 +368,9 @@ except ImportError:
             """Get historical deals."""
             return []
 
-    mt5 = MockMT5()
+    # Only use mock if real MT5 import failed
+    if not _use_real_mt5:
+        mt5 = MockMT5()
 
 # Note: These imports are optional and may not be available in all setups
 try:
@@ -708,7 +711,7 @@ class MT5Executor(BaseExecutor):
             logger.info(f"Total symbols: {symbols_total}")
             
             # 4. Test symbol availability (matches test pattern)
-            symbols_available = mt5.symbols_total(selected=True)
+            symbols_available = mt5.symbols_total()
             if symbols_available is not None:
                 logger.info(f"Available symbols: {symbols_available}")
             
@@ -1091,7 +1094,7 @@ class MT5Executor(BaseExecutor):
                     "balance": account.balance,
                     "equity": account.equity,
                     "margin": account.margin,
-                    "free_margin": account.free_margin,
+                    "free_margin": getattr(account, 'margin_free', getattr(account, 'free_margin', 0.0)),
                     "leverage": account.leverage,
                     "currency": account.currency,
                     "company": account.company,
