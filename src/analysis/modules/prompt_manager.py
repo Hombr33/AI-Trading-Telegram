@@ -86,9 +86,23 @@ class PromptManager:
                     "Trading_Plan"
                 ],
                 "signal_schema": {
-                    "symbol": "string",
+                    "id": "string - unique signal identifier",
+                    "symbol": "string - trading symbol",
                     "bias": "BULLISH|BEARISH|NEUTRAL",
-                    "setups": []
+                    "setups": [
+                        {
+                            "type": "BUY|SELL",
+                            "entry_zone": "array of entry prices [min, max]",
+                            "entry_style": "limit|market|stop",
+                            "sl": "number - stop loss price",
+                            "tp": "array of take profit levels",
+                            "confidence": "number 0-100",
+                            "notes": "string - setup notes"
+                        }
+                    ],
+                    "risk_per_trade_pct": "number - risk percentage per trade",
+                    "move_to_BE_at_R1": "boolean - move to breakeven at first target",
+                    "tp1_close_pct": "number - percentage to close at first target (0.0-1.0)"
                 }
             }
         }
@@ -155,8 +169,36 @@ class PromptManager:
         signal_schema = outputs.get('signal_schema', {})
         if signal_schema:
             sections.append("\nSignal Format:")
-            sections.append("Return signals in JSON format matching this schema:")
+            sections.append("IMPORTANT: Return ONLY valid JSON matching this exact schema. Do not include markdown formatting, explanations, or additional text.")
+            sections.append("Required JSON structure:")
             sections.append(json.dumps(signal_schema, indent=2))
+            sections.append("\nRequired field guidelines:")
+            sections.append("- id: Generate unique ID like 'symbol-YYYY-MM-DD-HHMM'")
+            sections.append("- symbol: Use exact trading symbol provided")
+            sections.append("- bias: Must be 'BULLISH', 'BEARISH', or 'NEUTRAL'")
+            sections.append("- setups: Array with at least one setup")
+            sections.append("- risk_per_trade_pct: Use 2.0 (represents 2%)")
+            sections.append("- move_to_BE_at_R1: Use true or false")
+            sections.append("- tp1_close_pct: Use 0.5 (represents 50%)")
+            sections.append("\nSetup guidelines:")
+            sections.append("- type: Must be 'BUY' or 'SELL'")
+            sections.append("- entry_zone: [min_price, max_price] with realistic spread")
+            sections.append("- entry_style: Use 'limit', 'market', or 'stop'")
+            sections.append("- sl: Stop loss price (ensure reasonable distance)")
+            sections.append("- tp: Array of take profit levels [tp1, tp2]")
+            sections.append("- confidence: Integer 0-100")
+            sections.append("- notes: Brief explanation of setup")
+            sections.append("\nPrice scaling guidelines:")
+            sections.append("- Forex majors (EUR/USD, GBP/USD): Use 4-5 decimal places, 5-20 pip spreads")
+            sections.append("- Forex exotics (USD/RUB, USD/TRY): Use 2-4 decimal places, 50-200 pip spreads")
+            sections.append("- JPY pairs: Use 2-3 decimal places, 5-20 pip spreads")
+            sections.append("- Metals (XAU/USD, XAG/USD): Use 2 decimal places, $1-$10 spreads")
+            sections.append("- Crypto: Use appropriate decimal places for the specific pair")
+            sections.append("\nValidation requirements:")
+            sections.append("- Entry zone spread: Maximum 50 pips for forex")
+            sections.append("- Stop loss distance: 10-500 pips from entry")
+            sections.append("- Risk-reward ratio: Minimum 1.5:1")
+            sections.append("- Confidence: 60-100 for valid signals")
         
         # Response style
         response_style = config.get('response_style', {})
@@ -189,6 +231,39 @@ class PromptManager:
         """
         prompt_parts = []
         
+        # Get symbol from market context
+        symbol = market_context.get('symbol', 'UNKNOWN')
+        signal_id = market_context.get('signal_id', f"{symbol.lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}")
+        
+        # CRITICAL: JSON Schema Requirements
+        prompt_parts.append("🚨 CRITICAL: Generate a complete trading signal with ALL required fields.")
+        prompt_parts.append("You MUST include every field below. Missing fields cause validation failure.")
+        prompt_parts.append("")
+        prompt_parts.append("Required JSON Structure:")
+        prompt_parts.append("""{
+    "id": "string - Format: symbol-YYYY-MM-DD-HHMM",
+    "symbol": "string - Trading symbol",
+    "bias": "string - BULLISH/BEARISH/NEUTRAL",
+    "risk_per_trade_pct": "number - Risk percentage (default: 2.0)",
+    "move_to_BE_at_R1": "boolean - Move to breakeven at R1 (default: true)",
+    "tp1_close_pct": "number - Close percentage at TP1 (default: 0.5)",
+    "setups": [
+        {
+            "type": "string - BUY or SELL",
+            "entry_zone": "array - [low_price, high_price]",
+            "entry_style": "string - limit/market/stop",
+            "sl": "number - Stop loss price",
+            "tp": "array - [tp1_price, tp2_price]",
+            "confidence": "number - 0-100",
+            "notes": "string - Setup explanation"
+        }
+    ]
+}""")
+        prompt_parts.append("")
+        prompt_parts.append(f"Example for {symbol}:")
+        prompt_parts.append(f"""{{\n    "id": "{signal_id}",\n    "symbol": "{symbol}",\n    "bias": "BULLISH",\n    "risk_per_trade_pct": 2.0,\n    "move_to_BE_at_R1": true,\n    "tp1_close_pct": 0.5,\n    "setups": [{{\n        "type": "BUY",\n        "entry_zone": [1.0850, 1.0870],\n        "entry_style": "limit",\n        "sl": 1.0820,\n        "tp": [1.0895, 1.0920],\n        "confidence": 75,\n        "notes": "Clear bullish setup with good risk-reward"\n    }}]\n}}""")
+        prompt_parts.append("")
+        
         # Market context
         prompt_parts.append("Market Context:")
         prompt_parts.append(json.dumps(market_context, indent=2))
@@ -203,8 +278,9 @@ class PromptManager:
         prompt_parts.append("1. Analyze the chart screenshot using the trading methodology")
         prompt_parts.append("2. Follow the multi-timeframe approach (H4 → H1 → M15 → M5 → M1)")
         prompt_parts.append("3. Identify all required confluences before providing signals")
-        prompt_parts.append("4. Generate signals in the exact JSON format specified")
+        prompt_parts.append("4. Generate signals in the exact JSON format specified above")
         prompt_parts.append("5. Include confidence scores and risk management parameters")
+        prompt_parts.append("6. Return ONLY the JSON object - no additional text or markdown")
         
         # Current timestamp for context
         prompt_parts.append(f"\nCurrent Time: {datetime.now().isoformat()}")

@@ -264,11 +264,14 @@ Focus on specific price levels, recent movements, and relevant news. Return ONLY
                 content = response.choices[0].message.content
                 if content:
                     try:
-                        signal_data = json.loads(content)
+                        # Clean markdown formatting if present
+                        cleaned_content = self._extract_json_from_response(content)
+                        signal_data = json.loads(cleaned_content)
                         logger.info("Structured signal generated successfully")
                         return signal_data
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse signal JSON: {e}\nRaw response content: {content[:500]}...")
+                        logger.error(f"Failed to parse signal JSON: {e}")
+                        logger.debug(f"Raw response content: {content[:500]}...")
                         return None
                 else:
                     logger.error("Empty response from signal generation")
@@ -280,6 +283,51 @@ Focus on specific price levels, recent movements, and relevant news. Return ONLY
         except Exception as e:
             logger.error(f"Error in structured signal generation: {e}")
             return None
+    
+    def _extract_json_from_response(self, content: str) -> str:
+        """Extract JSON from markdown-formatted response.
+        
+        Args:
+            content: Raw response content that may contain markdown formatting
+            
+        Returns:
+            Cleaned JSON string
+        """
+        # Remove markdown code blocks if present
+        if "```json" in content:
+            # Extract content between ```json and ```
+            start_marker = "```json"
+            end_marker = "```"
+            
+            start_index = content.find(start_marker)
+            if start_index != -1:
+                start_index += len(start_marker)
+                end_index = content.find(end_marker, start_index)
+                if end_index != -1:
+                    json_content = content[start_index:end_index].strip()
+                    return json_content
+        
+        # Handle generic code blocks
+        elif "```" in content:
+            lines = content.split('\n')
+            in_code_block = False
+            json_lines = []
+            
+            for line in lines:
+                if line.strip().startswith('```'):
+                    if in_code_block:
+                        break  # End of code block
+                    else:
+                        in_code_block = True  # Start of code block
+                        continue
+                elif in_code_block:
+                    json_lines.append(line)
+            
+            if json_lines:
+                return '\n'.join(json_lines).strip()
+        
+        # Return content as-is if no markdown formatting detected
+        return content.strip()
     
     def is_available(self) -> bool:
         """Check if OpenAI client is available.

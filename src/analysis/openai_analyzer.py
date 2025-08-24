@@ -282,7 +282,7 @@ class OpenAIAnalyzer(IAnalyzer):
 
             if validation_errors:
                 logger.warning(f"Signal validation errors: {validation_errors}")
-                # Try to use mock signal if validation fails
+                logger.info("Falling back to mock signal due to validation errors")
                 return self._create_mock_signal_response(market_context)
 
             if validated_signal:

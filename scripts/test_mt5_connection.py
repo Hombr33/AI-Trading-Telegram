@@ -1634,6 +1634,7 @@ async def test_end_to_end_trading_flow(mt5):
             # Fallback to mock signal for testing purposes
             print("   Using fallback mock signal for testing...")
             ai_signal = {
+                "id": f"{test_symbol.lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}",
                 "symbol": test_symbol,
                 "bias": "BULLISH",
                 "setups": [{
@@ -1644,7 +1645,10 @@ async def test_end_to_end_trading_flow(mt5):
                     "tp": [symbol_info.ask + 0.0038, symbol_info.ask + 0.0075],
                     "confidence": 78,
                     "notes": "Fallback signal for E2E test"
-                }]
+                }],
+                "risk_per_trade_pct": 2.0,
+                "move_to_BE_at_R1": True,
+                "tp1_close_pct": 0.5
             }
         
         print("   Step 3: Signal validation...")
