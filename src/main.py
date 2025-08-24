@@ -166,6 +166,9 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing auto trading services...")
         signal_generation_service = SignalGenerationService(config, telegram_bot)
         auto_trading_service = AutoTradingService(config, platform_manager, telegram_bot)
+        
+        # Set order manager for auto trading service
+        auto_trading_service.order_manager = order_manager
 
         # Start health monitoring
         logger.info("Starting health monitoring...")
