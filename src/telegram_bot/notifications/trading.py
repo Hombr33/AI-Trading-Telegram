@@ -183,6 +183,11 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
         action_emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "⚪"
         risk_emoji = "🟢" if risk_level == "LOW" else "🟡" if risk_level == "MEDIUM" else "🔴"
         
+        # Clean analysis text to avoid markdown parsing issues
+        analysis_text = signal_data.get('analysis', 'AI-generated signal')[:100]
+        # Escape special markdown characters
+        analysis_text = analysis_text.replace('*', '\\*').replace('_', '\\_').replace('`', '\\`').replace('[', '\\[').replace(']', '\\]')
+        
         # Format message for Telegram
         telegram_message = f"""
 🚨 **AI TRADING SIGNAL** 🚨
@@ -198,7 +203,7 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
 🔗 **Platform**: {platform}
 ⏰ **Time**: {timestamp[:19]}
 
-📋 **Analysis**: {signal_data.get('analysis', 'AI-generated signal')[:100]}...
+📋 **Analysis**: {analysis_text}...
 
 Use /positions to check current positions
 Use /risk to monitor risk levels
@@ -214,7 +219,15 @@ Use /risk to monitor risk levels
             from ..core.trading_bot import TradingBot
             bot = TradingBot.get_instance()
             if bot and bot.config.chat_id:
-                await bot.send_message(bot.config.chat_id, telegram_message, parse_mode="Markdown")
+                try:
+                    # Try with Markdown first
+                    await bot.send_message(bot.config.chat_id, telegram_message, parse_mode="Markdown")
+                except Exception as markdown_error:
+                    logger.warning(f"Markdown parsing failed: {markdown_error}, trying without parse_mode")
+                    # If markdown fails, send as plain text
+                    plain_message = telegram_message.replace('**', '').replace('`', '')
+                    await bot.send_message(bot.config.chat_id, plain_message)
+                    
                 logger.info(f"✅ Signal sent to Telegram chat {bot.config.chat_id}")
             else:
                 logger.warning("❌ Telegram bot not available or chat_id not configured")

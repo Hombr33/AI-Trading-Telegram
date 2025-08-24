@@ -6,7 +6,7 @@ Generates trading signals at configurable intervals using AI analysis.
 import asyncio
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event
@@ -246,7 +246,18 @@ class SignalGenerationService(ISignalGenerationService):
                     
                 try:
                     logger.info(f"Using analyzer {analyzer_id} for {symbol}")
-                    analysis = await analyzer.analyze_market(symbol)
+                    # Create market context for analyzer
+                    market_context = {
+                        "symbols": [symbol],
+                        "timeframe": "1h",
+                        "analysis_type": "basic"
+                    }
+                    
+                    # Call analyze method with proper parameters
+                    analysis = await analyzer.analyze(
+                        market_context=market_context,
+                        analysis_type="basic"
+                    )
                     signal = self._parse_analysis_to_signal(symbol, analysis, {"current_price": 0})
                     
                     # If we got a valid signal, return it
@@ -497,13 +508,50 @@ class SignalGenerationService(ISignalGenerationService):
         Format your response with clear sections for easy parsing.
         """
     
-    def _parse_analysis_to_signal(self, symbol: str, analysis: str, market_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_analysis_to_signal(self, symbol: str, analysis: Union[str, Dict[str, Any]], market_data: Dict[str, Any]) -> Dict[str, Any]:
         """Parse AI analysis into structured signal."""
         try:
             import json
             import re
             
-            # Try to extract JSON from the real-time response
+            # Handle dictionary input (from OpenAI analyzer)
+            if isinstance(analysis, dict):
+                # Check if it's a structured response from OpenAI analyzer
+                if "signal" in analysis and isinstance(analysis["signal"], dict):
+                    signal_data = analysis["signal"]
+                    
+                    # Extract values from structured response
+                    action = signal_data.get("action", "HOLD").lower()
+                    entry_price = float(signal_data.get("entry_price", market_data.get("current_price", 100)))
+                    stop_loss = float(signal_data.get("stop_loss", entry_price * 0.98 if action == "buy" else entry_price * 1.02))
+                    take_profit = float(signal_data.get("take_profit", entry_price * 1.04 if action == "buy" else entry_price * 0.96))
+                    confidence = int(signal_data.get("confidence", 7))
+                    risk_level = signal_data.get("risk_level", "MEDIUM").lower()
+                    reasoning = signal_data.get("reasoning", analysis.get("market_data", "AI analysis"))
+                    
+                    # Create structured signal
+                    signal = {
+                        "symbol": symbol,
+                        "action": action,
+                        "entry_price": entry_price,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "risk_level": risk_level,
+                        "confidence": confidence,
+                        "analysis": reasoning,
+                        "timestamp": datetime.now().isoformat(),
+                        "platform": analysis.get("data_source", "openai_analyzer"),
+                        "signal_type": "structured_response",
+                        "raw_analysis": str(analysis)
+                    }
+                    
+                    return signal
+                else:
+                    # Convert dict to string for regex parsing
+                    analysis = str(analysis)
+            
+            # Handle string input (original logic)
+            # Try to extract JSON from the response
             json_match = re.search(r'\{.*\}', analysis, re.DOTALL)
             
             if json_match:
@@ -650,6 +698,25 @@ class SignalGenerationService(ISignalGenerationService):
             await send_signal_notification(signal)
         except Exception as e:
             logger.error(f"Error sending signal notification: {e}")
+    
+    def _create_error_signal(self, symbol: str, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create an error signal when analysis fails."""
+        current_price = market_data.get("current_price", 1.0)
+        
+        return {
+            "symbol": symbol,
+            "action": "hold",
+            "entry_price": current_price,
+            "stop_loss": current_price,
+            "take_profit": current_price,
+            "risk_level": "low",
+            "confidence": 0,
+            "analysis": "Analysis failed - holding position recommended",
+            "timestamp": datetime.now().isoformat(),
+            "platform": "error_fallback",
+            "signal_type": "error",
+            "raw_analysis": "Error occurred during analysis"
+        }
     
     def get_status(self) -> Dict[str, Any]:
         """Get service status."""
