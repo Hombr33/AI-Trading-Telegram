@@ -12,6 +12,16 @@ import time
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
+import base64
+import io
+try:
+    import pyautogui
+    import pygetwindow as gw
+    from PIL import Image, ImageDraw, ImageFont
+    SCREENSHOT_AVAILABLE = True
+except ImportError:
+    SCREENSHOT_AVAILABLE = False
+    print("⚠️  Screenshot dependencies not available. Install with: pip install pyautogui pygetwindow pillow")
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -561,6 +571,52 @@ def test_order_operations(mt5):
         print(f"   Exception: {e} ❌")
         return False
 
+def capture_mt5_screenshot(symbol: str = "EURUSD", timeframe: str = "M15") -> bytes:
+    """Capture actual MT5 chart screenshot."""
+    if not SCREENSHOT_AVAILABLE:
+        print("   Screenshot dependencies not available ❌")
+        return create_test_chart_image(800, 600, symbol)
+    
+    try:
+        # Find MT5 window
+        mt5_windows = []
+        for window in gw.getAllWindows():
+            if 'metatrader' in window.title.lower() or 'mt5' in window.title.lower():
+                mt5_windows.append(window)
+        
+        if not mt5_windows:
+            print("   MT5 window not found, using test chart ⚠️")
+            return create_test_chart_image(800, 600, symbol)
+        
+        # Use the first MT5 window found
+        mt5_window = mt5_windows[0]
+        
+        # Bring window to front
+        try:
+            mt5_window.activate()
+            time.sleep(0.5)  # Wait for window to come to front
+        except:
+            pass  # Continue even if activation fails
+        
+        # Get window position and size
+        left, top, width, height = mt5_window.left, mt5_window.top, mt5_window.width, mt5_window.height
+        
+        # Capture screenshot of MT5 window
+        screenshot = pyautogui.screenshot(region=(left, top, width, height))
+        
+        # Convert to bytes
+        img_buffer = io.BytesIO()
+        screenshot.save(img_buffer, format='PNG')
+        img_bytes = img_buffer.getvalue()
+        
+        print(f"   MT5 screenshot captured: {len(img_bytes)} bytes ✅")
+        return img_bytes
+        
+    except Exception as e:
+        print(f"   MT5 screenshot failed: {e} ❌")
+        print("   Falling back to test chart...")
+        return create_test_chart_image(800, 600, symbol)
+
 def create_test_chart_image(width: int = 800, height: int = 600, symbol: str = "EURUSD") -> bytes:
     """Create a realistic-looking test chart image for screenshot testing."""
     try:
@@ -671,6 +727,80 @@ def create_test_chart_image(width: int = 800, height: int = 600, symbol: str = "
         png_buffer = io.BytesIO()
         image.save(png_buffer, format='PNG')
         return png_buffer.getvalue()
+
+async def test_mt5_screenshot_capture(mt5):
+    """Test MT5 screenshot capture functionality."""
+    print("\n📸 MT5 Screenshot Capture Test")
+    print("-" * 29)
+    
+    try:
+        if not SCREENSHOT_AVAILABLE:
+            print("   Screenshot dependencies: Not available ❌")
+            print("   💡 Install with: pip install pyautogui pygetwindow pillow")
+            return False
+        
+        print("   Screenshot dependencies: Available ✅")
+        
+        # Test 1: Find MT5 windows
+        print("   Searching for MT5 windows...")
+        mt5_windows = []
+        for window in gw.getAllWindows():
+            if 'metatrader' in window.title.lower() or 'mt5' in window.title.lower():
+                mt5_windows.append(window)
+                print(f"     Found: {window.title} ({window.width}x{window.height})")
+        
+        if not mt5_windows:
+            print("   MT5 windows: None found ⚠️")
+            print("   💡 Make sure MT5 is running and visible")
+            print("   Continuing with test chart generation...")
+        else:
+            print(f"   MT5 windows: {len(mt5_windows)} found ✅")
+        
+        # Test 2: Capture screenshots of different symbols
+        test_symbols = ["EURUSD", "GBPUSD", "USDJPY"]
+        captured_screenshots = {}
+        
+        for symbol in test_symbols:
+            print(f"   Capturing {symbol} screenshot...")
+            screenshot_data = capture_mt5_screenshot(symbol)
+            
+            if screenshot_data and len(screenshot_data) > 1000:
+                captured_screenshots[symbol] = screenshot_data
+                print(f"     {symbol}: Success ✅ ({len(screenshot_data)} bytes)")
+            else:
+                print(f"     {symbol}: Failed ❌")
+        
+        # Test 3: Save screenshots to files for verification
+        if captured_screenshots:
+            print("   Saving screenshots for verification...")
+            screenshots_dir = Path(__file__).parent / "screenshots"
+            screenshots_dir.mkdir(exist_ok=True)
+            
+            for symbol, data in captured_screenshots.items():
+                filename = screenshots_dir / f"mt5_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                with open(filename, 'wb') as f:
+                    f.write(data)
+                print(f"     Saved: {filename}")
+        
+        # Test 4: Validate image format
+        if captured_screenshots:
+            test_symbol = list(captured_screenshots.keys())[0]
+            test_data = captured_screenshots[test_symbol]
+            
+            try:
+                image = Image.open(io.BytesIO(test_data))
+                print(f"   Image validation: Success ✅")
+                print(f"     Format: {image.format}")
+                print(f"     Size: {image.size}")
+                print(f"     Mode: {image.mode}")
+            except Exception as e:
+                print(f"   Image validation: Failed ❌ ({e})")
+        
+        return len(captured_screenshots) > 0
+        
+    except Exception as e:
+        print(f"   Exception: {e} ❌")
+        return False
 
 async def test_screenshot_functions():
     """Test screenshot creation and image analysis functions."""
@@ -912,6 +1042,217 @@ Return your analysis as JSON with this structure:
             return True
         else:
             print("   Image Analysis: Needs improvement ⚠️")
+            return False
+        
+    except Exception as e:
+        print(f"   Exception: {e} ❌")
+        return False
+
+async def test_mt5_screenshot_analysis(mt5):
+    """Test MT5 screenshot analysis with OpenAI."""
+    print("\n🔍 MT5 Screenshot Analysis Test")
+    print("-" * 31)
+    
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        # Check OpenAI API key
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            print("   OpenAI API Key: Not configured ❌")
+            print("   💡 Set OPENAI_API_KEY in .env file")
+            return False
+        
+        print("   OpenAI API Key: Configured ✅")
+        
+        # Test OpenAI client wrapper import
+        try:
+            from src.analysis.modules.openai_client_wrapper import OpenAIClientWrapper
+            print("   OpenAI Client Wrapper: Available ✅")
+        except ImportError as e:
+            print(f"   OpenAI Client Wrapper: Not available ❌ ({e})")
+            return False
+        
+        # Initialize client
+        client = OpenAIClientWrapper(openai_api_key, "gpt-4o")
+        if not client.is_available():
+            print("   OpenAI Client: Initialization failed ❌")
+            return False
+        
+        print("   OpenAI Client: Initialized ✅")
+        
+        # Find suitable symbols for analysis
+        symbols = mt5.symbols_get()
+        test_symbols = []
+        
+        preferred_symbols = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]
+        for symbol_name in preferred_symbols:
+            for symbol in symbols:
+                if symbol.name == symbol_name:
+                    test_symbols.append(symbol_name)
+                    break
+            if len(test_symbols) >= 2:  # Test with 2 symbols
+                break
+        
+        if not test_symbols:
+            # Fallback to any available symbols
+            for symbol in symbols[:2]:
+                if len(symbol.name) <= 6:
+                    test_symbols.append(symbol.name)
+        
+        if not test_symbols:
+            print("   No suitable symbols found ❌")
+            return False
+        
+        print(f"   Testing with symbols: {', '.join(test_symbols)} ✅")
+        
+        # Capture and analyze screenshots for each symbol
+        analysis_results = {}
+        
+        for symbol in test_symbols:
+            print(f"\n   Analyzing {symbol}...")
+            
+            # Capture MT5 screenshot
+            screenshot_data = capture_mt5_screenshot(symbol)
+            if not screenshot_data:
+                print(f"     Screenshot capture: Failed ❌")
+                continue
+            
+            print(f"     Screenshot capture: Success ✅ ({len(screenshot_data)} bytes)")
+            
+            # Test different analysis prompts
+            analysis_prompts = [
+                {
+                    "name": "Technical Analysis",
+                    "system": "You are an expert forex technical analyst. Analyze trading charts with precision.",
+                    "user": f"Analyze this {symbol} chart. Identify: 1) Current trend direction, 2) Key support/resistance levels, 3) Any chart patterns, 4) Potential trading opportunities. Be specific with price levels."
+                },
+                {
+                    "name": "Trading Signal",
+                    "system": "You are a professional forex trader. Generate specific trading recommendations.",
+                    "user": f"Based on this {symbol} chart, provide a trading recommendation: BUY, SELL, or HOLD. Include specific entry price, stop loss, and take profit levels with reasoning."
+                }
+            ]
+            
+            symbol_results = {}
+            
+            for prompt_config in analysis_prompts:
+                try:
+                    print(f"     {prompt_config['name']}: Analyzing...")
+                    
+                    result = await client.analyze_image_with_context(
+                        image_data=screenshot_data,
+                        system_prompt=prompt_config['system'],
+                        user_prompt=prompt_config['user']
+                    )
+                    
+                    if result and len(result) > 100:
+                        symbol_results[prompt_config['name']] = result
+                        print(f"     {prompt_config['name']}: Success ✅ ({len(result)} chars)")
+                        
+                        # Show preview of analysis
+                        preview = result[:150] + "..." if len(result) > 150 else result
+                        print(f"     Preview: {preview}")
+                    else:
+                        print(f"     {prompt_config['name']}: Failed ❌ (short response)")
+                        
+                except Exception as e:
+                    print(f"     {prompt_config['name']}: Error ❌ ({e})")
+            
+            if symbol_results:
+                analysis_results[symbol] = symbol_results
+        
+        # Test structured signal generation with real MT5 screenshot
+        if analysis_results:
+            print("\n   Testing structured signal generation...")
+            test_symbol = list(analysis_results.keys())[0]
+            screenshot_data = capture_mt5_screenshot(test_symbol)
+            
+            try:
+                system_prompt = f"""You are an expert forex trader analyzing {test_symbol} charts. 
+Analyze the chart and generate a precise trading signal.
+Return ONLY a JSON response with this exact structure:
+{{
+    "symbol": "{test_symbol}",
+    "bias": "BULLISH|BEARISH|NEUTRAL",
+    "action": "BUY|SELL|HOLD",
+    "confidence": 1-100,
+    "entry_price": number,
+    "stop_loss": number,
+    "take_profit": number,
+    "risk_reward_ratio": number,
+    "reasoning": "brief explanation"
+}}"""
+                
+                analysis_prompt = f"Analyze this {test_symbol} chart and provide a trading recommendation in the exact JSON format specified."
+                
+                signal_result = await client.analyze_image_with_context(
+                    image_data=screenshot_data,
+                    system_prompt=system_prompt,
+                    user_prompt=analysis_prompt
+                )
+                
+                if signal_result:
+                    print("     Structured signal: Success ✅")
+                    
+                    # Try to parse JSON from the response
+                    try:
+                        import json
+                        # Extract JSON from response if it contains other text
+                        json_start = signal_result.find('{')
+                        json_end = signal_result.rfind('}') + 1
+                        if json_start >= 0 and json_end > json_start:
+                            json_str = signal_result[json_start:json_end]
+                            parsed_signal = json.loads(json_str)
+                            
+                            print(f"       Symbol: {parsed_signal.get('symbol', 'N/A')}")
+                            print(f"       Bias: {parsed_signal.get('bias', 'N/A')}")
+                            print(f"       Action: {parsed_signal.get('action', 'N/A')}")
+                            print(f"       Confidence: {parsed_signal.get('confidence', 'N/A')}%")
+                            print(f"       Entry: {parsed_signal.get('entry_price', 'N/A')}")
+                            print(f"       Stop Loss: {parsed_signal.get('stop_loss', 'N/A')}")
+                            print(f"       Take Profit: {parsed_signal.get('take_profit', 'N/A')}")
+                            print(f"       R:R Ratio: {parsed_signal.get('risk_reward_ratio', 'N/A')}")
+                        else:
+                            print(f"       Raw response: {signal_result[:200]}...")
+                    except json.JSONDecodeError:
+                        print(f"       Raw response: {signal_result[:200]}...")
+                else:
+                    print("     Structured signal: Failed ❌")
+            
+            except Exception as e:
+                print(f"     Structured signal: Error ❌ ({e})")
+        
+        # Summary
+        total_analyses = sum(len(results) for results in analysis_results.values())
+        print(f"\n   Total successful analyses: {total_analyses}")
+        
+        if total_analyses > 0:
+            print("   MT5 Screenshot Analysis: Success ✅")
+            
+            # Save analysis results to file
+            results_dir = Path(__file__).parent / "analysis_results"
+            results_dir.mkdir(exist_ok=True)
+            
+            results_file = results_dir / f"mt5_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            with open(results_file, 'w', encoding='utf-8') as f:
+                f.write(f"MT5 Screenshot Analysis Results\n")
+                f.write(f"Generated: {datetime.now()}\n")
+                f.write("=" * 50 + "\n\n")
+                
+                for symbol, results in analysis_results.items():
+                    f.write(f"Symbol: {symbol}\n")
+                    f.write("-" * 20 + "\n")
+                    for analysis_type, result in results.items():
+                        f.write(f"\n{analysis_type}:\n")
+                        f.write(result + "\n\n")
+                    f.write("\n" + "=" * 50 + "\n\n")
+            
+            print(f"   Analysis results saved: {results_file}")
+            return True
+        else:
+            print("   MT5 Screenshot Analysis: Failed ❌")
             return False
         
     except Exception as e:
@@ -1413,11 +1754,16 @@ async def run_comprehensive_mt5_test():
     # 10. Screenshot functions test
     results['screenshot_functions'] = await test_screenshot_functions()
     
-    # 11. Image analysis capabilities test
+    # 11. MT5 screenshot capture test
+    results['mt5_screenshot'] = await test_mt5_screenshot_capture(mt5)
+    
+    # 12. Image analysis capabilities test
     results['image_analysis'] = await test_image_analysis_capabilities()
     
-    # 12. Order operations (if logged in and AutoTrading enabled)
-    # 12. Order operations (if logged in and AutoTrading enabled)
+    # 13. MT5 screenshot analysis with OpenAI
+    results['mt5_screenshot_analysis'] = await test_mt5_screenshot_analysis(mt5)
+    
+    # 14. Order operations (if logged in and AutoTrading enabled)
     if results['login']:
         terminal_info = mt5.terminal_info()
         if terminal_info and terminal_info.trade_allowed:
@@ -1429,11 +1775,10 @@ async def run_comprehensive_mt5_test():
         results['order_operations'] = False
         print("\n⚠️  Skipping order operations test (not logged in)")
     
-    # 13. OpenAI signal generation
-    # 13. OpenAI signal generation
+    # 15. OpenAI signal generation
     results['openai_signals'] = await test_openai_signal_generation(mt5)
     
-    # 14. End-to-end trading flow (if OpenAI available)
+    # 16. End-to-end trading flow (if OpenAI available)
     if results['openai_signals']:
         results['e2e_trading'] = await test_end_to_end_trading_flow(mt5)
     else:

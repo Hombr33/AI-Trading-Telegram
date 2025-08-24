@@ -38,6 +38,12 @@ openai>=1.0.0
 # Crypto Exchange Library
 ccxt>=4.4.0
 
+# Screenshot and image processing dependencies
+pyautogui>=0.9.54
+pygetwindow>=0.0.9
+Pillow>=10.0.0
+numpy>=1.24.0
+
 # Windows-only MT5 dependencies (optional)
 # Install only on Windows or if you need MT5 functionality:
 # MetaTrader5; sys_platform == "win32"

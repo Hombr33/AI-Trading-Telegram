@@ -4,7 +4,12 @@
 import asyncio
 import signal
 import sys
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -18,8 +23,8 @@ async def main():
     # Create server config
     config = uvicorn.Config(
         app,
-        host="127.0.0.1",
-        port=8081,
+        host=str(os.getenv("API_HOST")),
+        port=int(os.getenv("API_PORT")),
         log_level="info",
         access_log=False,
         reload=False
