@@ -97,9 +97,12 @@ class OpenAIConfig(BaseSettings):
     """OpenAI configuration."""
 
     api_key: str = Field(default="your_openai_api_key_here")
-    model: str = Field(default="gpt-4")
+    model: str = Field(default="gpt-4o-mini")  # Updated to latest model with web search
     max_tokens: int = Field(default=2000)
     temperature: float = Field(default=0.1)
+    tools_enabled: bool = Field(default=True)  # Enable tool usage
+    web_search_enabled: bool = Field(default=True)  # Enable web search
+    realtime_data_enabled: bool = Field(default=True)  # Enable real-time data
 
     class Config:
         env_prefix = "OPENAI_"

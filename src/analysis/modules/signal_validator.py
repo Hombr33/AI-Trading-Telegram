@@ -182,80 +182,131 @@ class SignalValidator:
         if len(setup.entry_zone) != 2:
             errors.append(f"{prefix}Entry zone must have exactly 2 values [low, high]")
         elif setup.entry_zone[0] >= setup.entry_zone[1]:
-            errors.append(f"{prefix}Entry zone low ({setup.entry_zone[0]}) must be less than high ({setup.entry_zone[1]})")
+            errors.append(f"{prefix}Entry zone low must be less than high")
         else:
-            # Check entry zone spread with symbol-specific limits
-            symbol = getattr(self, '_current_symbol', 'UNKNOWN')
-            is_exotic = any(exotic in symbol for exotic in ['RUB', 'TRY', 'ZAR', 'MXN', 'BRL'])
-            
+            # Validate entry zone spread based on symbol type
+            entry_spread = self._calculate_entry_spread(setup.entry_zone)
+            if entry_spread is not None:
+                errors.append(entry_spread)
+        
+        # Validate stop loss
+        if setup.sl <= 0:
+            errors.append(f"{prefix}Stop loss must be positive")
+        else:
+            # Validate SL distance based on symbol type
+            sl_distance_error = self._validate_sl_distance(setup)
+            if sl_distance_error:
+                errors.append(sl_distance_error)
+        
+        # Validate take profit
+        if not setup.tp or len(setup.tp) < 1:
+            errors.append(f"{prefix}Take profit must have at least one level")
+        else:
+            for tp_level in setup.tp:
+                if tp_level <= 0:
+                    errors.append(f"{prefix}Take profit level must be positive")
+        
+        # Validate risk-reward ratio
+        rr_ratio = self._calculate_risk_reward_ratio(setup)
+        if rr_ratio and rr_ratio < self.validation_rules['min_rr_ratio']:
+            errors.append(f"{prefix}Risk-reward ratio {rr_ratio:.2f} below minimum {self.validation_rules['min_rr_ratio']}")
+        
+        return errors
+    
+    def _calculate_entry_spread(self, entry_zone: List[float]) -> Optional[str]:
+        """Calculate and validate entry zone spread based on symbol type."""
+        if not entry_zone or len(entry_zone) != 2:
+            return None
+        
+        spread = abs(entry_zone[1] - entry_zone[0])
+        
+        # Check if this is a crypto symbol
+        if self._is_crypto_symbol():
+            # For crypto, use points (1 point = $1 for BTCUSDT)
+            max_spread_points = 1000  # $1000 max spread for crypto
+            if spread > max_spread_points:
+                return f"Entry zone spread {spread:.1f} points exceeds maximum {max_spread_points} points for crypto"
+        else:
+            # For forex, use pips
+            is_exotic = self._is_exotic_forex()
             if is_exotic:
-                # For exotic pairs, use different pip calculation and limits
-                entry_spread_pips = abs(setup.entry_zone[1] - setup.entry_zone[0]) * 1000  # 3-decimal for exotics
+                entry_spread_pips = spread * 1000  # 3-decimal for exotics
                 max_spread = self.validation_rules['max_entry_zone_spread_pips_exotic']
             else:
-                # For major pairs, use standard calculation
-                entry_spread_pips = abs(setup.entry_zone[1] - setup.entry_zone[0]) * 10000  # 4-decimal for majors
+                entry_spread_pips = spread * 10000  # 4-decimal for majors
                 max_spread = self.validation_rules['max_entry_zone_spread_pips']
             
             if entry_spread_pips > max_spread:
-                errors.append(f"{prefix}Entry zone spread {entry_spread_pips:.1f} pips exceeds maximum {max_spread} pips for {'exotic' if is_exotic else 'major'} pair")
+                return f"Entry zone spread {entry_spread_pips:.1f} pips exceeds maximum {max_spread} pips for {'exotic' if is_exotic else 'major'} pair"
         
-        # Validate stop loss with symbol-specific limits
-        if len(setup.entry_zone) == 2:
-            entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
-            symbol = getattr(self, '_current_symbol', 'UNKNOWN')
-            is_exotic = any(exotic in symbol for exotic in ['RUB', 'TRY', 'ZAR', 'MXN', 'BRL'])
+        return None
+    
+    def _validate_sl_distance(self, setup: TradingSetup) -> Optional[str]:
+        """Validate stop loss distance based on symbol type."""
+        if not setup.entry_zone or len(setup.entry_zone) != 2:
+            return None
+        
+        entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
+        sl_distance = abs(setup.sl - entry_mid)
+        
+        # Check if this is a crypto symbol
+        if self._is_crypto_symbol():
+            # For crypto, use points (1 point = $1 for BTCUSDT)
+            min_sl_points = 100   # $100 min SL distance for crypto
+            max_sl_points = 5000  # $5000 max SL distance for crypto
             
+            if sl_distance < min_sl_points:
+                return f"SL distance {sl_distance:.1f} points below minimum {min_sl_points} points for crypto"
+            elif sl_distance > max_sl_points:
+                return f"SL distance {sl_distance:.1f} points exceeds maximum {max_sl_points} points for crypto"
+        else:
+            # For forex, use pips
+            is_exotic = self._is_exotic_forex()
             if is_exotic:
-                sl_distance_pips = abs(setup.sl - entry_mid) * 1000  # 3-decimal for exotics
+                sl_distance_pips = sl_distance * 1000  # 3-decimal for exotics
                 max_sl_distance = self.validation_rules['max_sl_distance_pips_exotic']
             else:
-                sl_distance_pips = abs(setup.sl - entry_mid) * 10000  # 4-decimal for majors
+                sl_distance_pips = sl_distance * 10000  # 4-decimal for majors
                 max_sl_distance = self.validation_rules['max_sl_distance_pips']
             
             if sl_distance_pips < self.validation_rules['min_sl_distance_pips']:
-                errors.append(f"{prefix}SL distance {sl_distance_pips:.1f} pips below minimum {self.validation_rules['min_sl_distance_pips']} pips")
+                return f"SL distance {sl_distance_pips:.1f} pips below minimum {self.validation_rules['min_sl_distance_pips']} pips"
             elif sl_distance_pips > max_sl_distance:
-                errors.append(f"{prefix}SL distance {sl_distance_pips:.1f} pips exceeds maximum {max_sl_distance} pips for {'exotic' if is_exotic else 'major'} pair")
-            
-            # Validate SL direction
-            if setup.type == "BUY" and setup.sl >= entry_mid:
-                errors.append(f"{prefix}BUY setup SL ({setup.sl}) must be below entry zone ({entry_mid})")
-            elif setup.type == "SELL" and setup.sl <= entry_mid:
-                errors.append(f"{prefix}SELL setup SL ({setup.sl}) must be above entry zone ({entry_mid})")
+                return f"SL distance {sl_distance_pips:.1f} pips exceeds maximum {max_sl_distance} pips for {'exotic' if is_exotic else 'major'} pair"
         
-        # Validate take profits
-        if not setup.tp:
-            errors.append(f"{prefix}At least one take profit level required")
-        else:
-            # Validate TP direction and order
-            entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2 if len(setup.entry_zone) == 2 else setup.entry_zone[0]
-            
-            for j, tp in enumerate(setup.tp):
-                if setup.type == "BUY" and tp <= entry_mid:
-                    errors.append(f"{prefix}BUY setup TP{j+1} ({tp}) must be above entry zone ({entry_mid})")
-                elif setup.type == "SELL" and tp >= entry_mid:
-                    errors.append(f"{prefix}SELL setup TP{j+1} ({tp}) must be below entry zone ({entry_mid})")
-            
-            # Check TP order (TP1 should be closer to entry than TP2)
-            if len(setup.tp) >= 2:
-                tp1_distance = abs(setup.tp[0] - entry_mid)
-                tp2_distance = abs(setup.tp[1] - entry_mid)
-                if tp2_distance <= tp1_distance:
-                    errors.append(f"{prefix}TP2 should be further from entry than TP1")
+        return None
+    
+    def _is_crypto_symbol(self) -> bool:
+        """Check if the current symbol is a cryptocurrency."""
+        if not hasattr(self, '_current_symbol'):
+            return False
         
-        # Validate risk-reward ratio
-        if len(setup.entry_zone) == 2 and setup.tp:
-            entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
-            sl_distance = abs(setup.sl - entry_mid)
-            tp1_distance = abs(setup.tp[0] - entry_mid)
-            
-            if sl_distance > 0:
-                rr_ratio = tp1_distance / sl_distance
-                if rr_ratio < self.validation_rules['min_rr_ratio']:
-                    errors.append(f"{prefix}Risk-reward ratio {rr_ratio:.2f} below minimum {self.validation_rules['min_rr_ratio']}")
+        crypto_indicators = ['BTC', 'ETH', 'ADA', 'DOT', 'LINK', 'LTC', 'BCH', 'XRP', 'USDT', 'USDC']
+        return any(indicator in self._current_symbol for indicator in crypto_indicators)
+    
+    def _is_exotic_forex(self) -> bool:
+        """Check if the current symbol is an exotic forex pair."""
+        if not hasattr(self, '_current_symbol'):
+            return False
         
-        return errors
+        # Exotic pairs typically involve emerging market currencies
+        exotic_indicators = ['TRY', 'ZAR', 'MXN', 'BRL', 'RUB', 'INR', 'CNY']
+        return any(indicator in self._current_symbol for indicator in exotic_indicators)
+    
+    def _calculate_risk_reward_ratio(self, setup: TradingSetup) -> Optional[float]:
+        """Calculate and validate risk-reward ratio."""
+        if not setup.entry_zone or len(setup.entry_zone) != 2 or not setup.tp or len(setup.tp) < 1:
+            return None
+        
+        entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
+        sl_distance = abs(setup.sl - entry_mid)
+        tp1_distance = abs(setup.tp[0] - entry_mid)
+        
+        if sl_distance > 0:
+            rr_ratio = tp1_distance / sl_distance
+            return rr_ratio
+        
+        return None
     
     def _validate_signal_consistency(self, signal: TradingSignal) -> List[str]:
         """Validate signal consistency across setups.

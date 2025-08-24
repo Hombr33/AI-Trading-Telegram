@@ -215,8 +215,26 @@ class PromptManager:
         return "\n".join(sections)
     
     def get_system_prompt(self) -> str:
-        """Get the complete system prompt."""
+        """Get the system prompt for OpenAI analysis.
+        
+        Returns:
+            System prompt string
+        """
         return self.system_prompt
+    
+    def get_signal_schema(self) -> Dict[str, Any]:
+        """Get the signal schema from the configuration.
+        
+        Returns:
+            Signal schema dictionary
+        """
+        try:
+            outputs = self.prompt_config.get('outputs_contract', {})
+            signal_schema = outputs.get('signal_schema', {})
+            return signal_schema
+        except Exception as e:
+            logger.error(f"Error getting signal schema: {e}")
+            return {}
     
     def create_analysis_prompt(self, market_context: Dict[str, Any], 
                              realtime_data: Optional[str] = None) -> str:
@@ -232,14 +250,15 @@ class PromptManager:
         prompt_parts = []
         
         # Get symbol from market context
-        symbol = market_context.get('symbol', 'UNKNOWN')
-        signal_id = market_context.get('signal_id', f"{symbol.lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}")
+        symbols = market_context.get('symbols', ['UNKNOWN'])
+        symbol = symbols[0] if symbols else 'UNKNOWN'
+        signal_id = f"{symbol.lower()}-{datetime.now().strftime('%Y-%m-%d-%H%M')}"
         
         # CRITICAL: JSON Schema Requirements
         prompt_parts.append("🚨 CRITICAL: Generate a complete trading signal with ALL required fields.")
         prompt_parts.append("You MUST include every field below. Missing fields cause validation failure.")
         prompt_parts.append("")
-        prompt_parts.append("Required JSON Structure:")
+        prompt_parts.append("Required JSON Structure (EXACT FORMAT REQUIRED):")
         prompt_parts.append(f"""{{
     "id": "{signal_id}",
     "symbol": "{symbol}",
@@ -259,6 +278,7 @@ class PromptManager:
         }}
     ]
 }}""")
+        
         # Real-time data if available
         if realtime_data:
             prompt_parts.append("\nReal-time Market Data:")
@@ -266,14 +286,42 @@ class PromptManager:
         
         # Analysis instructions
         prompt_parts.append("\nAnalysis Instructions:")
-        prompt_parts.append("1. Analyze the chart screenshot using the trading methodology")
+        prompt_parts.append("1. Use the real-time market data provided above")
         prompt_parts.append("2. Follow the multi-timeframe approach (H4 → H1 → M15 → M5 → M1)")
         prompt_parts.append("3. Identify all required confluences before providing signals")
-        prompt_parts.append("4. Generate signals in the exact JSON format specified above")
+        prompt_parts.append("4. Generate signals in the EXACT JSON format specified above")
         prompt_parts.append("5. Include confidence scores and risk management parameters")
-        prompt_parts.append("6. Return ONLY the JSON object - no additional text or markdown")
+        prompt_parts.append("6. Return ONLY the JSON object - no additional text, no markdown, no explanations")
         prompt_parts.append("7. Ensure all validation requirements are met before generating signal")
         prompt_parts.append("8. If no valid setup exists, return NEUTRAL bias with confidence 0")
+        prompt_parts.append("9. Use realistic price levels based on the current market data")
+        
+        # Price level requirements
+        prompt_parts.append("\n💰 PRICE LEVEL REQUIREMENTS:")
+        prompt_parts.append("- Use realistic price levels based on current market data")
+        prompt_parts.append("- For BTCUSDT: Use prices around current market price")
+        prompt_parts.append("- Entry zones should be small (e.g., 100-500 points for crypto)")
+        prompt_parts.append("- Stop loss should be reasonable (e.g., 200-1000 points)")
+        prompt_parts.append("- Take profit should be achievable (e.g., 300-1500 points)")
+        prompt_parts.append("- All prices must be realistic and tradeable")
+        
+        # Risk-reward requirements
+        prompt_parts.append("\n⚖️ RISK-REWARD REQUIREMENTS:")
+        prompt_parts.append("- Minimum risk-reward ratio: 1.5:1")
+        prompt_parts.append("- Target risk-reward ratio: 2.0:1 or higher")
+        prompt_parts.append("- Calculate: (TP1 distance from entry) / (SL distance from entry)")
+        prompt_parts.append("- Example: If SL is 500 points away, TP1 should be at least 750 points away")
+        prompt_parts.append("- Ensure TP1 provides at least 1.5x the risk")
+        
+        # JSON formatting requirements
+        prompt_parts.append("\n🚨 JSON FORMATTING REQUIREMENTS:")
+        prompt_parts.append("- NO markdown formatting")
+        prompt_parts.append("- NO code blocks")
+        prompt_parts.append("- NO additional text before or after")
+        prompt_parts.append("- ONLY the raw JSON object")
+        prompt_parts.append("- Ensure all quotes are properly escaped")
+        prompt_parts.append("- Use proper JSON syntax with no trailing commas")
+        prompt_parts.append("- Use realistic decimal places (e.g., 114000.50, not 114000.00)")
         
         # Current timestamp for context
         prompt_parts.append(f"\nCurrent Time: {datetime.now().isoformat()}")
