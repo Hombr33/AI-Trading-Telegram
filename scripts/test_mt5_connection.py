@@ -31,20 +31,48 @@ def test_mt5_connection():
             print("Install with: pip install MetaTrader5")
             return False
         
+        # Get MT5 path from environment
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        mt5_path = os.getenv('MT5_PATH', r"C:/Program Files/MetaTrader 5 EXNES - BotX 15/terminal64.exe")
+        print(f"\nUsing MT5 path: {mt5_path}")
+        print("Checking if MT5 executable exists...")
+        
+        if not os.path.exists(mt5_path):
+            print(f"❌ MT5 executable not found at: {mt5_path}")
+            print("Please verify the MT5_PATH in your .env file")
+            return False
+
+        
+
+        # Try to shutdown previous MT5 instance
+        print("Shutting down previous MT5...")
+        if not mt5.shutdown():
+            print("❌ Failed to shutdown previous MT5 instance")
+            return False
+
         # Initialize MT5
-        print("Initializing MT5...")
-        if not mt5.initialize():
+        print("\nInitializing MT5...")
+        if not mt5.initialize(path=mt5_path):
             error_code = mt5.last_error()
             print(f"❌ MT5 initialization failed: {error_code}")
             
             # Provide specific error explanations
             error_messages = {
                 -10004: "MT5 terminal not found. Please install MetaTrader 5.",
-                -10005: "IPC timeout. MT5 terminal may not be running or is busy.",
-                -10006: "IPC error. Check if MT5 terminal is accessible.",
-                -10007: "Timeout waiting for MT5 terminal response.",
-                -10008: "MT5 terminal is not responding.",
+                -10005: "IPC timeout. MT5 terminal may not be running or is busy. Make sure MT5 is running and AutoTrading is enabled.",
+                -10006: "IPC error. Check if MT5 terminal is accessible and not blocked by antivirus.",
+                -10007: "Timeout waiting for MT5 terminal response. Check if MT5 is responsive.",
+                -10008: "MT5 terminal is not responding. Try restarting MT5.",
             }
+            
+            print("\nTroubleshooting steps:")
+            print("1. Make sure MetaTrader 5 is running")
+            print("2. Enable AutoTrading in MT5 (button should be green)")
+            print("3. Check if antivirus/firewall is blocking the connection")
+            print("4. Try restarting MetaTrader 5")
+            print("5. Make sure you're using the correct MT5 installation path")
             
             if error_code[0] in error_messages:
                 print(f"Explanation: {error_messages[error_code[0]]}")
@@ -65,12 +93,26 @@ def test_mt5_connection():
         terminal_info = mt5.terminal_info()
         if terminal_info:
             print(f"✅ Terminal info retrieved:")
-            print(f"   Version: {terminal_info.version}")
             print(f"   Build: {terminal_info.build}")
             print(f"   Path: {terminal_info.path}")
             print(f"   Data path: {terminal_info.data_path}")
             print(f"   Experts enabled: {terminal_info.dlls_allowed}")
             print(f"   Trade allowed: {terminal_info.trade_allowed}")
+            print(f"   Connected: {terminal_info.connected}")
+            
+        # Login to demo account
+        mt5_login = int(os.getenv('MT5_LOGIN', '274056656'))
+        mt5_password = os.getenv('MT5_PASSWORD', 'Raimucok123@')
+        mt5_server = os.getenv('MT5_SERVER', 'Exness-MT5Trial6')
+        
+        print(f"\nAttempting to login to demo account...")
+        print(f"Server: {mt5_server}")
+        if not mt5.login(login=mt5_login, password=mt5_password, server=mt5_server):
+            error = mt5.last_error()
+            print(f"❌ Login failed: {error}")
+            return False
+            
+        print("✅ Successfully logged in to demo account")
         
         # Check account info (if logged in)
         account_info = mt5.account_info()
@@ -126,7 +168,7 @@ def test_config():
 
 if __name__ == "__main__":
     success = test_mt5_connection()
-    test_config()
+    # test_config()
     
     if success:
         print("\n🎉 MT5 connection test passed!")
