@@ -27,14 +27,26 @@ bridge:
 
 # MetaTrader5 Configuration
 metatrader5:
-  path: "C:\\Program Files\\MetaTrader 5 IC Markets Global\\terminal64.exe"
-  server: "ICMarkets-Live01"  # Change this to your actual server
-  login: 12345678  # Replace with your actual login
-  password: "your-password"  # Replace with your actual password
+  enabled: true
+  path: "${MT5_PATH}"
+  server: "${MT5_SERVER}"
+  login: "${MT5_LOGIN}"
+  password: "${MT5_PASSWORD}"
   timeout: 60000
   retry_delay: 5
   max_retries: 3
-  broker_name: "Exness"  # Add your broker name here for symbol mapping
+  broker_name: "Exness"
+  symbols:
+    - "EURUSD"
+    - "GBPUSD"
+    - "USDJPY"
+    - "AUDUSD"
+  default_volume: 0.01
+  deviation: 20
+  connection:
+    max_attempts: 5
+    retry_interval: 10
+    heartbeat_interval: 30
 
 # Trading Configuration
 trading:

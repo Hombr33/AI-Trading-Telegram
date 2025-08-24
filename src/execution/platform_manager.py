@@ -42,7 +42,9 @@ EXECUTOR_REGISTRY = {
         "module": "src.execution.platforms.forex.mt5_executor",
         "class": "MT5Executor",
         "platform_type": PlatformType.MT5,
-        "os_constraint": "win32"  # Only available on Windows
+        "os_constraint": "win32",  # Only available on Windows
+        "default": True,  # Set as default platform
+        "enabled": True  # Explicitly enable MT5
     },
     "aiomql": {
         "module": "src.execution.platforms.forex.aiomql_executor",
