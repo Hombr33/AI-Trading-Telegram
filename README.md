@@ -190,7 +190,7 @@ pip install -r requirements.txt
 Create a `.env` file:
 ```bash
 # Telegram Configuration
-TELEGRAM_BOT_TOKEN=7773625662:AAHx-Nk8OkoBbU7a4mMP6CQ6fQxplgBpz3E
+TELEGRAM_BOT_TOKEN=your_bot_token_here
 TELEGRAM_CHAT_ID=your_chat_id_here
 
 # MT5 Configuration
