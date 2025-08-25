@@ -33,6 +33,10 @@ class CallbackRouter:
         self.system_callbacks = SystemCallbackHandler(system_handler)
         self.trading_callbacks = TradingCallbackHandler(trading_handler)
         
+        # Initialize admin callback handler
+        from .admin_commands import AdminCommandHandlers
+        self.admin_callbacks = AdminCommandHandlers()
+        
         # Define callback routing
         self.system_callback_keys = {
             "start", "help", "status", "settings", "about", 
@@ -45,12 +49,22 @@ class CallbackRouter:
             "monitor", "system_monitor", "health_monitor"
         }
         
+        # Admin callback keys
+        self.admin_callback_keys = {
+            "users", "add_admin", "remove_admin", "set_subscription",
+            "server_config", "restart", "logs", "close_all",
+            "logs_system", "logs_trading", "logs_error", "logs_refresh",
+            "server_config_edit", "server_config_add", "server_config_refresh",
+            "confirm_restart", "cancel_restart", "confirm_close_all", "cancel_close_all"
+        }
+        
         self.trading_callback_keys = {
             "positions", "refresh_positions", "position_details", "quick_close",
             "orders", "refresh_orders", "account", "refresh_account", 
             "account_history", "export_history", "symbols", "refresh_symbols",
             "signals", "refresh_signals", "live_dashboard", "webapp",
-            "webapp_open", "webapp_mobile", "webapp_desktop"
+            "webapp_open", "webapp_mobile", "webapp_desktop", "add_symbol", 
+            "delete_symbol"
         }
     
     async def route_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -66,6 +80,8 @@ class CallbackRouter:
                 await self.system_callbacks.handle_callback(update, context)
             elif callback_data in self.trading_callback_keys:
                 await self.trading_callbacks.handle_callback(update, context)
+            elif callback_data in self.admin_callback_keys:
+                await self.admin_callbacks.handle_admin_callback(update, context)
             else:
                 logger.warning(f"Unknown callback data: {callback_data}")
                 await query.answer("Unknown callback")
@@ -79,7 +95,14 @@ class CallbackRouter:
         except Exception as e:
             logger.error(f"Error routing callback {callback_data}: {e}")
             await query.answer("Error processing request")
-            raise
+            try:
+                await query.edit_message_text(
+                    f"❌ Error Processing Request\n\n"
+                    f"Something went wrong. Please try again or use /help.",
+                    parse_mode=None  # Remove markdown to avoid parsing errors
+                )
+            except:
+                pass
 
 
 # Global callback router instance
@@ -95,8 +118,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         data = query.data
         logger.info(f"Callback query received: {data}")
         
+        # Create fresh router instance to ensure latest configuration
+        router = CallbackRouter()
+        
         # Route callback to appropriate handler
-        await callback_router.route_callback(update, context)
+        await router.route_callback(update, context)
             
     except Exception as e:
         logger.error(f"Error handling callback query: {e}")

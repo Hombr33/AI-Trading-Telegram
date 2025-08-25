@@ -69,50 +69,84 @@ class LiveDashboard:
     
     async def _update_dashboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Update dashboard with live data."""
-        from ..utils.mock_data import get_positions, get_account_info, get_system_status
-        
-        # Get live data
-        positions = get_positions()
-        account = get_account_info()
-        status = get_system_status()
-        
-        total_profit = sum(pos["profit"] for pos in positions) if positions else 0
-        profit_emoji = "🟢" if total_profit > 0 else "🔴" if total_profit < 0 else "⚪"
-        
-        # Create animated dashboard
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        
-        message = (
-            f"⚡ **LIVE TRADING DASHBOARD** ⚡\n\n"
-            f"💰 **Account**: ${account.get('balance', 0):.2f}\n"
-            f"{profit_emoji} **P&L**: ${total_profit:.2f}\n"
-            f"📊 **Positions**: {len(positions)}\n"
-            f"🔄 **Status**: {status.get('status', 'Unknown')}\n\n"
-            f"📈 **Market Pulse**: {'🟢 Bullish' if total_profit > 0 else '🔴 Bearish' if total_profit < 0 else '🟡 Neutral'}\n"
-            f"⚠️ **Risk Level**: {'🟢 Low' if len(positions) < 3 else '🟡 Medium' if len(positions) < 5 else '🔴 High'}\n\n"
-            f"🕐 **Live Update**: {timestamp}\n"
-            f"🔄 *Auto-refreshing...*"
-        )
-        
-        keyboard = create_keyboard([
-            [("⏸️ Pause", "pause_dashboard"), ("🔄 Force Refresh", "refresh_dashboard")],
-            [("📊 Positions", "positions"), ("💰 Account", "account")],
-            [("🎯 Signals", "signals"), ("⚠️ Risk", "risk")],
-            [("❌ Close Dashboard", "close_dashboard")]
-        ])
-        
         try:
-            await context.bot.edit_message_text(
-                chat_id=update.effective_chat.id,
-                message_id=update.callback_query.message.message_id,
-                text=message,
-                reply_markup=keyboard,
-                parse_mode="Markdown"
+            # Import services for real data
+            from ..services.trading_data_service import TradingDataService
+            from ..services.system_data_service import SystemDataService
+            
+            # Initialize services
+            trading_service = TradingDataService()
+            system_service = SystemDataService()
+            
+            # Get live data
+            positions = await trading_service.get_positions()
+            account = await trading_service.get_account_info()
+            status = await system_service.get_system_status()
+            
+            total_profit = sum(pos.get("profit", 0) for pos in positions) if positions else 0
+            profit_emoji = "🟢" if total_profit > 0 else "🔴" if total_profit < 0 else "⚪"
+            
+            # Create animated dashboard
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            
+            message = (
+                f"⚡ **LIVE TRADING DASHBOARD** ⚡\n\n"
+                f"💰 **Account**: ${account.get('balance', 0):.2f}\n"
+                f"{profit_emoji} **P&L**: ${total_profit:.2f}\n"
+                f"📊 **Positions**: {len(positions)}\n"
+                f"🔄 **Status**: {status.get('status', 'Unknown')}\n\n"
+                f"📈 **Market Pulse**: {'🟢 Bullish' if total_profit > 0 else '🔴 Bearish' if total_profit < 0 else '🟡 Neutral'}\n"
+                f"⚠️ **Risk Level**: {'🟢 Low' if len(positions) < 3 else '🟡 Medium' if len(positions) < 5 else '🔴 High'}\n\n"
+                f"🕐 **Live Update**: {timestamp}\n"
+                f"🔄 *Auto-refreshing...*"
             )
+            
+            keyboard = create_keyboard([
+                [("⏸️ Pause", "pause_dashboard"), ("🔄 Force Refresh", "refresh_dashboard")],
+                [("📊 Positions", "positions"), ("💰 Account", "account")],
+                [("🎯 Signals", "signals"), ("⚠️ Risk", "risk")],
+                [("❌ Close Dashboard", "close_dashboard")]
+            ])
+            
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.effective_chat.id,
+                    message_id=update.callback_query.message.message_id,
+                    text=message,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.debug(f"Error updating dashboard: {e}")
+                # Stop if message was deleted or other error
+                self.running = False
+                
         except Exception as e:
-            logger.debug(f"Error updating dashboard: {e}")
-            # Stop if message was deleted or other error
-            self.running = False
+            logger.error(f"Error updating dashboard with real data: {e}")
+            # Fallback to basic dashboard
+            message = (
+                f"⚡ **LIVE TRADING DASHBOARD** ⚡\n\n"
+                f"❌ **Data Loading Error**\n\n"
+                f"Please try refreshing or check system status.\n\n"
+                f"🕐 **Last Update**: {datetime.now().strftime('%H:%M:%S')}"
+            )
+            
+            keyboard = create_keyboard([
+                [("🔄 Refresh", "refresh_dashboard"), ("📊 Status", "status")],
+                [("🏠 Menu", "start")]
+            ])
+            
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.effective_chat.id,
+                    message_id=update.callback_query.message.message_id,
+                    text=message,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+            except Exception as edit_error:
+                logger.debug(f"Error updating dashboard fallback: {edit_error}")
+                self.running = False
 
 
 def create_market_heatmap_keyboard(markets: List[Dict[str, Any]]) -> str:

@@ -260,8 +260,30 @@ class SignalGenerationService(ISignalGenerationService):
                     )
                     signal = self._parse_analysis_to_signal(symbol, analysis, {"current_price": 0})
                     
-                    # If we got a valid signal, return it
-                    if signal and await self.validate_signal(signal):
+                    # Check if signal was created successfully
+                    if signal:
+                        # If this is a fallback response with validation errors, the _parse_analysis_to_signal method
+                        # should have already extracted the validation issues and marked the signal appropriately
+                        if signal.get("validation_failed") and signal.get("manual_entry_suggested"):
+                            # Signal already has validation issues from fallback response, return it as-is
+                            logger.info(f"Returning signal with validation issues from fallback response for {symbol}")
+                            return signal
+                        
+                        # Only run our own validation if the signal doesn't already have validation results
+                        validation_result = await self.validate_signal(signal)
+                        
+                        # Apply action override if suggested (for manual entry)
+                        if validation_result.get("action_override"):
+                            signal["action"] = validation_result["action_override"].lower()
+                            signal["validation_issues"] = validation_result.get("issues", [])
+                            signal["manual_entry_suggested"] = True
+                            return signal
+                        
+                        # Return signal even if validation failed (let user decide)
+                        if not validation_result.get("is_valid"):
+                            signal["validation_issues"] = validation_result.get("issues", [])
+                            signal["validation_failed"] = True
+                        
                         return signal
                         
                 except Exception as e:
@@ -276,32 +298,38 @@ class SignalGenerationService(ISignalGenerationService):
             logger.error(f"Error analyzing {symbol}: {e}")
             return None
             
-    async def validate_signal(self, signal: Dict[str, Any]) -> bool:
-        """Validate a trading signal.
+    async def validate_signal(self, signal: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate a trading signal and return validation result.
         
         Args:
             signal: The trading signal to validate
             
         Returns:
-            True if the signal is valid, False otherwise
+            Dict with validation status and any issues found
         """
+        validation_result = {
+            "is_valid": True,
+            "issues": [],
+            "action_override": None
+        }
+        
         try:
             # Check required fields
             required_fields = ["symbol", "action", "entry_price", "stop_loss", "take_profit"]
             for field in required_fields:
                 if field not in signal:
-                    logger.warning(f"Signal missing required field: {field}")
-                    return False
+                    validation_result["issues"].append(f"Missing required field: {field}")
+                    validation_result["is_valid"] = False
             
             # Validate action
             valid_actions = ["buy", "sell", "hold"]
             if signal["action"].lower() not in valid_actions:
-                logger.warning(f"Invalid action: {signal['action']}")
-                return False
+                validation_result["issues"].append(f"Invalid action: {signal['action']}")
+                validation_result["is_valid"] = False
                 
             # Skip further validation for hold signals
             if signal["action"].lower() == "hold":
-                return True
+                return validation_result
                 
             # Validate prices
             try:
@@ -311,27 +339,47 @@ class SignalGenerationService(ISignalGenerationService):
                 
                 # Ensure prices are positive
                 if entry_price <= 0 or stop_loss <= 0 or take_profit <= 0:
-                    logger.warning("Prices must be positive")
-                    return False
+                    validation_result["issues"].append("Prices must be positive")
+                    validation_result["is_valid"] = False
                     
                 # Validate price relationships
                 if signal["action"].lower() == "buy":
                     if stop_loss >= entry_price or take_profit <= entry_price:
-                        logger.warning("Invalid price relationships for buy signal")
-                        return False
+                        validation_result["issues"].append("Invalid price relationships for buy signal")
+                        validation_result["is_valid"] = False
                 elif signal["action"].lower() == "sell":
                     if stop_loss <= entry_price or take_profit >= entry_price:
-                        logger.warning("Invalid price relationships for sell signal")
-                        return False
-            except (ValueError, TypeError):
-                logger.warning("Invalid price values")
-                return False
+                        validation_result["issues"].append("Invalid price relationships for sell signal")
+                        validation_result["is_valid"] = False
                 
-            return True
+                # Check risk-reward ratio
+                if signal["action"].lower() == "buy":
+                    sl_distance = abs(entry_price - stop_loss)
+                    tp_distance = abs(take_profit - entry_price)
+                elif signal["action"].lower() == "sell":
+                    sl_distance = abs(stop_loss - entry_price)
+                    tp_distance = abs(entry_price - take_profit)
+                else:
+                    # For hold signals or invalid actions, skip RR calculation
+                    sl_distance = 0
+                    tp_distance = 0
+                
+                if sl_distance > 0:
+                    rr_ratio = tp_distance / sl_distance
+                    if rr_ratio < 1.5:
+                        validation_result["issues"].append(f"Risk-reward ratio {rr_ratio:.2f} below minimum 1.5")
+                        # Don't mark as invalid, but suggest manual entry
+                        validation_result["action_override"] = f"{signal['action'].upper()} (Manual)"
+                        
+            except (ValueError, TypeError):
+                validation_result["issues"].append("Invalid price values")
+                validation_result["is_valid"] = False
+                
+            return validation_result
             
         except Exception as e:
             logger.error(f"Error validating signal: {e}")
-            return False
+            return {"is_valid": False, "issues": [f"Validation error: {e}"], "action_override": None}
     
     async def _get_market_data(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get real-time market data for analysis."""
@@ -514,20 +562,127 @@ class SignalGenerationService(ISignalGenerationService):
             import json
             import re
             
+            logger.debug(f"Parsing analysis for {symbol}: type={type(analysis)}, keys={list(analysis.keys()) if isinstance(analysis, dict) else 'N/A'}")
+            
             # Handle dictionary input (from OpenAI analyzer)
             if isinstance(analysis, dict):
                 # Check if it's a structured response from OpenAI analyzer
+                signal_data = None
                 if "signal" in analysis and isinstance(analysis["signal"], dict):
                     signal_data = analysis["signal"]
+                    logger.debug(f"Found nested signal data for {symbol}")
+                elif "setups" in analysis:
+                    # Direct signal format
+                    signal_data = analysis
+                    logger.debug(f"Found direct signal format for {symbol}")
+                elif "original_signal" in analysis and analysis.get("preserved_data", False):
+                    # Handle improved fallback response with preserved signal data
+                    original_signal = analysis.get("original_signal", {})
+                    if "setups" in original_signal:
+                        signal_data = original_signal
+                        logger.debug(f"Using preserved signal data from fallback response for {symbol}")
+                    elif "signal" in original_signal:
+                        signal_data = original_signal["signal"]
+                        logger.debug(f"Using preserved nested signal data from fallback response for {symbol}")
+                else:
+                    # Check if the entire dict is the analysis response but not parsed yet
+                    logger.debug(f"Dict keys for {symbol}: {list(analysis.keys())}")
+                    # Sometimes the analysis comes as a string that needs to be parsed
+                    if 'raw_analysis' in analysis and isinstance(analysis['raw_analysis'], str):
+                        try:
+                            # Try to parse the raw_analysis string as a dict
+                            raw_str = analysis['raw_analysis']
+                            # Handle string representation of dict
+                            if raw_str.startswith("{'") or raw_str.startswith('{"'):
+                                import ast
+                                parsed_raw = ast.literal_eval(raw_str)
+                                if 'signal' in parsed_raw:
+                                    signal_data = parsed_raw['signal']
+                                    logger.debug(f"Parsed signal from raw_analysis string for {symbol}")
+                        except Exception as e:
+                            logger.debug(f"Failed to parse raw_analysis for {symbol}: {e}")
                     
-                    # Extract values from structured response
-                    action = signal_data.get("action", "HOLD").lower()
-                    entry_price = float(signal_data.get("entry_price", market_data.get("current_price", 100)))
-                    stop_loss = float(signal_data.get("stop_loss", entry_price * 0.98 if action == "buy" else entry_price * 1.02))
-                    take_profit = float(signal_data.get("take_profit", entry_price * 1.04 if action == "buy" else entry_price * 0.96))
-                    confidence = int(signal_data.get("confidence", 7))
-                    risk_level = signal_data.get("risk_level", "MEDIUM").lower()
-                    reasoning = signal_data.get("reasoning", analysis.get("market_data", "AI analysis"))
+                    # Additional fallback: check if this is already a signal but not recognized
+                    if not signal_data and 'analysis' in analysis:
+                        # Sometimes the structured data is in the analysis field as text
+                        analysis_text = analysis.get('analysis', '')
+                        if 'BULLISH' in analysis_text or 'BEARISH' in analysis_text:
+                            # Try to extract signal info from the analysis text
+                            try:
+                                # Look for price information in the analysis
+                                import re
+                                price_match = re.search(r'Current Price: \$([0-9,]+\.?\d*)', analysis_text)
+                                if price_match:
+                                    current_price = float(price_match.group(1).replace(',', ''))
+                                    # Create a basic signal based on the analysis
+                                    if 'BULLISH' in analysis_text:
+                                        signal_data = {
+                                            'bias': 'BULLISH',
+                                            'setups': [{
+                                                'type': 'BUY',
+                                                'entry_zone': [current_price * 0.995, current_price * 1.005],
+                                                'sl': current_price * 0.98,
+                                                'tp': [current_price * 1.04, current_price * 1.08],
+                                                'confidence': 65,
+                                                'notes': 'Signal extracted from market analysis'
+                                            }]
+                                        }
+                                        logger.debug(f"Created BULLISH signal from analysis text for {symbol}")
+                                    elif 'BEARISH' in analysis_text:
+                                        signal_data = {
+                                            'bias': 'BEARISH',
+                                            'setups': [{
+                                                'type': 'SELL',
+                                                'entry_zone': [current_price * 0.995, current_price * 1.005],
+                                                'sl': current_price * 1.02,
+                                                'tp': [current_price * 0.96, current_price * 0.92],
+                                                'confidence': 65,
+                                                'notes': 'Signal extracted from market analysis'
+                                            }]
+                                        }
+                                        logger.debug(f"Created BEARISH signal from analysis text for {symbol}")
+                            except Exception as e:
+                                logger.debug(f"Failed to extract signal from analysis text for {symbol}: {e}")
+                
+                if signal_data:
+                    
+                    # Extract bias and setups from structured response
+                    bias = signal_data.get("bias", "NEUTRAL")
+                    setups = signal_data.get("setups", [])
+                    
+                    if setups and len(setups) > 0:
+                        # Use first setup
+                        setup = setups[0]
+                        action = setup.get("type", "HOLD").lower()
+                        
+                        # Extract entry zone (use average if range provided)
+                        entry_zone = setup.get("entry_zone", [])
+                        if isinstance(entry_zone, list) and len(entry_zone) > 0:
+                            entry_price = sum(entry_zone) / len(entry_zone)
+                        else:
+                            entry_price = float(entry_zone) if entry_zone else market_data.get("current_price", 100)
+                        
+                        stop_loss = float(setup.get("sl", entry_price * 0.98 if action == "buy" else entry_price * 1.02))
+                        
+                        # Extract take profit (use first TP if multiple)
+                        tp_values = setup.get("tp", [])
+                        if isinstance(tp_values, list) and len(tp_values) > 0:
+                            take_profit = float(tp_values[0])
+                        else:
+                            take_profit = float(tp_values) if tp_values else (entry_price * 1.04 if action == "buy" else entry_price * 0.96)
+                        
+                        confidence = int(setup.get("confidence", signal_data.get("confidence", 7)))
+                        risk_level = signal_data.get("risk_level", "MEDIUM").lower()
+                        reasoning = setup.get("notes", "AI-generated signal based on market analysis")
+                    else:
+                        # No setups, default to hold
+                        action = "hold"
+                        entry_price = market_data.get("current_price", 100)
+                        stop_loss = entry_price
+                        take_profit = entry_price
+                        confidence = 1
+                        risk_level = "medium"
+                        reasoning = f"No valid setups found. Market bias: {bias}"
                     
                     # Create structured signal
                     signal = {
@@ -544,6 +699,40 @@ class SignalGenerationService(ISignalGenerationService):
                         "signal_type": "structured_response",
                         "raw_analysis": str(analysis)
                     }
+                    
+                    # Check if this is from a fallback response with preserved data
+                    if analysis.get("preserved_data", False) and analysis.get("manual_trading_available", False):
+                        # Mark as validation failed but preserve the signal data for manual trading
+                        signal["validation_failed"] = True
+                        signal["manual_entry_suggested"] = True
+                        
+                        # Extract specific validation reasons from the fallback response
+                        validation_reason = analysis.get("reason", "Signal validation failed")
+                        if "Signal validation failed:" in validation_reason:
+                            # Extract the specific validation issues
+                            import re
+                            issues_match = re.search(r"Signal validation failed: \[(.*?)\]", validation_reason)
+                            if issues_match:
+                                specific_issues = issues_match.group(1)
+                                # Parse the specific issues
+                                issues_list = []
+                                for issue in specific_issues.split("', '"):
+                                    clean_issue = issue.strip("'[]").strip()
+                                    if clean_issue:
+                                        issues_list.append(clean_issue)
+                                
+                                if issues_list:
+                                    signal["validation_issues"] = issues_list
+                                    logger.info(f"Extracted specific validation issues for {symbol}: {issues_list}")
+                                else:
+                                    signal["validation_issues"] = [validation_reason]
+                            else:
+                                signal["validation_issues"] = [validation_reason]
+                        else:
+                            signal["validation_issues"] = [validation_reason]
+                        
+                        signal["action"] = f"hold (manual_entry)"
+                        logger.info(f"Created signal with preserved data for manual trading for {symbol}")
                     
                     return signal
                 else:
@@ -618,14 +807,33 @@ class SignalGenerationService(ISignalGenerationService):
             elif "risk: high" in analysis_lower or "risk level: high" in analysis_lower:
                 risk_level = "high"
             
-            # Extract prices from text or use defaults
-            entry_price = 100  # Default for real-time analysis
+            # Extract prices from text or use market data
+            entry_price = market_data.get("current_price", 100)  # Use market data first
             price_match = re.search(r'price[:\s]+\$?([0-9,.]+)', analysis_lower)
             if price_match:
                 entry_price = float(price_match.group(1).replace(',', ''))
+            elif entry_price == 100:
+                # If still default, use realistic prices based on symbol
+                if "BTC" in symbol:
+                    entry_price = 115000  # ~$115,000 for Bitcoin
+                elif "ETH" in symbol:
+                    entry_price = 3800    # ~$3,800 for Ethereum
+                elif "SOL" in symbol:
+                    entry_price = 180     # ~$180 for Solana
+                elif "ADA" in symbol:
+                    entry_price = 1.20    # ~$1.20 for Cardano
+                elif "USD" in symbol:
+                    entry_price = 1.1000  # Forex rates around 1.10
+                else:
+                    entry_price = 100     # Default for other pairs
             
-            stop_loss = entry_price * 0.98 if action == "buy" else entry_price * 1.02
-            take_profit = entry_price * 1.04 if action == "buy" else entry_price * 0.96
+            # Calculate better risk-reward ratios for validation
+            if action == "buy":
+                stop_loss = entry_price * 0.97  # 3% stop loss
+                take_profit = entry_price * 1.06  # 6% take profit (2:1 RR)
+            else:
+                stop_loss = entry_price * 1.03  # 3% stop loss
+                take_profit = entry_price * 0.94  # 6% take profit (2:1 RR)
             
             signal = {
                 "symbol": symbol,

@@ -85,6 +85,11 @@ class TelegramConfig(BaseSettings):
             return None
         return int(v) if v else None
 
+    @property
+    def is_configured(self) -> bool:
+        """Check if Telegram is properly configured."""
+        return bool(self.bot_token and ":" in self.bot_token and len(self.bot_token) > 10)
+
     class Config:
         env_prefix = "TELEGRAM_"
         env_file = ".env"
@@ -262,6 +267,7 @@ class AppConfig(BaseSettings):
     # Application
     environment: str = Field(default="development", env="ENVIRONMENT")
     debug: bool = Field(default=False, env="DEBUG")
+    testing_mode: bool = Field(default=False, env="TESTING_MODE")
     timezone: str = Field(default="UTC", env="TIMEZONE")
 
     # Server

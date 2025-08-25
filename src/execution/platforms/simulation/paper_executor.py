@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+import time
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -28,11 +29,8 @@ class PaperExecutor(BaseExecutor):
     """Paper trading executor with live data integration."""
     
     def __init__(self, config: Dict[str, Any]):
-        self.config = config
-        self.platform_type = PlatformType.PAPER
-        self.connected = False
-        self.account_info = None
-        self.is_demo = True
+        # Initialize base executor with PAPER platform type
+        super().__init__(config, PlatformType.PAPER)
         
         # Paper trading state
         self._orders: Dict[str, OrderResponse] = {}
@@ -41,14 +39,20 @@ class PaperExecutor(BaseExecutor):
         self._trading_fees = config.get("trading_fees", 0.001)  # 0.1% default
         
         # Live data integration settings
-        self._data_source = config.get("data_source", "demo")  # Can integrate with real exchanges
-        self._use_live_data = config.get("use_live_data", False)
+        self._data_source = config.get("data_source", "paper")  # Can integrate with real exchanges
+        self._use_live_data = config.get("use_live_data", True)  # Default to True for auto-trading
         self._slippage = config.get("slippage", 0.0001)  # 0.01% default slippage
         
         # Execution parameters
         self._execution_delay_ms = config.get("execution_delay_ms", 100)
-        self._partial_fill_probability = config.get("partial_fill_probability", 0.1)
-        self._rejection_probability = config.get("rejection_probability", 0.02)
+        self._partial_fill_probability = config.get("partial_fill_probability", 0.05)  # Reduced for auto-trading
+        self._rejection_probability = config.get("rejection_probability", 0.01)  # Reduced for auto-trading
+        
+        # Auto-trading enhancements
+        self._auto_trading_mode = config.get("auto_trading_mode", True)
+        self._realistic_execution = config.get("realistic_execution", True)
+        self._market_data_cache = {}  # Cache for market data
+        self._last_price_update = {}  # Track last price updates
     
     @property
     def platform_name(self) -> str:
@@ -58,9 +62,8 @@ class PaperExecutor(BaseExecutor):
     def is_connected(self) -> bool:
         return self.connected
     
-    @with_error_handling("connect", fallback_value=False)
-    async def connect(self) -> bool:
-        """Connect to paper trading platform."""
+    async def _connect_impl(self) -> bool:
+        """Platform-specific connection implementation."""
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
         
         self.connected = True
@@ -75,7 +78,6 @@ class PaperExecutor(BaseExecutor):
         logger.info("Connected to paper trading platform")
         return True
     
-    @with_error_handling("disconnect", fallback_value=False)
     async def disconnect(self) -> bool:
         """Disconnect from paper trading platform."""
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
@@ -84,13 +86,11 @@ class PaperExecutor(BaseExecutor):
         logger.info("Disconnected from paper trading platform")
         return True
     
-    @with_error_handling("test_connection", fallback_value=False)
     async def test_connection(self) -> bool:
         """Test paper trading connection."""
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
         return self.connected
     
-    @with_error_handling("get_account_info", fallback_value=None)
     async def get_account_info(self) -> Optional[AccountInfo]:
         """Get paper account information."""
         if not self.connected:
@@ -123,7 +123,6 @@ class PaperExecutor(BaseExecutor):
             }
         )
     
-    @with_error_handling("get_balance", fallback_value=0.0)
     async def get_balance(self, asset: str = "USD") -> float:
         """Get paper account balance."""
         if not self.connected:
@@ -132,9 +131,8 @@ class PaperExecutor(BaseExecutor):
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
         return self._balance.get(asset, 0.0)
     
-    @with_error_handling("place_order", fallback_value=None)
-    async def place_order(self, request: OrderRequest) -> OrderResponse:
-        """Place a paper order with realistic execution simulation."""
+    async def _place_order_impl(self, request: OrderRequest) -> OrderResponse:
+        """Platform-specific order placement implementation."""
         if not self.connected:
             raise RuntimeError("Not connected to paper trading platform")
         
@@ -200,6 +198,20 @@ class PaperExecutor(BaseExecutor):
         if filled_amount > 0:
             self._update_balance_and_position(response)
         
+        # Log trade event
+        log_trade_event(
+            request.symbol, 
+            request.side, 
+            {
+                "platform": self.platform_name,
+                "order_id": response.order_id,
+                "status": response.status,
+                "amount": request.amount,
+                "price": execution_price
+            },
+            "INFO"  # Use string level instead of constant
+        )
+        
         logger.info(f"Paper order placed: {order_id} for {request.symbol} at {execution_price}")
         return response
     
@@ -231,10 +243,63 @@ class PaperExecutor(BaseExecutor):
             pass
         
         # Generate consistent simulated price based on symbol
-        base_price = 100.0 + (hash(symbol) % 9900)  # Price between 100-10000
-        # Add some realistic price movement
-        volatility = random.uniform(-0.02, 0.02)
-        return round(base_price * (1 + volatility), 2)
+        symbol_upper = symbol.upper()
+        
+        # Use cached price if available and recent
+        current_time = time.time()
+        if (symbol in self._market_data_cache and 
+            symbol in self._last_price_update and
+            current_time - self._last_price_update[symbol] < 60):  # 1 minute cache
+            return self._market_data_cache[symbol]
+        
+        # Generate realistic base prices for different asset types
+        if "USDT" in symbol_upper:  # Crypto
+            if "BTC" in symbol_upper:
+                base_price = 45000.0 + random.uniform(-2000, 2000)
+            elif "ETH" in symbol_upper:
+                base_price = 2800.0 + random.uniform(-150, 150)
+            elif "ADA" in symbol_upper:
+                base_price = 0.45 + random.uniform(-0.05, 0.05)
+            elif "DOT" in symbol_upper:
+                base_price = 6.5 + random.uniform(-0.5, 0.5)
+            elif "LINK" in symbol_upper:
+                base_price = 12.5 + random.uniform(-1.0, 1.0)
+            else:
+                base_price = 100.0 + random.uniform(-20, 20)
+        elif any(forex in symbol_upper for forex in ["EUR", "GBP", "USD", "AUD", "CAD", "CHF", "NZD", "JPY"]):  # Forex
+            if "JPY" in symbol_upper:
+                base_price = 150.0 + random.uniform(-5, 5)
+            else:
+                base_price = 1.0 + random.uniform(-0.1, 0.1)
+        elif "XAU" in symbol_upper:  # Gold
+            base_price = 1950.0 + random.uniform(-50, 50)
+        elif "XAG" in symbol_upper:  # Silver
+            base_price = 24.0 + random.uniform(-1, 1)
+        elif "OIL" in symbol_upper:  # Oil
+            base_price = 75.0 + random.uniform(-5, 5)
+        else:
+            # Default fallback
+            base_price = 100.0 + (hash(symbol) % 9900)
+        
+        # Add realistic price movement (volatility)
+        volatility = random.uniform(-0.015, 0.015)  # 1.5% max movement
+        price = base_price * (1 + volatility)
+        
+        # Round to appropriate decimal places
+        if "USDT" in symbol_upper and "BTC" in symbol_upper:
+            price = round(price, 2)  # BTC to 2 decimals
+        elif "USDT" in symbol_upper:
+            price = round(price, 4)  # Crypto to 4 decimals
+        elif "JPY" in symbol_upper:
+            price = round(price, 2)  # JPY to 2 decimals
+        else:
+            price = round(price, 5)  # Forex to 5 decimals
+        
+        # Cache the price
+        self._market_data_cache[symbol] = price
+        self._last_price_update[symbol] = current_time
+        
+        return price
     
     def _update_balance_and_position(self, order: OrderResponse) -> None:
         """Update balance and positions based on filled order."""
@@ -298,8 +363,7 @@ class PaperExecutor(BaseExecutor):
                 metadata={"initial_cost": total_cost}
             )
     
-    @with_error_handling("cancel_order", fallback_value=None)
-    async def cancel_order(self, order_id: str) -> OrderResponse:
+    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """Cancel a paper order."""
         if not self.connected:
             raise RuntimeError("Not connected to paper trading platform")
@@ -317,24 +381,81 @@ class PaperExecutor(BaseExecutor):
         order.timestamp = datetime.now(timezone.utc)
         
         logger.info(f"Paper order cancelled: {order_id}")
-        return order
+        return {
+            "success": True,
+            "order_id": order_id,
+            "status": "cancelled"
+        }
     
-    @with_error_handling("get_orders", fallback_value=[])
-    async def get_orders(self, symbol: Optional[str] = None) -> List[OrderResponse]:
+    # Legacy method for compatibility with platform manager
+    async def place_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Legacy order placement method for compatibility."""
+        try:
+            # Convert dict to OrderRequest
+            request = OrderRequest(
+                symbol=order_data.get("symbol"),
+                side=order_data.get("side"),
+                type=order_data.get("type", "market"),
+                amount=order_data.get("amount", order_data.get("quantity", 0.01)),
+                price=order_data.get("price"),
+                stop_loss=order_data.get("stop_loss"),
+                take_profit=order_data.get("take_profit"),
+                client_order_id=order_data.get("client_order_id", f"paper_{uuid.uuid4().hex[:8]}")
+            )
+            
+            # Place order using base executor method
+            response = await super().place_order(request)
+            
+            # Convert response to dict format expected by platform manager
+            return {
+                "success": True,
+                "order_id": response.order_id,
+                "symbol": response.symbol,
+                "side": response.side,
+                "type": response.type,
+                "amount": response.amount,
+                "price": response.price,
+                "status": response.status,
+                "platform": "paper"
+            }
+            
+        except Exception as e:
+            logger.error(f"Paper order placement failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "symbol": order_data.get("symbol"),
+                "platform": "paper"
+            }
+    
+    async def get_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all paper orders."""
         if not self.connected:
             return []
         
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
         
-        orders = list(self._orders.values())
-        if symbol:
-            orders = [order for order in orders if order.symbol == symbol]
+        orders = []
+        for order in self._orders.values():
+            order_dict = {
+                "order_id": order.order_id,
+                "symbol": order.symbol,
+                "side": order.side,
+                "type": order.type,
+                "amount": order.amount,
+                "price": order.price,
+                "filled": order.filled,
+                "remaining": order.remaining,
+                "status": order.status,
+                "timestamp": order.timestamp.isoformat(),
+                "platform": "paper"
+            }
+            if symbol is None or order.symbol == symbol:
+                orders.append(order_dict)
         
-        return sorted(orders, key=lambda x: x.timestamp, reverse=True)
+        return sorted(orders, key=lambda x: x["timestamp"], reverse=True)
     
-    @with_error_handling("get_positions", fallback_value=[])
-    async def get_positions(self, symbol: Optional[str] = None) -> List[PositionData]:
+    async def get_positions(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all paper positions."""
         if not self.connected:
             return []
@@ -352,14 +473,28 @@ class PaperExecutor(BaseExecutor):
                 pnl = -pnl
             position.unrealized_pnl = pnl
         
-        positions = list(self._positions.values())
-        if symbol:
-            positions = [pos for pos in positions if pos.symbol == symbol]
+        positions = []
+        for position in self._positions.values():
+            position_dict = {
+                "position_id": position.position_id,
+                "symbol": position.symbol,
+                "side": position.side,
+                "size": position.size,
+                "entry_price": position.entry_price,
+                "current_price": position.current_price,
+                "unrealized_pnl": position.unrealized_pnl,
+                "realized_pnl": position.realized_pnl,
+                "leverage": position.leverage,
+                "margin": position.margin,
+                "timestamp": position.timestamp.isoformat(),
+                "platform": "paper"
+            }
+            if symbol is None or position.symbol == symbol:
+                positions.append(position_dict)
         
         return positions
     
-    @with_error_handling("get_ticker", fallback_value=None)
-    async def get_ticker(self, symbol: str) -> Optional[MarketData]:
+    async def get_ticker(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get paper ticker data (would integrate with live data)."""
         if not self.connected:
             return None
@@ -369,18 +504,17 @@ class PaperExecutor(BaseExecutor):
         price = await self._get_market_price(symbol)
         spread = price * 0.0005  # 0.05% spread
         
-        return MarketData(
-            symbol=symbol,
-            price=price,
-            bid=price - spread/2,
-            ask=price + spread/2,
-            volume_24h=random.uniform(1000000, 100000000),
-            change_24h=random.uniform(-10.0, 10.0),
-            timestamp=datetime.now(timezone.utc),
-            metadata={"source": self._data_source, "simulated": not self._use_live_data}
-        )
+        return {
+            "symbol": symbol,
+            "price": price,
+            "bid": price - spread/2,
+            "ask": price + spread/2,
+            "volume_24h": random.uniform(1000000, 100000000),
+            "change_24h": random.uniform(-10.0, 10.0),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metadata": {"source": self._data_source, "simulated": not self._use_live_data}
+        }
     
-    @with_error_handling("health_check", fallback_value={"status": "unknown"})
     async def health_check(self) -> Dict[str, Any]:
         """Perform paper trading health check."""
         await asyncio.sleep(self._execution_delay_ms / 1000.0)
@@ -405,18 +539,34 @@ class PaperExecutor(BaseExecutor):
         }
     
     # Implementation of remaining interface methods...
-    async def modify_order(self, order_id: str, **kwargs) -> OrderResponse:
+    async def modify_order(self, order_id: str, **kwargs) -> Dict[str, Any]:
         """Modify a paper order."""
         # Implementation similar to demo executor but with more realistic behavior
         return await self.cancel_order(order_id)  # Simplified for now
     
-    async def get_order(self, order_id: str) -> Optional[OrderResponse]:
+    async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """Get paper order details."""
         if not self.connected:
             return None
-        return self._orders.get(order_id)
+        
+        order = self._orders.get(order_id)
+        if order:
+            return {
+                "order_id": order.order_id,
+                "symbol": order.symbol,
+                "side": order.side,
+                "type": order.type,
+                "amount": order.amount,
+                "price": order.price,
+                "filled": order.filled,
+                "remaining": order.remaining,
+                "status": order.status,
+                "timestamp": order.timestamp.isoformat(),
+                "platform": "paper"
+            }
+        return None
     
-    async def close_position(self, position_id: str, volume: Optional[float] = None) -> OrderResponse:
+    async def close_position(self, position_id: str, volume: Optional[float] = None) -> Dict[str, Any]:
         """Close a paper position."""
         if position_id not in self._positions:
             raise ValueError(f"Position {position_id} not found")
@@ -431,7 +581,7 @@ class PaperExecutor(BaseExecutor):
             amount=close_volume
         )
         
-        return await self.place_order(order_request)
+        return await self._place_order_impl(order_request)
     
     async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get paper symbol information."""

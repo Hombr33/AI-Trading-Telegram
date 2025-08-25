@@ -117,12 +117,14 @@ def save_signal_to_file(signal_data: Dict[str, Any], message: str):
             
             file.write("\n\n===== DIAGNOSTIC INFO =====\n\n")
             try:
+                import json
                 file.write(json.dumps(diagnostic_info, indent=2, default=str))
             except Exception as e:
                 file.write(f"Error serializing diagnostic info: {str(e)}")
             
             file.write("\n\n===== RAW SIGNAL DATA =====\n\n")
             try:
+                import json
                 file.write(json.dumps(signal_data, indent=2, default=str))
             except Exception as e:
                 file.write(f"Error serializing signal data: {str(e)}\n")
@@ -322,9 +324,27 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
         if isinstance(raw_analysis, str):
             try:
                 import json
-                raw_analysis = json.loads(raw_analysis)
-            except:
-                logger.warning("Could not parse raw_analysis as JSON")
+                import ast
+                
+                # First try standard JSON parsing
+                try:
+                    raw_analysis = json.loads(raw_analysis)
+                except json.JSONDecodeError:
+                    # If JSON fails, try to handle single-quoted strings
+                    try:
+                        # Replace single quotes with double quotes for JSON compatibility
+                        cleaned_raw = raw_analysis.replace("'", '"')
+                        raw_analysis = json.loads(cleaned_raw)
+                    except json.JSONDecodeError:
+                        # If still fails, try Python's literal_eval as last resort
+                        try:
+                            raw_analysis = ast.literal_eval(raw_analysis)
+                        except (SyntaxError, ValueError):
+                            logger.warning("Could not parse raw_analysis as JSON or Python literal")
+                            raw_analysis = {}
+            except Exception as e:
+                logger.warning(f"Could not parse raw_analysis: {e}")
+                raw_analysis = {}
         
         if isinstance(raw_analysis, dict):
             # Try to extract current price from market data
@@ -369,6 +389,10 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
             # If we still don't have prices, at least show current price
             if entry_price == 0:
                 entry_price = current_price
+        
+        # Always use current_price if available and entry_price is 0
+        if entry_price == 0 and current_price:
+            entry_price = current_price
         
         # Process analysis text to extract meaningful information
         analysis_text = signal_data.get('analysis', 'AI-generated signal')
@@ -423,11 +447,124 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
         # Escape special markdown characters
         analysis_snippet = analysis_snippet.replace('*', '\\*').replace('_', '\\_').replace('`', '\\`').replace('[', '\\[').replace(']', '\\]')
         
-        # Determine emojis
-        action_emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "⚪"
+        # Determine emojis - handle manual entry actions
+        if "BUY" in action.upper():
+            action_emoji = "🟢" if "(Manual)" not in action else "🟡"
+        elif "SELL" in action.upper():
+            action_emoji = "🔴" if "(Manual)" not in action else "🟡"
+        else:
+            action_emoji = "⚪"
+        
         risk_emoji = "🟢" if risk_level == "LOW" else "🟡" if risk_level == "MEDIUM" else "🔴"
         
-        # Add market bias if available
+        # Handle validation issues and manual entry suggestions
+        validation_issues = signal_data.get("validation_issues", [])
+        manual_entry_suggested = signal_data.get("manual_entry_suggested", False)
+        validation_failed = signal_data.get("validation_failed", False)
+        
+        # Debug logging for validation issues
+        logger.info(f"DEBUG: Processing signal for {symbol}")
+        logger.info(f"DEBUG: Action: {action}")
+        logger.info(f"DEBUG: Validation issues: {validation_issues}")
+        logger.info(f"DEBUG: Validation failed: {validation_failed}")
+        logger.info(f"DEBUG: Manual entry suggested: {manual_entry_suggested}")
+        logger.info(f"DEBUG: Signal data keys: {list(signal_data.keys())}")
+        
+        # Check if we have a valid trading signal but action is incorrectly set to HOLD
+        if action == "HOLD" and market_bias and market_bias in ["BULLISH", "BEARISH"]:
+            # If we have setups with valid entry/sl/tp, this should be a trading signal
+            if potential_entry and potential_sl and potential_tp:
+                if market_bias == "BULLISH":
+                    action = "BUY (Manual)" if validation_issues else "BUY"
+                elif market_bias == "BEARISH":
+                    action = "SELL (Manual)" if validation_issues else "SELL"
+                # Update prices to use the extracted values
+                if entry_price == 0:
+                    entry_price = potential_entry
+                if stop_loss == 0:
+                    stop_loss = potential_sl
+                if take_profit == 0:
+                    take_profit = potential_tp
+        
+        # Check if we have preserved signal data from fallback responses
+        if action == "HOLD" and signal_data.get("manual_entry_suggested", False):
+            # Extract intended levels and validation reasons from preserved signal data
+            raw_analysis = signal_data.get("raw_analysis", {})
+            if isinstance(raw_analysis, str):
+                try:
+                    import json
+                    import ast
+                    
+                    # Try to parse the raw_analysis string
+                    try:
+                        parsed_raw = json.loads(raw_analysis)
+                    except json.JSONDecodeError:
+                        try:
+                            cleaned_raw = raw_analysis.replace("'", '"')
+                            parsed_raw = json.loads(cleaned_raw)
+                        except json.JSONDecodeError:
+                            try:
+                                parsed_raw = ast.literal_eval(raw_analysis)
+                            except (SyntaxError, ValueError):
+                                parsed_raw = None
+                    
+                    if parsed_raw and isinstance(parsed_raw, dict):
+                        # Extract intended levels from the preserved signal
+                        if "original_signal" in parsed_raw:
+                            original = parsed_raw["original_signal"]
+                            if "setups" in original and len(original["setups"]) > 0:
+                                setup = original["setups"][0]
+                                intended_entry = setup.get("entry_zone", [])
+                                intended_sl = setup.get("sl")
+                                intended_tp = setup.get("tp", [])
+                                
+                                # Use intended levels if current prices are 0
+                                if entry_price == 0 and intended_entry:
+                                    if isinstance(intended_entry, list) and len(intended_entry) > 0:
+                                        entry_price = sum(intended_entry) / len(intended_entry)
+                                    else:
+                                        entry_price = float(intended_entry)
+                                
+                                if stop_loss == 0 and intended_sl:
+                                    stop_loss = float(intended_sl)
+                                
+                                if take_profit == 0 and intended_tp:
+                                    if isinstance(intended_tp, list) and len(intended_tp) > 0:
+                                        take_profit = float(intended_tp[0])
+                                    else:
+                                        take_profit = float(intended_tp)
+                                
+                                # Extract specific validation failure reasons
+                                if "reason" in parsed_raw:
+                                    validation_reason = parsed_raw["reason"]
+                                    # Clean up the reason to extract specific issues
+                                    if "Signal validation failed:" in validation_reason:
+                                        # Extract the specific validation issues
+                                        import re
+                                        issues_match = re.search(r"Signal validation failed: \[(.*?)\]", validation_reason)
+                                        if issues_match:
+                                            specific_issues = issues_match.group(1)
+                                            # Parse the specific issues
+                                            issues_list = []
+                                            for issue in specific_issues.split("', '"):
+                                                clean_issue = issue.strip("'[]").strip()
+                                                if clean_issue:
+                                                    issues_list.append(clean_issue)
+                                            
+                                            if issues_list:
+                                                # Update validation issues with specific reasons
+                                                signal_data["validation_issues"] = issues_list
+                                                signal_data["specific_validation_reason"] = validation_reason
+                                                logger.info(f"Extracted specific validation issues: {issues_list}")
+                                
+                                # Update action to indicate manual entry is possible
+                                if entry_price > 0 and stop_loss > 0 and take_profit > 0:
+                                    action = "HOLD (Manual Entry Available)"
+                                    logger.info(f"Extracted intended levels from preserved signal data for {symbol}")
+                except Exception as e:
+                    logger.debug(f"Failed to extract intended levels from preserved signal: {e}")
+        
+        # Add market bias if still HOLD
         if market_bias and action == "HOLD":
             action = f"HOLD ({market_bias})"
         elif action == "HOLD":
@@ -488,71 +625,118 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
             action = f"HOLD ({reason})"
         
         # Format message for Telegram
-        if action.startswith("HOLD"):
+        if action.upper().startswith("HOLD"):
             # Special formatting for HOLD signals with market context
-            entry_line = f" **Potential Entry**: ${entry_price:.5f}\n" if entry_price > 0 else ""
-            stop_line = f"🛡️ **Potential Stop**: ${stop_loss:.5f}\n" if stop_loss > 0 else ""
-            target_line = f"🎯 **Potential Target**: ${take_profit:.5f}\n" if take_profit > 0 else ""
+            entry_line = f" <b>Potential Entry</b>: ${entry_price:.5f}\n" if entry_price > 0 else ""
+            stop_line = f"🛡️ <b>Potential Stop</b>: ${stop_loss:.5f}\n" if stop_loss > 0 else ""
+            target_line = f"🎯 <b>Potential Target</b>: ${take_profit:.5f}\n" if take_profit > 0 else ""
             
             # If we have potential levels, add a header
-            levels_header = "\n**Market Levels**:\n" if (entry_line or stop_line or target_line) else ""
+            levels_header = "\n<b>Market Levels</b>:\n" if (entry_line or stop_line or target_line) else ""
             
-            # For HOLD signals that have validation errors, format differently
-            if "error" in cleaned_analysis.lower() or "validation" in cleaned_analysis.lower():
-                telegram_message = f"""
-🚨 **AI TRADING SIGNAL** 🚨
+            # Simplified condition: always check for validation issues first
+            has_validation_issues = bool(signal_data.get("validation_issues"))
+            has_validation_failed = bool(signal_data.get("validation_failed"))
+            
+            if (has_validation_issues or has_validation_failed or 
+                "error" in cleaned_analysis.lower() or "validation" in cleaned_analysis.lower()):
+                # Check if we have intended levels for manual entry
+                if entry_price > 0 and stop_loss > 0 and take_profit > 0:
+                    # Show intended levels for manual entry
+                    
+                    # Build validation issues display
+                    validation_details = ""
+                    logger.info(f"Building validation details for {symbol}. Validation issues: {signal_data.get('validation_issues')}")
+                    if signal_data.get("validation_issues"):
+                        validation_details = "\n⚠️ <b>Validation Issues</b>:\n"
+                        for issue in signal_data["validation_issues"][:3]:  # Show max 3 issues
+                            validation_details += f"• {issue}\n"
+                        logger.info(f"Created validation details: {validation_details}")
+                    else:
+                        # Fallback to cleaned analysis if no specific validation issues
+                        validation_details = f"\n⚠️ <b>Reason</b>: {cleaned_analysis}\n"
+                        logger.info(f"No validation issues found, using fallback: {validation_details}")
+                    
+                    telegram_message = f"""🚨 <b>AI TRADING SIGNAL</b> 🚨
 
-{action_emoji} **Action**: {action}
-📊 **Symbol**: {symbol}
-📊 **Current Price**: ${entry_price:.5f}{levels_header}{entry_line}{stop_line}{target_line}
-📈 **Confidence**: {confidence}/10
-{risk_emoji} **Risk Level**: {risk_level}
-🔗 **Platform**: {platform}
-⏰ **Time**: {timestamp[:19]}
+{action_emoji} <b>Action</b>: {action}
+📊 <b>Symbol</b>: {symbol}
+📊 <b>Current Price</b>: ${entry_price:.5f}
 
-⚠️ **Reason**: {cleaned_analysis}
+⚠️ <b>Validation Failed</b> - Manual Entry Available:
+💰 <b>Intended Entry</b>: ${entry_price:.5f}
+🛑 <b>Intended Stop</b>: ${stop_loss:.5f}
+🎯 <b>Intended Target</b>: ${take_profit:.5f}
+
+📈 <b>Confidence</b>: {confidence}/10
+{risk_emoji} <b>Risk Level</b>: {risk_level}
+🔗 <b>Platform</b>: {platform}
+⏰ <b>Time</b>: {timestamp[:19]}
+{validation_details}
+💡 <b>Manual entry available</b> - Review risk before trading
 
 Use /positions to check current positions
-Use /risk to monitor risk levels
-                """.strip()
+Use /risk to monitor risk levels""".strip()
+                else:
+                    # No intended levels available
+                    telegram_message = f"""🚨 <b>AI TRADING SIGNAL</b> 🚨
+
+{action_emoji} <b>Action</b>: {action}
+📊 <b>Symbol</b>: {symbol}
+📊 <b>Current Price</b>: ${entry_price:.5f}{levels_header}{entry_line}{stop_line}{target_line}
+📈 <b>Confidence</b>: {confidence}/10
+{risk_emoji} <b>Risk Level</b>: {risk_level}
+🔗 <b>Platform</b>: {platform}
+⏰ <b>Time</b>: {timestamp[:19]}
+
+⚠️ <b>Reason</b>: {cleaned_analysis}
+
+Use /positions to check current positions
+Use /risk to monitor risk levels""".strip()
             else:
-                telegram_message = f"""
-🚨 **AI TRADING SIGNAL** 🚨
+                telegram_message = f"""🚨 <b>AI TRADING SIGNAL</b> 🚨
 
-{action_emoji} **Action**: {action}
-📊 **Symbol**: {symbol}
-📊 **Current Price**: ${entry_price:.5f}{levels_header}{entry_line}{stop_line}{target_line}
-📈 **Confidence**: {confidence}/10
-{risk_emoji} **Risk Level**: {risk_level}
-🔗 **Platform**: {platform}
-⏰ **Time**: {timestamp[:19]}
+{action_emoji} <b>Action</b>: {action}
+📊 <b>Symbol</b>: {symbol}
+📊 <b>Current Price</b>: ${entry_price:.5f}{levels_header}{entry_line}{stop_line}{target_line}
+📈 <b>Confidence</b>: {confidence}/10
+{risk_emoji} <b>Risk Level</b>: {risk_level}
+🔗 <b>Platform</b>: {platform}
+⏰ <b>Time</b>: {timestamp[:19]}
 
-📋 **Analysis**: {analysis_snippet}...
+📋 <b>Analysis</b>: {analysis_snippet}...
 
 Use /positions to check current positions
-Use /risk to monitor risk levels
-                """.strip()
+Use /risk to monitor risk levels""".strip()
         else:
-            # Standard formatting for BUY/SELL signals
-            telegram_message = f"""
-🚨 **AI TRADING SIGNAL** 🚨
+            # Build validation warning if issues exist
+            validation_warning = ""
+            if validation_issues:
+                validation_warning = f"\n⚠️ <b>Validation Issues</b>:\n"
+                for issue in validation_issues[:2]:  # Show max 2 issues
+                    validation_warning += f"• {issue}\n"
+                if manual_entry_suggested:
+                    validation_warning += "\n💡 <b>Manual entry suggested</b> - Review risk before trading"
 
-{action_emoji} **Action**: {action}
-📊 **Symbol**: {symbol}
-💰 **Entry**: ${entry_price:.5f}
-🛡️ **Stop Loss**: ${stop_loss:.5f}
-🎯 **Take Profit**: ${take_profit:.5f}
+            telegram_message = f"""🚨 <b>AI TRADING SIGNAL</b> 🚨
 
-📈 **Confidence**: {confidence}/10
-{risk_emoji} **Risk Level**: {risk_level}
-🔗 **Platform**: {platform}
-⏰ **Time**: {timestamp[:19]}
+{action_emoji} <b>Action</b>: {action.upper()}
+📊 <b>Symbol</b>: {symbol}
+📊 <b>Current Price</b>: ${entry_price:.5f}
+<b>Market Levels</b>:
+💰 <b>Entry Zone</b>: {entry_price:.5f}
+🛑 <b>Stop Loss</b>: {stop_loss:.5f}
+🎯 <b>Take Profit</b>: {take_profit:.5f}
 
-📋 **Analysis**: {analysis_snippet}...
+📊 <b>Confidence</b>: {confidence}%
+{risk_emoji} <b>Risk Level</b>: {risk_level.upper()}
+🔗 <b>Platform</b>: {platform}
+⏰ <b>Time</b>: {timestamp[:19].replace('T', ' ')}{validation_warning}
+
+📝 <b>Analysis</b>: {analysis_snippet}
 
 Use /positions to check current positions
-Use /risk to monitor risk levels
-        """.strip()
+Use /risk to monitor risk levels""".strip()
         
         # Log the formatted signal
         logger.info(f"📡 Telegram Signal Generated:")
@@ -565,12 +749,12 @@ Use /risk to monitor risk levels
             bot = TradingBot.get_instance()
             if bot and bot.config.chat_id:
                 try:
-                    # Try with Markdown first
-                    await bot.send_message(bot.config.chat_id, telegram_message, parse_mode="Markdown")
-                except Exception as markdown_error:
-                    logger.warning(f"Markdown parsing failed: {markdown_error}, trying without parse_mode")
-                    # If markdown fails, send as plain text
-                    plain_message = telegram_message.replace('**', '').replace('`', '')
+                    # Try with HTML first (more reliable than Markdown)
+                    await bot.send_message(bot.config.chat_id, telegram_message, parse_mode="HTML")
+                except Exception as html_error:
+                    logger.warning(f"HTML parsing failed: {html_error}, trying without parse_mode")
+                    # If HTML fails, send as plain text
+                    plain_message = telegram_message.replace('<b>', '').replace('</b>', '')
                     await bot.send_message(bot.config.chat_id, plain_message)
                     
                 logger.info(f"✅ Signal sent to Telegram chat {bot.config.chat_id}")

@@ -12,6 +12,7 @@ class PlatformType(Enum):
     BYBIT = "bybit"
     BITGET = "bitget"
     DEMO = "demo"
+    PAPER = "paper"
 
 
 class OrderType(Enum):

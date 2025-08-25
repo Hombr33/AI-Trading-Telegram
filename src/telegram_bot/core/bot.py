@@ -129,6 +129,19 @@ class BaseTelegramBot:
                 raise RuntimeError("Bot application not initialized")
 
             await self.application.initialize()
+            
+            # Test bot connection before starting
+            try:
+                bot_info = await self.application.bot.get_me()
+                logger.info(f"Bot authenticated successfully: @{bot_info.username}")
+            except Exception as e:
+                logger.error(f"Bot authentication failed: {e}")
+                if "Unauthorized" in str(e):
+                    logger.warning("Invalid or expired bot token - running in testing mode")
+                    self.running = False
+                    return False
+                raise
+            
             await self.application.start()
             
             # Configure better error handling for network issues

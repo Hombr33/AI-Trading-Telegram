@@ -38,6 +38,8 @@ from .execution.trailing_manager import TrailingManager
 from .telegram_bot.core.trading_bot import TradingBot
 from .services.signal_generation_service import SignalGenerationService
 from .services.auto_trading_service import AutoTradingService
+from .services.multi_user_service import MultiUserService
+from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_service
 
 # Import MT5/AioMQL only on Windows
 import sys
@@ -52,7 +54,7 @@ else:
     AioMQLExecutor = None
 
 # Import API routes
-from src.api.routes import health, v1, bridge, trading
+from src.api.routes import health, v1, bridge, trading, multi_user
 
 # Get logger
 logger = get_logger(__name__)
@@ -70,6 +72,8 @@ position_manager: PositionManager = None
 trailing_manager: TrailingManager = None
 signal_generation_service: ISignalGenerationService = None
 auto_trading_service: AutoTradingService = None
+multi_user_service: MultiUserService = None
+mt5_bridge_service: MT5BridgeService = None
 
 
 # Global shutdown flag
@@ -99,7 +103,7 @@ async def shutdown_handler(sig, loop):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service
+    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service
 
     # Let uvicorn handle signal processing - no custom signal handlers needed
 
@@ -156,12 +160,27 @@ async def lifespan(app: FastAPI):
             logger.error("Failed to setup Telegram bot")
             raise RuntimeError("Telegram bot setup failed")
 
+        # Start Telegram bot polling
+        logger.info("Starting Telegram bot polling...")
+        bot_started = await telegram_bot.start()
+        if not bot_started:
+            logger.warning("Telegram bot failed to start - continuing in API-only mode")
+            logger.warning("The system will run without Telegram notifications")
+            # Don't raise error - continue in API-only mode
+
         # Set global instances for API routes
         bridge.set_global_instances(order_manager, telegram_bot)
         trading.order_manager = order_manager
         trading.position_manager = position_manager
         trading.telegram_bot = telegram_bot
 
+        # Initialize multi-user service
+        logger.info("Initializing multi-user service...")
+        multi_user_service = MultiUserService(config.telegram.bot_token)
+        
+        # Set multi-user service for API routes
+        multi_user.set_multi_user_service(multi_user_service)
+        
         # Initialize auto trading services
         logger.info("Initializing auto trading services...")
         signal_generation_service = SignalGenerationService(config, telegram_bot)
@@ -183,6 +202,12 @@ async def lifespan(app: FastAPI):
         # 2. Start Socket.IO bridge
         await socketio_bridge.connect()
         logger.info("Socket.IO bridge connected successfully")
+        
+        # 2.5. Initialize MT5 Bridge Service
+        logger.info("Initializing MT5 Bridge Service...")
+        mt5_bridge_service = MT5BridgeService()
+        await mt5_bridge_service.start()
+        logger.info("MT5 Bridge Service started successfully")
 
         # 3. Start managers as background tasks with error handling
         logger.info("Starting trading managers...")
@@ -203,9 +228,9 @@ async def lifespan(app: FastAPI):
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
                 logger.debug("MT5 connection exception details", exc_info=True)
         
-        # 4. Start Telegram bot (needed for auto services)
-        logger.info("Starting Telegram bot...")
-        await telegram_bot.start()
+        # 4. Start multi-user service (includes Telegram bot)
+        logger.info("Starting multi-user service...")
+        await multi_user_service.start()
         
         # 5. Start auto trading services if enabled
         if config.auto_trading.enabled:
@@ -233,6 +258,10 @@ async def lifespan(app: FastAPI):
             "Socket.IO Bridge": {
                 "status": "connected",
                 "details": "Ready for EA connections",
+            },
+            "MT5 Bridge Service": {
+                "status": "running", 
+                "details": "Unified MT5 integration active",
             },
             "Position Manager": {
                 "status": "running",
@@ -271,6 +300,14 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Error stopping managers: {e}")
 
+            # Stop MT5 Bridge Service first
+            logger.info("Stopping MT5 Bridge Service...")
+            try:
+                await shutdown_mt5_bridge_service()
+                logger.info("MT5 Bridge Service stopped successfully")
+            except Exception as e:
+                logger.error(f"Error stopping MT5 Bridge Service: {e}")
+
             # Stop services in reverse order
             logger.info("Stopping auto trading service...")
             try:
@@ -284,17 +321,26 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Error stopping signal generation service: {e}")
 
-            # Stop Telegram bot gracefully
+            # Stop multi-user service (includes Telegram bot)
+            if multi_user_service:
+                logger.info("Stopping multi-user service...")
+                try:
+                    await multi_user_service.stop()
+                    logger.info("Multi-user service stopped successfully")
+                except Exception as e:
+                    logger.error(f"Error stopping multi-user service: {e}")
+
+            # Stop legacy Telegram bot if still running
             if telegram_bot:
-                logger.info("Stopping Telegram bot...")
+                logger.info("Stopping legacy Telegram bot...")
                 try:
                     # Use a shorter timeout to prevent hanging
                     await asyncio.wait_for(telegram_bot.stop(), timeout=5.0)
-                    logger.info("Telegram bot stopped successfully")
+                    logger.info("Legacy Telegram bot stopped successfully")
                 except (asyncio.TimeoutError, asyncio.CancelledError):
-                    logger.info("Telegram bot shutdown completed")
+                    logger.info("Legacy Telegram bot shutdown completed")
                 except Exception as e:
-                    logger.warning(f"Error stopping Telegram bot: {e}")
+                    logger.warning(f"Error stopping legacy Telegram bot: {e}")
                     telegram_bot.running = False
 
             # Disconnect Socket.IO bridge
@@ -392,6 +438,7 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(v1.router, prefix="/api/v1", tags=["api"])
 app.include_router(bridge.router, prefix="/api/v1/bridge", tags=["bridge"])
 app.include_router(trading.router, prefix="/api/v1/trading", tags=["trading"])
+app.include_router(multi_user.router, prefix="/api/v1/multi-user", tags=["multi-user"])
 
 
 # API info endpoint

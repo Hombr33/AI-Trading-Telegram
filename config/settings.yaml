@@ -1,144 +1,60 @@
 # AI Trading Bot Configuration
-app:
-  name: "telegram-ai-trade"
-  version: "1.0.0"
-  environment: "development"
-  timezone: "Asia/Jakarta"
-  debug: false
+# This file contains default settings for the trading bot
 
-# API Configuration
-api:
-  host: "127.0.0.1"
-  port: 8081
-  workers: 1
-  timeout: 30
-  cors_origins: ["*"]
-
-# Bridge Configuration
-bridge:
-  token_env_key: "BRIDGE_TOKEN"
-  rate_limit:
-    requests_per_second: 50
-    burst_size: 10
-  retry:
-    max_attempts: 3
-    backoff_ms: 250
-  heartbeat_interval: 5
-
-# MetaTrader5 Configuration
-metatrader5:
+# Auto Trading Configuration
+auto_trading:
   enabled: true
-  path: "${MT5_PATH}"
-  server: "${MT5_SERVER}"
-  login: "${MT5_LOGIN}"
-  password: "${MT5_PASSWORD}"
-  timeout: 60000
-  retry_delay: 5
-  max_retries: 3
-  broker_name: "Exness"
-  symbols:
-    - "EURUSD"
-    - "GBPUSD"
-    - "USDJPY"
-    - "AUDUSD"
-  default_volume: 0.01
-  deviation: 20
-  connection:
-    max_attempts: 5
-    retry_interval: 10
-    heartbeat_interval: 30
+  auto_signal_generation: false  # Disable automatic signal generation
+  signal_interval_minutes: 15
+  max_trades_per_day: 10
+  risk_per_trade_percent: 1.0
 
-# Trading Configuration
-trading:
-  risk_management:
-    risk_per_trade_pct: 2.0
-    max_daily_drawdown_pct: 6.0
-    max_daily_loss_usd: 25.0
-    max_open_positions: 10
-    max_daily_trades: 50
-  
-  position_sizing:
-    method: "risk_based_on_sl_distance"
-    min_position_size: 0.01
-    max_position_size: 10.0
-  
-  execution:
-    magic_number: 1001
-    slippage_points: 10
-    prefer_limit_orders: true
-  
-  session_filters:
-    avoid_high_impact_news: true
-    prefer_london_ny_overlap: true
-    timezone: "Asia/Jakarta"
+# Paper Trading Fallback Configuration
+paper_trading:
+  enabled: true
+  initial_balance: 100000.0  # $100k paper account
+  trading_fees: 0.001  # 0.1% default
+  use_live_data: true  # Use live market data if available
+  data_source: "paper"
+  max_leverage: 1.0
+  slippage: 0.0001  # 0.01% default slippage
+  execution_delay_ms: 100
+  auto_trading_mode: true
+  realistic_execution: true
 
-# Database Configuration
-database:
-  url: "sqlite:///./runtime/data/trade.sqlite3"
-  echo: false
-  pool_size: 5
-  max_overflow: 10
-  pool_timeout: 30
-  pool_recycle: 3600
-  
-  sqlite_pragmas:
-    journal_mode: "WAL"
-    synchronous: "NORMAL"
-    foreign_keys: true
-    cache_size: -64000
-    temp_store: "MEMORY"
+# Demo Trading Configuration (backup fallback)
+demo_trading:
+  enabled: true
+  initial_balance: 50000.0
+  trading_fees: 0.001
+  use_live_data: false
+  data_source: "demo"
 
-# Telegram Configuration
-telegram:
-  bot_token_env: "TELEGRAM_BOT_TOKEN"
-  chat_id_env: "TELEGRAM_CHAT_ID"
-  update_interval: 1
-  timeout: 30
-  
-  notifications:
-    signals: true
-    trade_updates: true
-    performance_reports: true
-    risk_alerts: true
+# Platform Fallback Strategy
+platform_fallback:
+  enable_paper_trading: true
+  enable_demo_trading: true
+  auto_fallback: true  # Automatically fall back to paper/demo when real platforms fail
+  fallback_priority: ["paper", "demo"]  # Priority order for fallbacks
 
-# OpenAI Configuration
-openai:
-  api_key_env: "OPENAI_API_KEY"
-  model: "gpt-4o-mini"  # Updated to latest model that supports web search
-  max_tokens: 2000
-  temperature: 0.1
-  timeout: 30
-  tools_enabled: true  # Enable tool usage for web search and real-time data
-  web_search_enabled: true  # Enable web search capabilities
-  realtime_data_enabled: true  # Enable real-time data access
+# Risk Management (Paper Trading)
+risk_management:
+  max_risk_per_trade_pct: 2.0
+  max_daily_drawdown_pct: 6.0
+  max_daily_loss_usd: 25.0
+  max_open_positions: 10
+  consecutive_loss_limit: 4
 
-# Logging Configuration
-logging:
-  level: "INFO"
-  format: "json"
-  output: "stdout"
-  file_path: null
-  
-  structured:
-    enabled: true
-    include_timestamp: true
-    include_level: true
-    include_module: true
+# Trading Pairs for Auto Trading
+trading_pairs:
+  forex: ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD"]
+  crypto: ["BTCUSDT", "ETHUSDT", "ADAUSDT", "DOTUSDT", "LINKUSDT", "BNBUSDT"]
+  commodities: ["XAUUSD", "XAGUSD", "OILUSD"]
+  indices: ["SPX500", "NAS100", "GER30"]
 
-# Monitoring Configuration
-monitoring:
-  health_check_interval: 30
-  metrics_enabled: true
-  prometheus_endpoint: "/metrics"
-  
-  alerts:
-    daily_drawdown_threshold: true
-    ea_disconnect_heartbeat_missed: true
-    bridge_http_error_burst: true
-
-# Security Configuration
-security:
-  auth_enabled: true
-  rate_limiting: true
-  input_validation: true
-  sql_injection_protection: true
+# Notification Settings
+notifications:
+  telegram_enabled: true
+  trade_notifications: true
+  risk_alerts: true
+  daily_reports: true

@@ -210,18 +210,18 @@ class OpenAIAnalyzer(IAnalyzer):
                         }
                     else:
                         logger.warning(f"Signal validation failed: {validation_errors}")
-                        return self._get_fallback_response(market_context, f"Signal validation failed: {validation_errors}")
+                        return self._get_fallback_response(market_context, f"Signal validation failed: {validation_errors}", original_signal=signal_data, market_data=real_market_data)
                 else:
                     # Handle case where validation_result is not a tuple
                     logger.warning("Unexpected validation result format")
-                    return self._get_fallback_response(market_context, "Signal validation format error")
+                    return self._get_fallback_response(market_context, "Signal validation format error", original_signal=signal_data, market_data=real_market_data)
             else:
                 logger.warning("Failed to generate signal with real data")
-                return self._get_fallback_response(market_context, "Signal generation failed")
+                return self._get_fallback_response(market_context, "Signal generation failed", original_signal=signal_data, market_data=real_market_data)
                 
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
-            return self._get_fallback_response(market_context, f"Analysis error: {e}")
+            return self._get_fallback_response(market_context, f"Analysis error: {e}", original_signal=signal_data, market_data=real_market_data)
     
     def _is_fake_data(self, market_data: str) -> bool:
         """Check if the market data is fake or real."""
@@ -267,9 +267,9 @@ class OpenAIAnalyzer(IAnalyzer):
             logger.error(f"Error generating signal with real data: {e}")
             return None
     
-    def _get_fallback_response(self, market_context: Dict[str, Any], reason: str) -> Dict[str, Any]:
-        """Get fallback response when analysis fails."""
-        return {
+    def _get_fallback_response(self, market_context: Dict[str, Any], reason: str, original_signal: Optional[Dict[str, Any]] = None, market_data: Optional[str] = None) -> Dict[str, Any]:
+        """Get fallback response when analysis fails, preserving original signal data for manual trading."""
+        fallback_response = {
             "status": "error",
             "reason": reason,
             "symbols": market_context.get("symbols", []),
@@ -278,6 +278,18 @@ class OpenAIAnalyzer(IAnalyzer):
             "data_source": "FALLBACK",
             "warning": "This is a fallback response due to analysis failure"
         }
+        
+        # Preserve original signal data if available, so users can still see intended levels
+        if original_signal:
+            fallback_response["original_signal"] = original_signal
+            fallback_response["preserved_data"] = True
+            fallback_response["manual_trading_available"] = True
+        
+        # Preserve market data if available
+        if market_data:
+            fallback_response["market_data"] = market_data
+        
+        return fallback_response
     
     async def get_market_data(self, symbols: List[str]) -> str:
         """Get real market data for specified symbols."""

@@ -10,6 +10,9 @@ from .system import SystemCommandHandler
 from .trading import TradingCommandHandler
 from .analysis import AnalysisCommandHandler
 from .auto_trading import AutoTradingCommandHandler
+from .symbol import SymbolCommandHandler
+from ..handlers.admin_commands import AdminCommandHandlers
+from src.services.symbol_service import SymbolService
 
 logger = get_logger(__name__)
 
@@ -24,6 +27,12 @@ class CommandHandler:
         self.trading_handler = TradingCommandHandler()
         self.analysis_handler = AnalysisCommandHandler()
         self.auto_trading_handler = AutoTradingCommandHandler()
+        self.admin_handler = AdminCommandHandlers()
+        
+        # Initialize symbol handler with service
+        from src.database.session import SessionLocal
+        symbol_service = SymbolService(SessionLocal())
+        self.symbol_handler = SymbolCommandHandler()
         
         # Initialize callback router
         from ..handlers.callback_handler import CallbackRouter
@@ -35,6 +44,21 @@ class CommandHandler:
         self.commands.update(self.trading_handler.commands)
         self.commands.update(self.analysis_handler.commands)
         self.commands.update(self.auto_trading_handler.commands)
+        self.commands.update(self.symbol_handler.commands)
+        
+        # Add admin commands
+        admin_commands = {
+            "admin": self.admin_menu_command,
+            "users": self.admin_handler.users_command,
+            "add_admin": self.admin_handler.add_admin_command,
+            "remove_admin": self.admin_handler.remove_admin_command,
+            "set_subscription": self.admin_handler.set_subscription_command,
+            "server_config": self.admin_handler.server_config_command,
+            "restart": self.admin_handler.restart_command,
+            "logs": self.admin_handler.logs_command,
+            "close_all": self.admin_handler.close_all_command,
+        }
+        self.commands.update(admin_commands)
 
     def get_command_handlers(self) -> Dict[str, Callable]:
         """Get command handlers."""
@@ -88,6 +112,45 @@ class CommandHandler:
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle errors."""
         await self.system_handler.error_handler(update, context)
+
+    async def admin_menu_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /admin command - show admin menu."""
+        from ..handlers.user_commands import UserCommandHandlers
+        user_handler = UserCommandHandlers()
+        
+        # Check if user is admin
+        telegram_id = update.effective_user.id
+        if not await user_handler.user_manager.is_admin(telegram_id):
+            await update.message.reply_text("❌ Admin privileges required.")
+            return
+        
+        admin_menu = (
+            "👑 **ADMIN CONTROL PANEL** 👑\n\n"
+            "**User Management:**\n"
+            "👥 `/users` - View all registered users\n"
+            "👑 `/add_admin` - Add new administrator\n"
+            "👤 `/remove_admin` - Remove administrator\n"
+            "💎 `/set_subscription` - Manage user subscriptions\n\n"
+            "**System Management:**\n"
+            "⚙️ `/server_config` - Server configuration\n"
+            "🔄 `/restart` - Restart system\n"
+            "📋 `/logs` - View system logs\n"
+            "🚨 `/close_all` - Emergency close all positions\n\n"
+            "**Quick Actions:**\n"
+            "📊 `/status` - System status\n"
+            "🖥️ `/monitor` - Resource monitoring\n"
+            "⚙️ `/settings` - Bot settings"
+        )
+        
+        from ..utils.keyboards import create_keyboard
+        keyboard = create_keyboard([
+            [("👥 Users", "users"), ("👑 Add Admin", "add_admin")],
+            [("💎 Subscriptions", "set_subscription"), ("⚙️ Config", "server_config")],
+            [("📋 Logs", "logs"), ("🔄 Restart", "restart")],
+            [("📊 Status", "status"), ("🖥️ Monitor", "monitor")]
+        ])
+        
+        await update.message.reply_text(admin_menu, reply_markup=keyboard, parse_mode="Markdown")
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle messages."""

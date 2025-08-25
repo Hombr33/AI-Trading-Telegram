@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 import sys
-from typing import Dict, List, Optional, Any, Union, Type
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 
 from ..core.logging import get_logger, log_system_event, log_error_with_context
 from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import TradingBotException
 from ..common.interfaces import IExecutor, IPlatformManager, PlatformType
 
 logger = get_logger(__name__)
@@ -51,6 +49,20 @@ EXECUTOR_REGISTRY = {
         "class": "AioMQLExecutor",
         "platform_type": PlatformType.MT5,
         "os_constraint": "win32"  # Only available on Windows
+    },
+    "paper": {
+        "module": "src.execution.platforms.simulation.paper_executor",
+        "class": "PaperExecutor",
+        "platform_type": PlatformType.PAPER,
+        "os_constraint": None,  # Available on all platforms
+        "fallback": True  # Mark as fallback platform
+    },
+    "demo": {
+        "module": "src.execution.platforms.simulation.demo_executor",
+        "class": "DemoExecutor",
+        "platform_type": PlatformType.DEMO,
+        "os_constraint": None,  # Available on all platforms
+        "fallback": True  # Mark as fallback platform
     }
 }
 
@@ -97,6 +109,11 @@ class PlatformManager(IPlatformManager):
         if self.config.crypto.bitget_configured:
             self._load_executor("bitget", self.config.crypto)
         
+        # CRITICAL: If no real platforms loaded, automatically fall back to paper trading
+        if not self.platforms:
+            logger.warning("No real trading platforms available, falling back to paper trading")
+            self._load_paper_trading_fallback()
+        
         # Set platform preferences for different asset types
         self._setup_platform_preferences()
         
@@ -106,6 +123,53 @@ class PlatformManager(IPlatformManager):
             logger.info(f"Primary platform: {self.primary_platform}")
         else:
             logger.warning("No trading platforms initialized. Check your configuration.")
+    
+    def _load_paper_trading_fallback(self):
+        """Load paper trading as fallback when no real platforms are available."""
+        try:
+            # Create paper trading configuration
+            paper_config = {
+                "enabled": True,
+                "initial_balance": 100000.0,  # $100k paper account
+                "trading_fees": 0.001,  # 0.1% default
+                "use_live_data": True,  # Use live market data if available
+                "data_source": "paper",  # Paper trading data source
+                "max_leverage": 1.0,
+                "slippage": 0.0001,  # 0.01% default slippage
+                "execution_delay_ms": 100
+            }
+            
+            # Load paper executor
+            if self._load_executor("paper", paper_config):
+                logger.info("Paper trading fallback loaded successfully")
+                # Set paper as primary platform
+                self.primary_platform = "paper"
+                
+                # Also load demo executor as backup
+                demo_config = {
+                    "enabled": True,
+                    "initial_balance": 50000.0,
+                    "trading_fees": 0.001,
+                    "use_live_data": False,
+                    "data_source": "demo"
+                }
+                self._load_executor("demo", demo_config)
+                
+                logger.info("Paper trading fallback system ready for auto-trading")
+            else:
+                logger.error("Failed to load paper trading fallback")
+                
+        except Exception as e:
+            logger.error(f"Error loading paper trading fallback: {e}")
+            # Try demo executor as last resort
+            try:
+                demo_config = {"enabled": True, "initial_balance": 50000.0}
+                self._load_executor("demo", demo_config)
+                if "demo" in self.platforms:
+                    self.primary_platform = "demo"
+                    logger.info("Demo trading fallback loaded as last resort")
+            except Exception as demo_error:
+                logger.error(f"Failed to load demo trading fallback: {demo_error}")
     
     def _load_executor(self, executor_name: str, config) -> bool:
         """Dynamically load and initialize an executor.
@@ -174,6 +238,28 @@ class PlatformManager(IPlatformManager):
                 self.platform_preferences[symbol] = "bybit"
             elif "bitget" in self.platforms:
                 self.platform_preferences[symbol] = "bitget"
+        
+        # CRITICAL: If no real platforms available, use paper trading for all symbols
+        if not any(platform in self.platforms for platform in ["mt5", "binance", "bybit", "bitget"]):
+            logger.info("No real platforms available, using paper trading for all symbols")
+            
+            # Set paper trading for all symbol types
+            all_symbols = [
+                # Forex
+                "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD",
+                # Crypto
+                "BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "DOTUSDT", "LINKUSDT",
+                # Additional symbols
+                "XAUUSD", "XAGUSD", "OILUSD", "SPX500", "NAS100", "GER30"
+            ]
+            
+            for symbol in all_symbols:
+                if "paper" in self.platforms:
+                    self.platform_preferences[symbol] = "paper"
+                elif "demo" in self.platforms:
+                    self.platform_preferences[symbol] = "demo"
+            
+            logger.info(f"Paper trading fallback configured for {len(all_symbols)} symbols")
         
         # If no platforms available, log warning
         if not self.platforms:
@@ -293,7 +379,7 @@ class PlatformManager(IPlatformManager):
             result["platform"] = executor.platform_type.value
             return result
         except Exception as e:
-            log_error_with_context(e, {"symbol": symbol, "platform": executor.platform_name})
+            log_error_with_context(e, {"symbol": symbol, "platform": executor.platform_type.value})
             return {
                 "success": False,
                 "error": str(e),
@@ -352,7 +438,20 @@ class PlatformManager(IPlatformManager):
                 try:
                     account_info = await executor.get_account_info()
                     if account_info:
-                        all_balances[platform_name] = account_info
+                        # Handle both dict and object formats
+                        if hasattr(account_info, 'balance'):
+                            # Object format
+                            all_balances[platform_name] = {
+                                "balance": account_info.balance,
+                                "equity": getattr(account_info, 'equity', 0),
+                                "margin_used": getattr(account_info, 'margin_used', 0),
+                                "margin_available": getattr(account_info, 'margin_available', 0),
+                                "is_demo": getattr(account_info, 'is_demo', False),
+                                "platform": getattr(account_info, 'platform', platform_name)
+                            }
+                        else:
+                            # Dict format
+                            all_balances[platform_name] = account_info
                 except Exception as e:
                     log_error_with_context(e, {"platform": platform_name, "operation": "get_account_info"})
                     all_balances[platform_name] = {}
