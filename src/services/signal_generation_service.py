@@ -936,7 +936,9 @@ class SignalGenerationService(ISignalGenerationService):
             "interval_minutes": config.auto_trading.signal_interval_minutes,
             "active_pairs": len(config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs)
         }
+"""Global instance of SignalGenerationService.
 
-
-# Global service instance - will be initialized in main.py
+This will be initialized in main.py and provides access to the signal generation service
+throughout the application.
+"""
 signal_generation_service = None
