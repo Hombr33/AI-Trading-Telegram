@@ -32,6 +32,7 @@ config = AppConfig()
 analyzer = OpenAIAnalyzer(api_key=config.openai.api_key if hasattr(config, 'openai') else None)
 
 
+
 class TradingCommandHandler(BaseCommandHandler):
     """Trading command handler for Telegram bot."""
 
