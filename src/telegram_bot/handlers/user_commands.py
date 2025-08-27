@@ -665,23 +665,22 @@ Try again with /register_crypto"""
             message += "• Expires: Never (Lifetime)\n"
 
         if user.subscription_status == SubscriptionStatus.ACTIVE:
-            message += "\n**Active Features:**
-• ✅ AI Trading Signals
-• ✅ Multi-Platform Trading
-• ✅ Advanced Risk Management
-• ✅ Real-time Position Monitoring
-• ✅ Performance Analytics
-• ✅ Telegram Notifications"
+            message += "\n**Active Features:**\n"
+            message += "• ✅ AI Trading Signals\n"
+            message += "• ✅ Multi-Platform Trading\n"
+            message += "• ✅ Advanced Risk Management\n"
+            message += "• ✅ Real-time Position Monitoring\n"
+            message += "• ✅ Performance Analytics\n"
+            message += "• ✅ Telegram Notifications"
         else:
-            message += "\n**Available Features (After Activation):
-• ❌ AI Trading Signals
-• ❌ Multi-Platform Trading
-• ❌ Advanced Risk Management
-• ❌ Real-time Position Monitoring
-• ❌ Performance Analytics
-• ❌ Telegram Notifications
-
-Contact an administrator to activate your subscription."
+            message += "\n**Available Features (After Activation):**\n"
+            message += "• ❌ AI Trading Signals\n"
+            message += "• ❌ Multi-Platform Trading\n"
+            message += "• ❌ Advanced Risk Management\n"
+            message += "• ❌ Real-time Position Monitoring\n"
+            message += "• ❌ Performance Analytics\n"
+            message += "• ❌ Telegram Notifications\n\n"
+            message += "Contact an administrator to activate your subscription."
 
         await update.message.reply_text(message, parse_mode='Markdown')
 
