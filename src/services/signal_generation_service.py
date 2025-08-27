@@ -489,8 +489,7 @@ class SignalGenerationService(ISignalGenerationService):
                 base_price = 3800    # ~$3,800 for Ethereum
             elif "SOL" in symbol:
                 base_price = 180     # ~$180 for Solana
-            elif "ADA" in symbol:
-                base_price = 1.20    # ~$1.20 for Cardana
+                base_price = 1.20    # ~$1.20 for Cardano
             elif "USD" in symbol:
                 base_price = 1.1000  # Forex rates around 1.10
             else:
