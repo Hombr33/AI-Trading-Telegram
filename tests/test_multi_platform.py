@@ -106,8 +106,8 @@ async def test_individual_exchanges():
             # Create test instances with mock config
             from src.core.config import CryptoConfig
             test_config = CryptoConfig(
-                binance_api_key="test_key",
-                binance_secret_key="test_secret", 
+                binance_api_key=os.environ.get("BINANCE_API_KEY_TEST", ""),
+                binance_secret_key=os.environ.get("BINANCE_SECRET_KEY_TEST", ""), 
                 binance_testnet=True
             )
             exchanges.append(("Binance (Mock)", BinanceExecutor(test_config)))
