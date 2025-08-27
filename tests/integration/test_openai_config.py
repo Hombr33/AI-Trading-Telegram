@@ -12,9 +12,9 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from analysis.modules.openai_client_wrapper import OpenAIClientWrapper
-from analysis.openai_analyzer import OpenAIAnalyzer
-from core.config import config
+from src.analysis.modules.openai_client_wrapper import OpenAIClientWrapper
+from src.analysis.openai_analyzer import OpenAIAnalyzer
+from src.core.config import config
 
 
 async def test_openai_config():

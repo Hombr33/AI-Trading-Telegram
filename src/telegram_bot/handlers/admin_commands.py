@@ -4,11 +4,13 @@ Telegram bot command handlers for admin operations.
 
 import logging
 from typing import Dict, Any, List
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from ...services.user_manager import UserManager
 from ...services.config_manager import ConfigManager
+from ...core.system_manager import system_manager
 # EABridge import moved to method level to avoid circular imports
 from ...models.telegram_users import SubscriptionStatus
 
@@ -469,14 +471,131 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
         # Handle confirmation callbacks
         elif data == "confirm_restart":
             await query.edit_message_text("🔄 *System Restart Initiated*\n\nRestarting trading system...")
-            # TODO: Implement actual restart logic
+            
+            # Get telegram bot instance for notifications
+            telegram_bot = getattr(context, 'bot', None)
+            admin_telegram_id = query.from_user.id
+            
+            try:
+                # Perform graceful restart using system manager
+                restart_result = await system_manager.graceful_restart(
+                    telegram_bot=telegram_bot,
+                    admin_telegram_id=admin_telegram_id
+                )
+                
+                if not restart_result["success"]:
+                    await query.edit_message_text(
+                        f"❌ *Restart Failed*\n\n"
+                        f"Error: {restart_result.get('error', 'Unknown error')}\n\n"
+                        f"System is still running normally.",
+                        parse_mode="Markdown"
+                    )
+            except Exception as e:
+                logger.error(f"Restart failed: {e}")
+                await query.edit_message_text(
+                    f"❌ *Restart Failed*\n\n"
+                    f"Error: {str(e)}\n\n"
+                    f"System is still running normally.",
+                    parse_mode="Markdown"
+                )
             
         elif data == "cancel_restart":
             await query.edit_message_text("❌ System restart cancelled.")
             
         elif data == "confirm_close_all":
             await query.edit_message_text("🚨 *Closing All Positions*\n\nEmergency position closure in progress...")
-            # TODO: Implement close all positions logic
+            
+            admin_telegram_id = query.from_user.id
+            
+            try:
+                # Get multi-user service for position management
+                from ...services.multi_user_service import MultiUserService
+                
+                # Initialize if not already available
+                if not hasattr(self, 'multi_user_service'):
+                    # This should ideally be injected, but for now we'll access it
+                    # through the application context or create a new instance
+                    pass
+                
+                # Get all users
+                all_users = await self.user_manager.get_all_users(admin_telegram_id)
+                
+                if not all_users:
+                    await query.edit_message_text(
+                        "❌ *No users found*\n\nNo active users to close positions for.",
+                        parse_mode="Markdown"
+                    )
+                    return
+                
+                closed_positions = 0
+                failed_closures = 0
+                processed_users = 0
+                
+                # Close positions for each user
+                for user in all_users:
+                    user_telegram_id = user["telegram_id"]
+                    
+                    try:
+                        # Get EA bridge for this user
+                        ea_bridge = self._get_ea_bridge()
+                        if ea_bridge:
+                            # Get user positions
+                            positions = await ea_bridge.get_positions_from_ea(user_telegram_id)
+                            
+                            if positions:
+                                # Close each position
+                                for position in positions:
+                                    try:
+                                        close_result = await ea_bridge.close_position(
+                                            user_telegram_id, 
+                                            position.get('ticket')
+                                        )
+                                        if close_result.get('success'):
+                                            closed_positions += 1
+                                        else:
+                                            failed_closures += 1
+                                    except Exception as e:
+                                        logger.error(f"Failed to close position {position.get('ticket')} for user {user_telegram_id}: {e}")
+                                        failed_closures += 1
+                        
+                        processed_users += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to process user {user_telegram_id}: {e}")
+                        failed_closures += 1
+                
+                # Send final report
+                if closed_positions > 0 or failed_closures > 0:
+                    message = f"🚨 *Emergency Position Closure Complete*\n\n"
+                    message += f"📊 **Summary:**\n"
+                    message += f"• Users processed: {processed_users}\n"
+                    message += f"• Positions closed: {closed_positions}\n"
+                    message += f"• Failed closures: {failed_closures}\n\n"
+                    
+                    if failed_closures > 0:
+                        message += f"⚠️ Some positions could not be closed. Check logs for details.\n\n"
+                    
+                    message += f"✅ Emergency procedure completed at {datetime.now().strftime('%H:%M:%S UTC')}"
+                else:
+                    message = f"ℹ️ *No Open Positions Found*\n\nNo positions were found to close across all users."
+                
+                await query.edit_message_text(message, parse_mode="Markdown")
+                
+                # Send admin alert
+                if hasattr(self, 'telegram_bot') and self.telegram_bot:
+                    await self.telegram_bot.send_admin_alert(
+                        f"Emergency close all executed by admin {admin_telegram_id}. "
+                        f"Closed: {closed_positions}, Failed: {failed_closures}"
+                    )
+                
+            except Exception as e:
+                logger.error(f"Emergency close all failed: {e}")
+                await query.edit_message_text(
+                    f"❌ *Emergency Close Failed*\n\n"
+                    f"Error: {str(e)}\n\n"
+                    f"Manual intervention may be required.",
+                    parse_mode="Markdown"
+                )
             
         elif data == "cancel_close_all":
             await query.edit_message_text("❌ Emergency close cancelled.")

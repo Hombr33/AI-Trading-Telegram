@@ -111,7 +111,7 @@ int start()
 //+------------------------------------------------------------------+
 void TestConnection()
 {
-   string url = API_ENDPOINT + "/bridge/heartbeat";
+    string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
    int result = WebRequest("POST", url, headers, postData, 5000);
@@ -141,7 +141,7 @@ void SendHeartbeat()
       return;
    }
    
-   string url = API_ENDPOINT + "/bridge/heartbeat";
+    string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
    int result = WebRequest("POST", url, headers, postData, 5000);
@@ -171,7 +171,7 @@ void SendTickData()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/tick";
+    string url = API_ENDPOINT + "/api/v1/bridge/tick_data";
    string postData = CreateTickData();
    
    int result = WebRequest("POST", url, headers, postData, 5000);
@@ -189,7 +189,7 @@ void SendPositionSnapshot()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/position_snapshot";
+    string url = API_ENDPOINT + "/api/v1/bridge/position_snapshot";
    string postData = CreatePositionSnapshotData();
    
    int result = WebRequest("POST", url, headers, postData, 5000);

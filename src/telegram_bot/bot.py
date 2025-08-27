@@ -30,6 +30,7 @@ from src.core.logging import get_logger
 from src.core.config import TelegramConfig
 from .notifications import NotificationManager
 from .commands import CommandHandler
+from .handlers.conversation_handlers import setup_conversation_handlers
 
 logger = get_logger(__name__)
 
@@ -73,6 +74,11 @@ class TelegramBot:
         if not self.application:
             return
 
+        # Register conversation handlers first (they have higher priority)
+        conversation_handlers = setup_conversation_handlers()
+        for conv_handler in conversation_handlers:
+            self.application.add_handler(conv_handler)
+
         # Command handlers - use command_handler methods
         self.application.add_handler(TGCommandHandler("start", self.command_handler.start_command))
         self.application.add_handler(TGCommandHandler("help", self.command_handler.help_command))
@@ -84,15 +90,34 @@ class TelegramBot:
         self.application.add_handler(TGCommandHandler("risk", self.command_handler.risk_command))
         self.application.add_handler(TGCommandHandler("settings", self.command_handler.settings_command))
         self.application.add_handler(TGCommandHandler("journal", self.command_handler.journal_command))
-        
+
+        # Additional user commands
+        self.application.add_handler(TGCommandHandler("myid", self.command_handler.my_id_command))
+        self.application.add_handler(TGCommandHandler("subscription", self.command_handler.subscription_command))
+        self.application.add_handler(TGCommandHandler("connections", self.command_handler.connections_command))
+        self.application.add_handler(TGCommandHandler("symbols", self.command_handler.symbols_command))
+
+        # Admin commands
+        self.application.add_handler(TGCommandHandler("users", self.command_handler.users_command))
+        self.application.add_handler(TGCommandHandler("server_config", self.command_handler.server_config_command))
+        self.application.add_handler(TGCommandHandler("restart", self.command_handler.restart_command))
+        self.application.add_handler(TGCommandHandler("logs", self.command_handler.logs_command))
+        self.application.add_handler(TGCommandHandler("close_all", self.command_handler.close_all_command))
+
+        # Multi-user commands
+        self.application.add_handler(TGCommandHandler("search_users", self.command_handler.search_users_command))
+        self.application.add_handler(TGCommandHandler("bulk_ops", self.command_handler.bulk_operations_command))
+        self.application.add_handler(TGCommandHandler("user_details", self.command_handler.user_details_command))
+        self.application.add_handler(TGCommandHandler("system_monitor", self.command_handler.system_monitor_command))
+
         # Callback query handler for inline buttons
         self.application.add_handler(CallbackQueryHandler(self.command_handler.handle_callback))
-        
+
         # Message handler for general messages
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.command_handler.message_handler)
         )
-        
+
         # Error handler
         self.application.add_error_handler(self.command_handler.error_handler)
 

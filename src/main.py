@@ -4,6 +4,7 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 """
 
 import asyncio
+from datetime import datetime, timezone
 import logging
 import signal as signal_module
 from contextlib import asynccontextmanager
@@ -39,6 +40,8 @@ from .telegram_bot.core.trading_bot import TradingBot
 from .services.signal_generation_service import SignalGenerationService
 from .services.auto_trading_service import AutoTradingService
 from .services.multi_user_service import MultiUserService
+from .services.user_manager import UserManager
+from .services.config_manager import ConfigManager
 from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_service
 
 # Import MT5/AioMQL only on Windows
@@ -54,7 +57,10 @@ else:
     AioMQLExecutor = None
 
 # Import API routes
-from src.api.routes import health, v1, bridge, trading, multi_user
+from src.api.routes import health, v1, bridge, trading, multi_user, ea
+
+# Import admin dashboard
+from src.admin_dashboard.router import router as admin_router, set_multi_user_service as set_admin_multi_user_service
 
 # Get logger
 logger = get_logger(__name__)
@@ -74,6 +80,8 @@ signal_generation_service: ISignalGenerationService = None
 auto_trading_service: AutoTradingService = None
 multi_user_service: MultiUserService = None
 mt5_bridge_service: MT5BridgeService = None
+user_manager: UserManager = None
+config_manager: ConfigManager = None
 
 
 # Global shutdown flag
@@ -103,19 +111,20 @@ async def shutdown_handler(sig, loop):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service
+    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service, user_manager, config_manager
 
     # Let uvicorn handle signal processing - no custom signal handlers needed
 
+    # Record startup time
+    start_time = datetime.now(timezone.utc)
+
     # Print startup banner
     print_banner(
-        "AI Trading Bot Starting",
-        "Initializing components and establishing connections...",
-        "cyan",
+         "AI Trading Bot Starting",
+         "Initializing components and establishing connections...",
+         "cyan",
     )
     
-
-
     try:
         # Initialize Platform Manager (supports MT5 + Crypto exchanges)
         logger.info("Initializing platform manager...")
@@ -140,6 +149,11 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing trading managers...")
         order_manager = OrderManager(platform_manager, config.trading)
         position_manager = PositionManager(platform_manager, config.trading)
+
+        # Initialize user and config managers
+        logger.info("Initializing user and config managers...")
+        user_manager = UserManager()
+        config_manager = ConfigManager()
         
         # Initialize trailing manager with proper TrailingConfig
         from .execution.trailing_manager import TrailingConfig
@@ -166,26 +180,29 @@ async def lifespan(app: FastAPI):
         if not bot_started:
             logger.warning("Telegram bot failed to start - continuing in API-only mode")
             logger.warning("The system will run without Telegram notifications")
-            # Don't raise error - continue in API-only mode
-
+        # Don't raise error - continue in API-only mode
         # Set global instances for API routes
         bridge.set_global_instances(order_manager, telegram_bot)
-        trading.order_manager = order_manager
-        trading.position_manager = position_manager
-        trading.telegram_bot = telegram_bot
+
+        # Set global instances for EA routes
+        from src.api.routes.ea import set_ea_globals
+        set_ea_globals(user_manager, config_manager, order_manager, telegram_bot)
 
         # Initialize multi-user service
         logger.info("Initializing multi-user service...")
         multi_user_service = MultiUserService(config.telegram.bot_token)
-        
+
         # Set multi-user service for API routes
         multi_user.set_multi_user_service(multi_user_service)
-        
+
+        # Set multi-user service for admin dashboard
+        set_admin_multi_user_service(multi_user_service)
+
         # Initialize auto trading services
         logger.info("Initializing auto trading services...")
         signal_generation_service = SignalGenerationService(config, telegram_bot)
         auto_trading_service = AutoTradingService(config, platform_manager, telegram_bot)
-        
+
         # Set order manager for auto trading service
         auto_trading_service.order_manager = order_manager
 
@@ -219,11 +236,16 @@ async def lifespan(app: FastAPI):
             """Connect to MT5 in the background without blocking startup."""
             try:
                 logger.info("Connecting to MT5 in background...")
-                if await mt5_executor.connect():
-                    logger.info("MT5 connected successfully")
+                # Get MT5 executor from platform manager
+                mt5_executor = platform_manager.get_platform('mt5') if platform_manager else None
+                if mt5_executor and hasattr(mt5_executor, 'connect'):
+                    if await mt5_executor.connect():
+                        logger.info("MT5 connected successfully")
+                    else:
+                        logger.warning("Failed to connect to MT5, continuing with mock mode")
+                        logger.debug("MT5 connection details: Login=%s, Server=%s", config.mt5.login, config.mt5.server)
                 else:
-                    logger.warning("Failed to connect to MT5, continuing with mock mode")
-                    logger.debug("MT5 connection details: Login=%s, Server=%s", config.mt5.login, config.mt5.server)
+                    logger.warning("MT5 executor not available, continuing with mock mode")
             except Exception as e:
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
                 logger.debug("MT5 connection exception details", exc_info=True)
@@ -238,7 +260,7 @@ async def lifespan(app: FastAPI):
             if config.auto_trading.auto_signal_generation:
                 logger.info("Starting signal generation service...")
                 await signal_generation_service.start()
-            
+        
             logger.info("Starting auto trading execution service...")
             await auto_trading_service.start()
         else:
@@ -439,6 +461,15 @@ app.include_router(v1.router, prefix="/api/v1", tags=["api"])
 app.include_router(bridge.router, prefix="/api/v1/bridge", tags=["bridge"])
 app.include_router(trading.router, prefix="/api/v1/trading", tags=["trading"])
 app.include_router(multi_user.router, prefix="/api/v1/multi-user", tags=["multi-user"])
+app.include_router(ea.router, prefix="/api/v1/ea", tags=["ea"])
+app.include_router(admin_router, tags=["admin-dashboard"])
+
+# Mount static files for admin dashboard
+from fastapi.staticfiles import StaticFiles
+import os
+admin_static_path = os.path.join(os.path.dirname(__file__), "admin_dashboard", "static")
+if os.path.exists(admin_static_path):
+    app.mount("/admin/static", StaticFiles(directory=admin_static_path), name="admin-static")
 
 
 # API info endpoint

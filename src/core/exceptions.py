@@ -62,3 +62,23 @@ class DatabaseError(TradingBotException):
 class SignalProcessingError(TradingBotException):
     """Error processing trading signals."""
     pass
+
+
+class EABridgeError(TradingBotException):
+    """Error with EA bridge operations."""
+    pass
+
+
+class UserIsolationError(TradingBotException):
+    """Error with user data isolation."""
+    pass
+
+
+class PositionManagerError(TradingBotException):
+    """Error with position management operations."""
+    pass
+
+
+class OrderManagerError(TradingBotException):
+    """Error with order management operations."""
+    pass

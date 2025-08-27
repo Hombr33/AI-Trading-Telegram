@@ -2,7 +2,7 @@
 """Test MT5 installation scanning."""
 
 import asyncio
-from src.execution.mt5_executor import MT5Executor
+from src.execution.platforms.forex.mt5_executor import MT5Executor
 from src.core.config import MT5Config
 
 async def test_mt5_scan():

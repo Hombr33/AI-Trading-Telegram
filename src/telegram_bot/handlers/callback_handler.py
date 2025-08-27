@@ -36,6 +36,14 @@ class CallbackRouter:
         # Initialize admin callback handler
         from .admin_commands import AdminCommandHandlers
         self.admin_callbacks = AdminCommandHandlers()
+
+        # Initialize multi-user callback handler
+        from .multi_user_handlers import MultiUserHandlers
+        self.multi_user_callbacks = MultiUserHandlers()
+
+        # Initialize user callback handler
+        from .user_commands import UserCommandHandlers
+        self.user_callbacks = UserCommandHandlers()
         
         # Define callback routing
         self.system_callback_keys = {
@@ -57,6 +65,21 @@ class CallbackRouter:
             "server_config_edit", "server_config_add", "server_config_refresh",
             "confirm_restart", "cancel_restart", "confirm_close_all", "cancel_close_all"
         }
+
+        # Multi-user callback keys
+        self.multi_user_callback_keys = {
+            "new_search", "bulk_notify", "bulk_subscribe", "bulk_export",
+            "bulk_cleanup", "bulk_cancel", "refresh_monitor"
+        }
+
+        # User callback keys
+        self.user_callback_keys = {
+            "register_mt5", "register_crypto", "add_mt5", "add_crypto",
+            "test_connections", "symbol_settings", "config_risk", "config_symbol",
+            "config_signal", "config_model", "config_trading", "config_rules",
+            "config_reset_all", "config_view_all", "edit_config", "reset_config",
+            "config_back", "crypto_binance", "crypto_bybit", "crypto_kucoin", "crypto_cancel"
+        }
         
         self.trading_callback_keys = {
             "positions", "refresh_positions", "position_details", "quick_close",
@@ -76,12 +99,24 @@ class CallbackRouter:
             # Handle signal callbacks with pattern matching
             if callback_data.startswith("signal_"):
                 await self.trading_callbacks.handle_callback(update, context)
+            elif callback_data.startswith("symbol_"):
+                await self.user_callbacks.handle_user_callback(update, context)
+            elif callback_data.startswith("user_details_") or callback_data.startswith("manage_user_"):
+                await self.multi_user_callbacks.handle_multi_user_callback(update, context)
+            elif callback_data.startswith("edit_user_") or callback_data.startswith("user_performance_"):
+                await self.multi_user_callbacks.handle_multi_user_callback(update, context)
+            elif callback_data.startswith("isolate_user_") or callback_data.startswith("refresh_user_"):
+                await self.multi_user_callbacks.handle_multi_user_callback(update, context)
             elif callback_data in self.system_callback_keys:
                 await self.system_callbacks.handle_callback(update, context)
             elif callback_data in self.trading_callback_keys:
                 await self.trading_callbacks.handle_callback(update, context)
             elif callback_data in self.admin_callback_keys:
                 await self.admin_callbacks.handle_admin_callback(update, context)
+            elif callback_data in self.multi_user_callback_keys:
+                await self.multi_user_callbacks.handle_multi_user_callback(update, context)
+            elif callback_data in self.user_callback_keys:
+                await self.user_callbacks.handle_user_callback(update, context)
             else:
                 logger.warning(f"Unknown callback data: {callback_data}")
                 await query.answer("Unknown callback")

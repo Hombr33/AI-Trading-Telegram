@@ -165,8 +165,33 @@ class TradingDataService:
             query = session.query(Signal).filter(Signal.status == "ACTIVE")
             
             if user_id:
-                # Filter by user if needed
-                pass  # TODO: Implement user-specific signal filtering
+                # Filter signals based on user preferences and subscriptions
+                try:
+                    from ...services.config_manager import ConfigManager
+                    config_manager = ConfigManager()
+                    
+                    # Get user signal preferences
+                    signal_prefs = await config_manager.get_user_config(user_id, "signal_preferences")
+                    
+                    if signal_prefs:
+                        # Filter by subscribed symbols
+                        subscribed_symbols = signal_prefs.get("subscribed_symbols", [])
+                        if subscribed_symbols:
+                            query = query.filter(Signal.symbol.in_(subscribed_symbols))
+                        
+                        # Filter by minimum confidence
+                        min_confidence = signal_prefs.get("min_confidence", 0)
+                        if min_confidence > 0:
+                            query = query.filter(Signal.confidence >= min_confidence)
+                        
+                        # Filter by signal types
+                        allowed_biases = signal_prefs.get("allowed_biases", ["BULLISH", "BEARISH"])
+                        if allowed_biases:
+                            query = query.filter(Signal.bias.in_(allowed_biases))
+                            
+                except Exception as e:
+                    logger.error(f"Error applying user-specific signal filtering: {e}")
+                    # Continue with unfiltered query if filtering fails
                 
             signals = query.order_by(Signal.created_at.desc()).limit(limit).all()
             

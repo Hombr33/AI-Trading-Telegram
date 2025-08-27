@@ -12,6 +12,7 @@ from .analysis import AnalysisCommandHandler
 from .auto_trading import AutoTradingCommandHandler
 from .symbol import SymbolCommandHandler
 from ..handlers.admin_commands import AdminCommandHandlers
+from ..handlers.multi_user_handlers import MultiUserHandlers
 from src.services.symbol_service import SymbolService
 
 logger = get_logger(__name__)
@@ -28,6 +29,7 @@ class CommandHandler:
         self.analysis_handler = AnalysisCommandHandler()
         self.auto_trading_handler = AutoTradingCommandHandler()
         self.admin_handler = AdminCommandHandlers()
+        self.multi_user_handler = MultiUserHandlers()
         
         # Initialize symbol handler with service
         from src.database.session import SessionLocal
@@ -58,7 +60,18 @@ class CommandHandler:
             "logs": self.admin_handler.logs_command,
             "close_all": self.admin_handler.close_all_command,
         }
+
+        # Add multi-user commands
+        multi_user_commands = {
+            "search_users": self.multi_user_handler.search_users_command,
+            "bulk_ops": self.multi_user_handler.bulk_operations_command,
+            "isolate_user": self.multi_user_handler.user_isolation_command,
+            "user_details": self.multi_user_handler.user_details_command,
+            "system_monitor": self.multi_user_handler.system_monitor_command,
+        }
+
         self.commands.update(admin_commands)
+        self.commands.update(multi_user_commands)
 
     def get_command_handlers(self) -> Dict[str, Callable]:
         """Get command handlers."""
@@ -151,6 +164,48 @@ class CommandHandler:
         ])
         
         await update.message.reply_text(admin_menu, reply_markup=keyboard, parse_mode="Markdown")
+
+    # Additional user command methods
+    async def my_id_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /myid command."""
+        from ..handlers.user_commands import UserCommandHandlers
+        user_handler = UserCommandHandlers()
+        await user_handler.my_id_command(update, context)
+
+    async def subscription_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /subscription command."""
+        from ..handlers.user_commands import UserCommandHandlers
+        user_handler = UserCommandHandlers()
+        await user_handler.subscription_command(update, context)
+
+    async def connections_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /connections command."""
+        from ..handlers.user_commands import UserCommandHandlers
+        user_handler = UserCommandHandlers()
+        await user_handler.connections_command(update, context)
+
+    async def symbols_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /symbols command."""
+        from ..handlers.user_commands import UserCommandHandlers
+        user_handler = UserCommandHandlers()
+        await user_handler.symbols_command(update, context)
+
+    # Multi-user command methods
+    async def search_users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /search_users command."""
+        await self.multi_user_handler.search_users_command(update, context)
+
+    async def bulk_operations_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /bulk_ops command."""
+        await self.multi_user_handler.bulk_operations_command(update, context)
+
+    async def user_details_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /user_details command."""
+        await self.multi_user_handler.user_details_command(update, context)
+
+    async def system_monitor_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /system_monitor command."""
+        await self.multi_user_handler.system_monitor_command(update, context)
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle messages."""

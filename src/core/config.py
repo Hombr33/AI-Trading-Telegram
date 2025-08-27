@@ -27,6 +27,12 @@ class DatabaseConfig(BaseSettings):
         env_prefix = "DB_"
         extra = "ignore"
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Override with DATABASE_URL if it exists (without prefix)
+        if os.getenv("DATABASE_URL"):
+            self.url = os.getenv("DATABASE_URL")
+
 
 class MT5Config(BaseSettings):
     """MT5 configuration."""
@@ -386,3 +392,8 @@ class AppConfig(BaseSettings):
 # Global configuration instance - reload env vars to ensure they're picked up
 load_dotenv(env_path, override=True)
 config = AppConfig()
+
+
+def get_settings() -> AppConfig:
+    """Get global application settings."""
+    return config

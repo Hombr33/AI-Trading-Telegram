@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration Management - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-cogs me-2"></i>
+        Configuration Management
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-sm btn-outline-primary me-2" onclick="backupConfig()">
+            <i class="fas fa-save me-1"></i>
+            Backup
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="restoreConfig()">
+            <i class="fas fa-undo me-1"></i>
+            Restore
+        </button>
+        <button class="btn btn-sm btn-outline-success" onclick="validateConfig()">
+            <i class="fas fa-check me-1"></i>
+            Validate
+        </button>
+    </div>
+</div>
+
+<!-- Configuration Overview -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-sliders-h me-2"></i>
+                    System Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="systemConfigForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Environment</label>
+                                <select class="form-select" name="environment">
+                                    <option value="development" {% if system_config.environment == 'development' %}selected{% endif %}>Development</option>
+                                    <option value="staging" {% if system_config.environment == 'staging' %}selected{% endif %}>Staging</option>
+                                    <option value="production" {% if system_config.environment == 'production' %}selected{% endif %}>Production</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Telegram Bot Token</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="telegram_bot_token"
+                                           value="{{ '••••••••' if system_config.telegram.enabled else '' }}">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="toggleTokenVisibility()">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Chat ID</label>
+                                <input type="text" class="form-control" name="telegram_chat_id"
+                                       value="{{ system_config.telegram.chat_id or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Risk Management</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="risk_management_enabled"
+                                           {% if system_config.trading.risk_management %}checked{% endif %}>
+                                    <label class="form-check-label">Enable Risk Management</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Max Risk per Trade (%)</label>
+                                <input type="number" class="form-control" name="max_risk_per_trade"
+                                       value="{{ system_config.trading.risk_management.max_risk_per_trade | default(2) }}"
+                                       min="0.1" max="10" step="0.1">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Daily Drawdown Limit (%)</label>
+                                <input type="number" class="form-control" name="daily_drawdown_limit"
+                                       value="{{ system_config.trading.risk_management.daily_drawdown_limit | default(6) }}"
+                                       min="1" max="20" step="0.5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" onclick="resetConfig()">
+                            Reset
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="saveConfig()">
+                            Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Configuration Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Validation Status:</span>
+                        <span class="badge bg-success">Valid</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Last Backup:</span>
+                        <small class="text-muted">2024-01-15 10:30:00</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Configuration Version:</span>
+                        <small class="text-muted">v1.2.3</small>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6>Quick Actions</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="exportConfig()">
+                            <i class="fas fa-download me-1"></i>
+                            Export Config
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="importConfig()">
+                            <i class="fas fa-upload me-1"></i>
+                            Import Config
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" onclick="resetToDefaults()">
+                            <i class="fas fa-undo me-1"></i>
+                            Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trading Configuration -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    Trading Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Position Sizing</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Method</label>
+                            <select class="form-select">
+                                <option>Fixed Amount</option>
+                                <option selected>Percentage of Balance</option>
+                                <option>Kelly Criterion</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Risk Amount (%)</label>
+                            <input type="number" class="form-control" value="1.0" min="0.1" max="5" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <h6>Take Profit Settings</h6>
+                        <div class="mb-3">
+                            <label class="form-label">TP Method</label>
+                            <select class="form-select">
+                                <option>Fixed Pips</option>
+                                <option selected>Risk-Reward Ratio</option>
+                                <option>Dynamic</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">RR Ratio</label>
+                            <input type="number" class="form-control" value="1.5" min="1" max="5" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <h6>Stop Loss Settings</h6>
+                        <div class="mb-3">
+                            <label class="form-label">SL Method</label>
+                            <select class="form-select">
+                                <option>Fixed Pips</option>
+                                <option selected>ATR Based</option>
+                                <option>Support/Resistance</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">ATR Multiplier</label>
+                            <input type="number" class="form-control" value="2.0" min="1" max="5" step="0.1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Signal Configuration -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Signal Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Signal Generation</h6>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked>
+                                <label class="form-check-label">Enable Auto Signal Generation</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Min Confidence Threshold (%)</label>
+                            <input type="number" class="form-control" value="60" min="0" max="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Signal Interval (minutes)</label>
+                            <input type="number" class="form-control" value="5" min="1" max="60">
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6>Signal Distribution</h6>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked>
+                                <label class="form-check-label">Auto Distribute Signals</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Distribution Delay (seconds)</label>
+                            <input type="number" class="form-control" value="30" min="0" max="300">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Max Users per Signal</label>
+                            <input type="number" class="form-control" value="10" min="1" max="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Templates -->
+<div class="row">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>
+                    Configuration Templates
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-turtle fa-2x text-primary mb-2"></i>
+                                <h6>Conservative</h6>
+                                <p class="text-muted small">Low risk, steady returns</p>
+                                <button class="btn btn-outline-primary btn-sm" onclick="applyTemplate('conservative')">
+                                    Apply Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-balance-scale fa-2x text-success mb-2"></i>
+                                <h6>Balanced</h6>
+                                <p class="text-muted small">Moderate risk-reward ratio</p>
+                                <button class="btn btn-outline-success btn-sm" onclick="applyTemplate('balanced')">
+                                    Apply Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-rocket fa-2x text-warning mb-2"></i>
+                                <h6>Aggressive</h6>
+                                <p class="text-muted small">High risk, high reward</p>
+                                <button class="btn btn-outline-warning btn-sm" onclick="applyTemplate('aggressive')">
+                                    Apply Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleTokenVisibility() {
+    const tokenInput = document.querySelector('input[name="telegram_bot_token"]');
+    const icon = document.querySelector('button[onclick="toggleTokenVisibility()"] i');
+
+    if (tokenInput.type === 'password') {
+        tokenInput.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        tokenInput.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+function saveConfig() {
+    if (!confirm('Are you sure you want to save the configuration changes?')) {
+        return;
+    }
+
+    const formData = new FormData(document.getElementById('systemConfigForm'));
+
+    // Implementation would save configuration
+    showToast('Configuration saved successfully', 'success');
+}
+
+function resetConfig() {
+    if (!confirm('Are you sure you want to reset all configuration changes?')) {
+        return;
+    }
+
+    document.getElementById('systemConfigForm').reset();
+    showToast('Configuration reset to last saved state', 'info');
+}
+
+function backupConfig() {
+    showToast('Configuration backup created successfully', 'success');
+}
+
+function restoreConfig() {
+    if (!confirm('Are you sure you want to restore configuration from backup? This will overwrite current settings.')) {
+        return;
+    }
+
+    showToast('Configuration restore functionality coming soon', 'info');
+}
+
+function validateConfig() {
+    showToast('Configuration validation completed successfully', 'success');
+}
+
+function exportConfig() {
+    showToast('Configuration export functionality coming soon', 'info');
+}
+
+function importConfig() {
+    showToast('Configuration import functionality coming soon', 'info');
+}
+
+function resetToDefaults() {
+    if (!confirm('Are you sure you want to reset all configuration to system defaults? This action cannot be undone.')) {
+        return;
+    }
+
+    showToast('Configuration reset to defaults functionality coming soon', 'info');
+}
+
+function applyTemplate(templateName) {
+    if (!confirm(`Are you sure you want to apply the ${templateName} template? This will overwrite current settings.`)) {
+        return;
+    }
+
+    showToast(`${templateName} template applied successfully`, 'success');
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -229,7 +229,7 @@ class SignalDistributor:
 
     async def get_user_active_symbols(self, telegram_id: int) -> List[str]:
         """Get user's active symbol subscriptions."""
-        with get_session() as session:
+        with get_db_session() as session:
             user = session.query(TelegramUser).filter(
                 TelegramUser.telegram_id == telegram_id
             ).first()

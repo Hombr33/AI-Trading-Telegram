@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Error - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Error
+    </h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="stats-card card border-danger">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-exclamation-triangle fa-4x text-danger"></i>
+                </div>
+                <h3 class="card-title text-danger">Oops! Something went wrong</h3>
+                <p class="card-text text-muted">
+                    An error occurred while processing your request. Please try again or contact support if the problem persists.
+                </p>
+
+                <div class="alert alert-danger" role="alert">
+                    <strong>Error Details:</strong> {{ error }}
+                </div>
+
+                <div class="mt-4">
+                    <button class="btn btn-outline-primary me-2" onclick="goBack()">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Go Back
+                    </button>
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = '/admin/?admin_id={{ admin.telegram_id }}';
+    }
+}
+</script>
+{% endblock %}

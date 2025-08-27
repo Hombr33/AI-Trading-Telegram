@@ -6,7 +6,6 @@ import os
 import hashlib
 import hmac
 from typing import Optional
-from .config import get_settings
 
 try:
     import bcrypt
@@ -17,8 +16,8 @@ except ImportError:
 
 def verify_bridge_token(token: str) -> bool:
     """Verify bridge authentication token."""
-    settings = get_settings()
-    expected_token = os.getenv(settings.bridge.token_env_key)
+    from .config import config
+    expected_token = os.getenv(config.bridge.token_env_key)
 
     if not expected_token:
         return False
@@ -35,7 +34,10 @@ def hash_password(password: str) -> str:
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     else:
         # Fallback to SHA-256 (less secure, but better than plain text)
-        # TODO: Install bcrypt for production use
+        # Note: bcrypt should be installed in production environments
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("bcrypt not available, using SHA-256 fallback. Install bcrypt for production use.")
         return hashlib.sha256(password.encode()).hexdigest()
 
 

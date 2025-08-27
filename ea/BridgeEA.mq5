@@ -57,73 +57,98 @@ bool trailingManagementEnabled = true;
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
-int OnInit()
+int init()
 {
-   Print("BridgeEA MT5 Initialized");
-   
-   // Initialize trading objects
-   trade.SetExpertMagicNumber(1001);
-   trade.SetDeviationInPoints(10);
-   trade.SetTypeFilling(ORDER_FILLING_FOK);
-   
-   // Get terminal and account information
-   terminalId = TerminalInfoString(TERMINAL_NAME);
-   accountNumber = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
-   
-   // Initialize screenshot path
-   screenshotPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\Screenshots\\";
-   
-   // Set up headers for authentication
-   headers = "Authorization: Bearer " + BRIDGE_TOKEN + "\r\n";
-   headers += "Content-Type: application/json\r\n";
-   
-   // Test connection
-   TestConnection();
-   
-   Print("Screenshot path: " + screenshotPath);
-   Print("Order execution enabled: " + (ENABLE_ORDER_EXECUTION ? "Yes" : "No"));
-   Print("Trailing management enabled: " + (ENABLE_TRAILING_MANAGEMENT ? "Yes" : "No"));
-   
-   // Set up timer for periodic operations
-   EventSetTimer(1); // Check every second
-   
-   return(INIT_SUCCEEDED);
+    Print("BridgeEA MT5 Initialized");
+
+    // Initialize trading objects
+    trade.SetExpertMagicNumber(1001);
+    trade.SetDeviationInPoints(10);
+    trade.SetTypeFilling(ORDER_FILLING_FOK);
+
+    // Get terminal and account information
+    terminalId = TerminalInfoString(TERMINAL_NAME);
+    accountNumber = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+
+    // Initialize screenshot path
+    screenshotPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\Screenshots\\";
+
+    // Set up headers for authentication
+    headers = "Authorization: Bearer " + BRIDGE_TOKEN + "\r\n";
+    headers += "Content-Type: application/json\r\n";
+
+    // Test connection
+    TestConnection();
+
+    Print("Screenshot path: " + screenshotPath);
+    Print("Order execution enabled: " + (ENABLE_ORDER_EXECUTION ? "Yes" : "No"));
+    Print("Trailing management enabled: " + (ENABLE_TRAILING_MANAGEMENT ? "Yes" : "No"));
+
+    // Set up timer for periodic operations
+    EventSetTimer(1); // Check every second
+
+    return(INIT_SUCCEEDED);
 }
 
 //+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
-void OnDeinit(const int reason)
+int deinit()
 {
-   Print("BridgeEA MT5 Deinitialized. Reason: ", reason);
-   
-   // Remove timer
-   EventSetTimer(0);
+    Print("BridgeEA MT5 Deinitialized");
+
+    // Remove timer
+    EventSetTimer(0);
+
+    return(0);
 }
 
 //+------------------------------------------------------------------+
-//| Expert tick function                                             |
+//| Expert start function                                            |
 //+------------------------------------------------------------------+
-void OnTick()
+int start()
 {
-   // Send tick data if enabled and enough time has passed
-   if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
-   {
-      SendTickData();
-      lastTickTime = TimeCurrent();
-   }
-   
-   // Check for incoming orders from Python
-   if(ENABLE_ORDER_EXECUTION)
-   {
-      CheckForIncomingOrders();
-   }
-   
-   // Manage trailing stops if enabled
-   if(ENABLE_TRAILING_MANAGEMENT)
-   {
-      ManageTrailingStops();
-   }
+    // Send heartbeat
+    if(TimeCurrent() - lastHeartbeatTime >= HEARTBEAT_INTERVAL)
+    {
+       SendHeartbeat();
+       lastHeartbeatTime = TimeCurrent();
+    }
+
+    // Send position snapshot
+    if(TimeCurrent() - lastPositionSnapshotTime >= POSITION_SNAPSHOT_INTERVAL)
+    {
+       SendPositionSnapshot();
+       lastPositionSnapshotTime = TimeCurrent();
+    }
+
+    // Send tick data if enabled and enough time has passed
+    if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
+    {
+       SendTickData();
+       lastTickTime = TimeCurrent();
+    }
+
+    // Check for incoming orders from Python
+    if(ENABLE_ORDER_EXECUTION)
+    {
+       CheckForIncomingOrders();
+    }
+
+    // Manage trailing stops if enabled
+    if(ENABLE_TRAILING_MANAGEMENT)
+    {
+       ManageTrailingStops();
+    }
+
+    // Take and send screenshot for AI analysis
+    if(ENABLE_SCREENSHOT_ANALYSIS && (TimeCurrent() - lastScreenshotTime >= SCREENSHOT_INTERVAL))
+    {
+       TakeAndSendScreenshot();
+       lastScreenshotTime = TimeCurrent();
+    }
+
+    return(0);
 }
 
 //+------------------------------------------------------------------+
@@ -164,7 +189,7 @@ void OnTimer()
 //+------------------------------------------------------------------+
 void TestConnection()
 {
-   string url = API_ENDPOINT + "/bridge/heartbeat";
+    string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
    char post[];
@@ -205,7 +230,7 @@ void SendHeartbeat()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/heartbeat";
+    string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
    
    char post[];
@@ -227,7 +252,7 @@ void SendTickData()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/tick_data";
+    string url = API_ENDPOINT + "/api/v1/bridge/tick_data";
    string postData = CreateTickData();
    
    char post[];
@@ -249,7 +274,7 @@ void SendPositionSnapshot()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/position_snapshot";
+    string url = API_ENDPOINT + "/api/v1/bridge/position_snapshot";
    string postData = CreatePositionSnapshotData();
    
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
@@ -267,7 +292,7 @@ void CheckForIncomingOrders()
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/pending_orders";
+    string url = API_ENDPOINT + "/api/v1/bridge/pending_orders";
    string postData = CreateHeartbeatData(); // Use heartbeat as authentication
    
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
@@ -490,7 +515,7 @@ void SendOrderConfirmation(string symbol, string action, string orderType,
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/order_confirmation";
+    string url = API_ENDPOINT + "/api/v1/bridge/order_confirmation";
    string postData = CreateOrderConfirmationData(symbol, action, orderType, volume, status);
    
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
@@ -508,7 +533,7 @@ void SendSignalAcknowledgment(string symbol, string bias)
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/signal_ack";
+    string url = API_ENDPOINT + "/api/v1/bridge/signal_ack";
    string postData = CreateSignalAckData(symbol, bias);
    
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
@@ -702,7 +727,7 @@ void SendScreenshotToAPI(string filePath, string filename)
 {
    if(!isConnected) return;
    
-   string url = API_ENDPOINT + "/bridge/screenshot_analysis";
+    string url = API_ENDPOINT + "/api/v1/bridge/screenshot_analysis";
    
    // Read file and convert to base64
    string base64Data = "";

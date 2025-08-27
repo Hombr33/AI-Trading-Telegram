@@ -266,7 +266,8 @@ class AutoTradingService(IAutoTradingService):
                 return None
             
             # Calculate position size based on risk percentage
-            account_balance = account_info.get("balance", 0)
+            # AccountInfo.balance is a Dict[str, float], get USD balance
+            account_balance = account_info.balance.get("USD", 10000.0)  # Default to $10k if no USD balance
             risk_amount = account_balance * (config.auto_trading.risk_per_trade_percent / 100)
             
             entry_price = signal.get("entry_price", 0)
