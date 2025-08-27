@@ -2,8 +2,6 @@
 Telegram Bot for AI Trading Bot monitoring and alerts.
 """
 
-import asyncio
-import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 try:
@@ -123,40 +121,38 @@ class TelegramBot:
     async def stop(self):
         """Stop the Telegram bot."""
         try:
-            if self.application:
-                await self.application.updater.stop()
-                await self.application.stop()
-                await self.application.shutdown()
+            if self.application and self.running:
+                logger.info("Stopping Telegram bot polling...")
+                
+                # First stop the updater (this stops polling gracefully)
+                if self.application.updater and self.application.updater.running:
+                    try:
+                        await self.application.updater.stop()
+                        logger.info("Telegram updater stopped")
+                    except Exception as e:
+                        logger.warning(f"Error stopping updater: {e}")
+                
+                # Then stop the application
+                try:
+                    await self.application.stop()
+                    logger.info("Telegram application stopped")
+                except Exception as e:
+                    logger.warning(f"Error stopping application: {e}")
+                
+                # Finally shutdown the application
+                try:
+                    await self.application.shutdown()
+                    logger.info("Telegram application shutdown complete")
+                except Exception as e:
+                    logger.warning(f"Error during application shutdown: {e}")
 
             self.running = False
             logger.info("Telegram bot stopped")
 
         except Exception as e:
             logger.error(f"Error stopping Telegram bot: {e}")
+            self.running = False
 
-    # Removed _start_command method as we're using command_handler.start_command instead
-
-    # Removed _help_command method as we're using command_handler.help_command instead
-
-    # Removed _status_command method as we're using command_handler.status_command instead
-
-    # Removed _positions_command method as we're using command_handler.positions_command instead
-
-    # Removed _orders_command method as we're using command_handler.orders_command instead
-
-    # Removed _performance_command method as we're using command_handler.performance_command instead
-
-    # Removed _risk_command method as we're using command_handler.risk_command instead
-
-    # Removed _settings_command method as we're using command_handler.settings_command instead
-
-    # Removed _journal_command method as we're using command_handler.journal_command instead
-
-    # Removed _button_callback method as we're using command_handler.handle_callback instead
-
-    # Removed _message_handler method as we're using command_handler.message_handler instead
-
-    # Removed _error_handler method as we're using command_handler.error_handler instead
 
     async def send_message(self, chat_id: int, message: str, **kwargs):
         """Send a message to a specific chat."""

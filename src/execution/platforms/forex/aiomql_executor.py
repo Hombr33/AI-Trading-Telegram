@@ -4,7 +4,7 @@ import time
 import asyncio
 from typing import Dict, List, Optional, Any
 
-from ..core.logging import (
+from ....core.logging import (
     get_logger, 
     log_error_with_context, 
     log_system_event,
@@ -12,17 +12,19 @@ from ..core.logging import (
     log_performance_metric,
     log_operation_timing
 )
-from ..core.error_handler import (
+from ....core.error_handler import (
     with_error_handling,
     ErrorContext,
     CircuitBreaker
 )
-from ..core.exceptions import (
+from ....core.exceptions import (
     MT5ConnectionError,
     MT5ExecutionError,
     AioMQLError
 )
 from .mt5_executor import MT5Executor
+from ...base_executor import BaseExecutor
+from ...interfaces import PlatformType
 
 logger = get_logger(__name__)
 
@@ -58,6 +60,10 @@ class AioMQLExecutor(MT5Executor):
             expected_exception=AioMQLError
         )
         self._last_heartbeat = None
+    
+    @property
+    def platform_name(self) -> str:
+        return "AioMQL (MetaTrader 5)"
 
     @with_error_handling("aiomql_connect", notify_telegram=True, fallback_value=False)
     async def connect(self) -> bool:

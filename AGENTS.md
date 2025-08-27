@@ -7,7 +7,7 @@
 - `pytest tests/unit/test_analysis/test_market_analyzer.py::test_specific_function` - Run single test
 - `pytest --cov=src --cov-report=html` - Run tests with coverage
 - `python run.py` - Start application with uvicorn
-- `python test_setup.py` - Test core setup and imports
+- `python tests/test_setup.py` - Test core setup and imports
 
 ## Architecture
 Institutional-grade AI trading bot with 2-way MT5 communication:

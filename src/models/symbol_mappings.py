@@ -10,8 +10,8 @@ class SymbolMapping(Base):
     __tablename__ = "symbol_mappings"
     
     standard_symbol = Column(String, primary_key=True)
+    broker_name = Column(String, primary_key=True)
     broker_symbol = Column(String, nullable=False)
-    broker_name = Column(String, nullable=False)
     description = Column(String, nullable=True)
 
     def __repr__(self):

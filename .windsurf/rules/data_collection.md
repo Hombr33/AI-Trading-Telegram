@@ -1,0 +1,180 @@
+---
+trigger: always_on
+description: Enhanced data collection system rules for multi-source market data, news sentiment, and real-time feeds
+globs: ["src/data/*", "src/collectors/*", "**/collector.py", "**/data_*.py"]
+---
+
+{
+  "data_collection_system": {
+    "core_requirements": {
+      "data_sources": {
+        "primary": ["MT5", "MT4"],
+        "secondary": ["Binance", "Bybit"],
+        "news": ["News_API", "Economic_Calendar"],
+        "sentiment": ["Twitter", "Reddit", "News_Headlines"]
+      },
+      "data_types": {
+        "market_data": ["OHLCV", "ticks", "volume_profile", "order_book"],
+        "fundamental_data": ["news_releases", "economic_indicators", "central_bank_announcements"],
+        "sentiment_data": ["social_media_sentiment", "news_sentiment", "market_fear_greed"],
+        "session_data": ["market_hours", "session_overlap", "volatility_forecast"]
+      },
+      "quality_standards": {
+        "data_freshness": "real_time_with_max_1_second_delay",
+        "data_accuracy": "99.9%_precision",
+        "data_completeness": "no_missing_candles_or_ticks",
+        "data_consistency": "cross_source_validation"
+      }
+    },
+    "mt5_data_collection": {
+      "connection_settings": {
+        "login": "from_environment_variable",
+        "password": "from_environment_variable",
+        "server": "from_environment_variable",
+        "timeout": 30000,
+        "heartbeat_interval": 60
+      },
+      "data_collection": {
+        "symbols": ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCAD"],
+        "timeframes": ["M1", "M5", "M15", "H1", "H4"],
+        "history_depth": "minimum_1000_candles",
+        "tick_data": "enabled_for_active_symbols",
+        "volume_data": "enabled_for_all_timeframes"
+      },
+      "real_time_streaming": {
+        "quote_updates": "enabled",
+        "tick_updates": "enabled",
+        "trade_updates": "enabled",
+        "news_updates": "enabled",
+        "streaming_buffer": "1000_events"
+      },
+      "data_storage": {
+        "format": "parquet_with_compression",
+        "partitioning": "by_symbol_and_timeframe",
+        "retention": "90_days_for_ohlcv_7_years_for_trades",
+        "backup_strategy": "daily_incremental"
+      }
+    },
+    "crypto_data_collection": {
+      "binance_integration": {
+        "api_key": "from_environment_variable",
+        "api_secret": "from_environment_variable",
+        "rate_limits": "1200_requests_per_minute",
+        "websocket_streams": ["kline_1m", "kline_5m", "kline_15m", "kline_1h", "kline_4h"]
+      },
+      "bybit_integration": {
+        "api_key": "from_environment_variable",
+        "api_secret": "from_environment_variable",
+        "rate_limits": "100_requests_per_second",
+        "websocket_streams": ["kline", "ticker", "trade"]
+      },
+      "data_synchronization": {
+        "cross_exchange_validation": true,
+        "arbitrage_detection": true,
+        "liquidity_analysis": true,
+        "correlation_tracking": true
+      }
+    },
+    "news_and_sentiment_collection": {
+      "news_api_integration": {
+        "api_key": "from_environment_variable",
+        "sources": ["reuters", "bloomberg", "cnbc", "wsj"],
+        "update_frequency": "every_5_minutes",
+        "impact_scoring": "high_medium_low",
+        "currency_pairs": ["all_major_pairs"]
+      },
+      "economic_calendar": {
+        "data_source": "investing_com_or_trading_economics",
+        "update_frequency": "real_time",
+        "impact_forecast": "actual_vs_expected",
+        "currency_volatility": "pre_post_release"
+      },
+      "sentiment_analysis": {
+        "social_media": ["twitter", "reddit", "stocktwits"],
+        "news_headlines": "real_time_processing",
+        "sentiment_scoring": "-1_to_1_scale",
+        "confidence_threshold": 0.7
+      }
+    },
+    "data_processing": {
+      "normalization": {
+        "timezone_conversion": "UTC_to_Asia_Jakarta",
+        "price_normalization": "pips_to_points",
+        "volume_normalization": "lot_size_standardization",
+        "format_standardization": "unified_data_structure"
+      },
+      "quality_checks": {
+        "missing_data_detection": "gap_analysis",
+        "outlier_detection": "statistical_validation",
+        "duplicate_removal": "timestamp_based_deduplication",
+        "consistency_validation": "cross_timeframe_check"
+      },
+      "enrichment": {
+        "technical_indicators": ["RSI", "MACD", "Bollinger_Bands", "ATR"],
+        "volatility_metrics": ["realized_volatility", "implied_volatility", "volatility_ratio"],
+        "liquidity_metrics": ["bid_ask_spread", "market_depth", "volume_profile"],
+        "correlation_metrics": ["inter_pair_correlation", "cross_asset_correlation"]
+      }
+    },
+    "performance_optimization": {
+      "data_throughput": {
+        "target_events_per_second": 10000,
+        "target_latency": "< 100ms",
+        "target_memory_usage": "< 1GB",
+        "target_cpu_usage": "< 50%"
+      },
+      "caching_strategy": {
+        "hot_data": "in_memory_cache",
+        "warm_data": "redis_cache",
+        "cold_data": "database_storage",
+        "cache_ttl": "5_minutes_for_hot_1_hour_for_warm"
+      },
+      "scalability": {
+        "horizontal_scaling": "multiple_collector_instances",
+        "load_balancing": "round_robin_distribution",
+        "failover_strategy": "automatic_switch_to_backup",
+        "resource_monitoring": "real_time_usage_tracking"
+      }
+    },
+    "error_handling": {
+      "connection_failures": {
+        "retry_strategy": "exponential_backoff",
+        "max_retry_attempts": 5,
+        "failover_to_backup": true,
+        "alert_on_failure": true
+      },
+      "data_quality_issues": {
+        "missing_data": "interpolation_or_skip",
+        "corrupted_data": "log_and_skip",
+        "delayed_data": "timestamp_validation",
+        "duplicate_data": "automatic_deduplication"
+      },
+      "rate_limit_handling": {
+        "request_throttling": "adaptive_rate_limiting",
+        "queue_management": "priority_based_queuing",
+        "backpressure_handling": "flow_control",
+        "graceful_degradation": "reduce_update_frequency"
+      }
+    },
+    "monitoring_and_alerting": {
+      "data_quality_metrics": {
+        "completeness": "percentage_of_complete_datasets",
+        "accuracy": "cross_source_validation_score",
+        "freshness": "data_age_in_seconds",
+        "consistency": "cross_timeframe_consistency_score"
+      },
+      "performance_metrics": {
+        "collection_rate": "events_per_second",
+        "processing_latency": "end_to_end_delay",
+        "error_rate": "failed_collections_per_total",
+        "resource_usage": "cpu_memory_disk_utilization"
+      },
+      "alert_conditions": {
+        "data_delay": "> 5_seconds",
+        "error_rate": "> 1%",
+        "missing_data": "> 10_consecutive_candles",
+        "connection_failure": "> 3_attempts"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 """Base Telegram bot implementation."""
 
 import asyncio
+import contextlib
 import logging
 from typing import Dict, List, Optional, Any
 
@@ -32,6 +33,40 @@ class BaseTelegramBot:
         self.config = config
         self.application: Optional[Application] = None
         self.running = False
+        self.polling_task: Optional[asyncio.Task] = None
+
+    async def _polling_worker(self) -> None:
+        """Internal polling worker that handles cancellation cleanly.
+
+        This wrapper ensures asyncio.CancelledError does not produce
+        noisy tracebacks during shutdown and logs other unexpected errors.
+        """
+        assert self.application is not None
+        try:
+            await self.application.updater.start_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=True,
+            )
+        except asyncio.CancelledError:
+            # Expected on shutdown; suppress to prevent warning messages
+            logger.debug("Telegram polling task cancelled during shutdown")
+            # Don't re-raise to prevent the warning message
+            return
+        except Exception as e:  # pragma: no cover - defensive logging
+            logger.error(f"Unexpected error in polling worker: {e}")
+            raise
+
+    def _attach_polling_done_callback(self) -> None:
+        """Attach a done-callback that swallows CancelledError to avoid warnings."""
+        if not self.polling_task:
+            return
+
+        def _done(task: asyncio.Task) -> None:
+            # Completely suppress all exceptions from polling task during shutdown
+            with contextlib.suppress(Exception):
+                task.result()
+
+        self.polling_task.add_done_callback(_done)
 
     async def initialize(self):
         """Initialize the Telegram bot application."""
@@ -94,6 +129,19 @@ class BaseTelegramBot:
                 raise RuntimeError("Bot application not initialized")
 
             await self.application.initialize()
+            
+            # Test bot connection before starting
+            try:
+                bot_info = await self.application.bot.get_me()
+                logger.info(f"Bot authenticated successfully: @{bot_info.username}")
+            except Exception as e:
+                logger.error(f"Bot authentication failed: {e}")
+                if "Unauthorized" in str(e):
+                    logger.warning("Invalid or expired bot token - running in testing mode")
+                    self.running = False
+                    return False
+                raise
+            
             await self.application.start()
             
             # Configure better error handling for network issues
@@ -102,25 +150,14 @@ class BaseTelegramBot:
             
             # Start polling with network error handling
             try:
-                await self.application.updater.start_polling(
-                    allowed_updates=Update.ALL_TYPES,
-                    drop_pending_updates=True,
-                    read_timeout=10,
-                    write_timeout=10,
-                    connect_timeout=10,
-                    pool_timeout=2
-                )
+                # Store the polling task so we can cancel it later
+                self.polling_task = asyncio.create_task(self._polling_worker(), name="tg-polling")
+                self._attach_polling_done_callback()
             except (NetworkError, TimedOut) as e:
                 logger.warning(f"Network error during bot startup, retrying: {e}")
                 await asyncio.sleep(2)
-                await self.application.updater.start_polling(
-                    allowed_updates=Update.ALL_TYPES,
-                    drop_pending_updates=True,
-                    read_timeout=15,
-                    write_timeout=15,
-                    connect_timeout=15,
-                    pool_timeout=3
-                )
+                self.polling_task = asyncio.create_task(self._polling_worker(), name="tg-polling")
+                self._attach_polling_done_callback()
 
             self.running = True
             logger.info("Telegram bot started successfully")
@@ -131,28 +168,83 @@ class BaseTelegramBot:
             return False
 
     async def stop(self):
-        """Stop the Telegram bot."""
+        """Stop the Telegram bot using the proper shutdown sequence.
+        
+        This follows the recommended python-telegram-bot shutdown pattern:
+        1. Stop the updater first
+        2. Stop the application
+        3. Shutdown the application
+        4. Cancel the polling task gracefully
+        """
         try:
-            if self.application:
-                try:
-                    # Stop the application which includes stopping polling
-                    await asyncio.wait_for(self.application.stop(), timeout=5.0)
-                    
-                    # Final cleanup
-                    await asyncio.wait_for(self.application.shutdown(), timeout=5.0)
-                    
-                except asyncio.TimeoutError:
-                    logger.warning("Telegram bot stop timed out, forcing shutdown")
-                except Exception as e:
-                    logger.warning(f"Non-critical error during bot shutdown: {e}")
+            if not self.application:
+                logger.info("Telegram bot application not initialized, nothing to stop")
+                self.running = False
+                return True
 
+            logger.info("Starting Telegram bot shutdown sequence...")
+            
+            # Step 1: Stop the updater first (this stops polling)
+            if self.application.updater and self.application.updater.running:
+                try:
+                    logger.info("Stopping Telegram bot updater...")
+                    await self.application.updater.stop()
+                    logger.info("Updater stopped successfully")
+                except Exception as e:
+                    logger.warning(f"Error stopping updater: {e}")
+            
+            # Step 2: Stop the application (this stops the updater if not already stopped)
+            try:
+                logger.info("Stopping Telegram bot application...")
+                await self.application.stop()
+                logger.info("Application stopped successfully")
+            except Exception as e:
+                logger.warning(f"Error stopping application: {e}")
+            
+            # Step 3: Shutdown the application
+            try:
+                logger.info("Shutting down Telegram bot application...")
+                await self.application.shutdown()
+                logger.info("Application shutdown completed")
+            except Exception as e:
+                logger.warning(f"Error during application shutdown: {e}")
+            
+            # Step 4: Cancel the polling task gracefully
+            if self.polling_task and not self.polling_task.done():
+                logger.info("Cancelling polling task...")
+                try:
+                    # Cancel the task
+                    self.polling_task.cancel()
+                    
+                    # Wait for the task to complete cancellation with full exception suppression
+                    try:
+                        await asyncio.wait_for(self.polling_task, timeout=5.0)
+                    except asyncio.TimeoutError:
+                        logger.warning("Polling task cancellation timed out")
+                    except asyncio.CancelledError:
+                        logger.info("Polling task cancelled successfully")
+                    except Exception as e:
+                        logger.warning(f"Unexpected error during polling task cancellation: {e}")
+                    finally:
+                        if not self.polling_task.done():
+                            logger.error("Polling task did not complete cancellation")
+                except Exception as e:
+                    logger.warning(f"Error cancelling polling task: {e}")
+            
+            # Step 5: Final cleanup
+            self.polling_task = None
+            self.application = None
             self.running = False
-            logger.info("Telegram bot stopped")
+            
+            logger.info("Telegram bot shutdown completed successfully")
             return True
 
         except Exception as e:
-            logger.error(f"Critical error stopping Telegram bot: {e}")
-            # Don't prevent application shutdown
+            logger.error(f"Critical error during Telegram bot shutdown: {e}")
+            # Force cleanup even on error
+            self.polling_task = None
+            self.application = None
+            self.running = False
             return False
 
     async def send_message(self, chat_id: int, message: str, **kwargs):
@@ -167,11 +259,19 @@ class BaseTelegramBot:
             bool: True if the message was sent successfully, False otherwise.
         """
         try:
-            if not self.application:
-                logger.error("Bot application not initialized")
-                return False
-
-            await self.application.bot.send_message(chat_id, message, **kwargs)
+            # If application is running, use it
+            if self.application and self.running:
+                await self.application.bot.send_message(chat_id, message, **kwargs)
+                return True
+            
+            # Otherwise, create a simple bot instance for sending messages
+            from telegram import Bot
+            bot = Bot(token=self.config.bot_token)
+            
+            # Initialize the bot for one-time use
+            async with bot:
+                await bot.send_message(chat_id, message, **kwargs)
+            
             return True
 
         except Exception as e:

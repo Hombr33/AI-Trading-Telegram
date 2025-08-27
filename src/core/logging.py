@@ -126,11 +126,14 @@ def setup_logging(
     # Add custom levels
     for level_config in loguru_config["levels"]:
         try:
-            logger.level(
-                level_config["name"], level_config["no"], color=level_config["color"]
-            )
-        except ValueError:
-            # Level already exists, skip
+            # Check if level already exists before adding
+            existing_levels = logger._core.min_levels
+            if level_config["name"] not in existing_levels:
+                logger.level(
+                    level_config["name"], level_config["no"], color=level_config["color"]
+                )
+        except (ValueError, AttributeError):
+            # Level already exists or logger not properly initialized, skip
             pass
 
 
@@ -212,13 +215,13 @@ def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwa
 def log_operation_timing(operation: str, start_time: float, end_time: float, **context):
     """Log operation timing for performance monitoring."""
     duration_ms = (end_time - start_time) * 1000
-    log_performance_metric(
-        f"{operation}_duration",
-        duration_ms,
-        "ms",
-        operation=operation,
-        **context
-    )
+    # log_performance_metric(
+    #     f"{operation}_duration",
+    #     duration_ms,
+    #     "ms",
+    #     operation=operation,
+    #     **context
+    # )
 
 
 def log_error_with_context(

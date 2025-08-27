@@ -4,7 +4,7 @@ Position Manager for monitoring and managing open positions.
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timezone
 
 from ..core.logging import (
@@ -18,25 +18,30 @@ from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.workflow import Component, ComponentStatus
 from ..core.config import TradingConfig
-from ..execution.mt5_executor import MT5Executor
+from ..common.interfaces import IPositionManager
+# MT5Executor will be injected via platform manager
 from ..models.positions import Position
 from ..models.trades import Trade
 
 logger = get_logger(__name__)
 
 
-class PositionManager:
-    """Manages position monitoring and management."""
+class PositionManager(IPositionManager):
+    """Manages position monitoring and management.
+    
+    Implements the IPositionManager interface to provide standardized position management
+    functionality across different trading platforms.
+    """
 
-    def __init__(self, mt5_executor: MT5Executor, config: TradingConfig):
-        self.mt5_executor = mt5_executor
+    def __init__(self, platform_manager, config: TradingConfig):
+        # Get MT5 executor from platform manager
+        self.mt5_executor = platform_manager.platforms.get('mt5') if hasattr(platform_manager, 'platforms') else None
         self.config = config
         self.active_positions: Dict[int, Position] = {}
         self.position_history: List[Position] = []
         self.running = False
         self.sync_failures = 0
-        self.max_sync_failures = 3  # Maximum number of sync failures before triggering reconnection
-        self.last_sync_time = time.time()
+        self.last_sync_time = 0
 
     @with_error_handling("position_manager_start", notify_telegram=True)
     async def start(self):
@@ -99,6 +104,14 @@ class PositionManager:
     async def _update_positions(self):
         """Update position information from MT5."""
         try:
+            # Check if MT5 executor is available and connected
+            if not self.mt5_executor or not hasattr(self.mt5_executor, 'get_positions'):
+                return  # Silently skip if executor not available
+                
+            # Additional safety check for connection
+            if hasattr(self.mt5_executor, 'connected') and not self.mt5_executor.connected:
+                return  # Skip if not connected
+                
             positions = await self.mt5_executor.get_positions()
 
             # Update existing positions

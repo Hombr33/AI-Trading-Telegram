@@ -19,6 +19,7 @@ from execution.trailing_manager import TrailingManager, TrailingConfig
 from bridge.order_bridge import OrderBridge
 from core.config import TradingConfig, BridgeConfig
 from core.logging import get_logger
+from common.interfaces import IPositionManager, IOrderManager
 
 logger = get_logger(__name__)
 
@@ -30,8 +31,8 @@ class OrderExecutionScript:
         self.config = TradingConfig()
         self.bridge_config = BridgeConfig()
         self.mt5_executor = None
-        self.order_manager = None
-        self.position_manager = None
+        self.order_manager: IOrderManager = None
+        self.position_manager: IPositionManager = None
         self.trailing_manager = None
         self.order_bridge = None
         

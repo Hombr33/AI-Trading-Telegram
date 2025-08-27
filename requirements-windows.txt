@@ -1,0 +1,8 @@
+# Windows-specific requirements for MT5 functionality
+# Install with: pip install -r requirements-windows.txt
+
+MetaTrader5>=5.0.40
+aiomql==4.0.14
+
+# Note: These packages only work on Windows
+# For Linux/macOS deployment, use requirements.txt only

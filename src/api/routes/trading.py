@@ -5,27 +5,28 @@ Trading API routes for order execution and position management.
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from ...core.logging import get_logger
+from ...common.interfaces import IOrderManager, IPositionManager
 from ...execution.order_manager import OrderManager
-from ...execution.position_manager import PositionManager
+# Import interface only, implementation will be injected
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
 # Global instances (will be set by main.py)
-order_manager: OrderManager = None
-position_manager: PositionManager = None
+order_manager: IOrderManager = None
+position_manager: IPositionManager = None
 telegram_bot = None  # Will be set by main.py
 
 
-def get_order_manager() -> OrderManager:
+def get_order_manager() -> IOrderManager:
     """Get order manager instance."""
     if not order_manager:
         raise HTTPException(status_code=503, detail="Order manager not initialized")
     return order_manager
 
 
-def get_position_manager() -> PositionManager:
+def get_position_manager() -> IPositionManager:
     """Get position manager instance."""
     if not position_manager:
         raise HTTPException(status_code=503, detail="Position manager not initialized")
@@ -33,7 +34,7 @@ def get_position_manager() -> PositionManager:
 
 
 @router.get("/positions")
-async def get_positions(pos_manager: PositionManager = Depends(get_position_manager)):
+async def get_positions(pos_manager: IPositionManager = Depends(get_position_manager)):
     """Get current positions."""
     try:
         positions = await pos_manager.get_positions()
@@ -45,10 +46,10 @@ async def get_positions(pos_manager: PositionManager = Depends(get_position_mana
 
 
 @router.get("/orders")
-async def get_orders(ord_manager: OrderManager = Depends(get_order_manager)):
+async def get_orders(ord_manager: IOrderManager = Depends(get_order_manager)):
     """Get pending orders."""
     try:
-        orders = await ord_manager.get_orders()
+        orders = await ord_manager.get_open_orders()
         return {"success": True, "orders": orders}
 
     except Exception as e:
@@ -58,7 +59,7 @@ async def get_orders(ord_manager: OrderManager = Depends(get_order_manager)):
 
 @router.post("/execute")
 async def execute_signal(
-    signal_data: Dict[str, Any], ord_manager: OrderManager = Depends(get_order_manager)
+    signal_data: Dict[str, Any], ord_manager: IOrderManager = Depends(get_order_manager)
 ):
     """Execute a trading signal."""
     try:

@@ -19,6 +19,11 @@ from .webhooks import Webhook
 from .audits import Audit
 
 from .symbol_mappings import SymbolMapping
+from .telegram_users import (
+    TelegramUser, UserConfiguration, PlatformConnection, 
+    SignalSubscription, ServerConfiguration, UserRole, 
+    SubscriptionStatus, PlatformType
+)
 
 __all__ = [
     "Base",
@@ -37,4 +42,12 @@ __all__ = [
     "Webhook",
     "Audit",
     "SymbolMapping",
+    "TelegramUser",
+    "UserConfiguration",
+    "PlatformConnection",
+    "SignalSubscription",
+    "ServerConfiguration",
+    "UserRole",
+    "SubscriptionStatus",
+    "PlatformType",
 ]

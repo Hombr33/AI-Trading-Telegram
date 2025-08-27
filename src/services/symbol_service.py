@@ -1,9 +1,8 @@
 """Symbol service for managing symbol mappings."""
 
 from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import update, delete
+from sqlalchemy.orm import Session
+from sqlalchemy import select, update, delete
 
 from src.models.symbol_mappings import SymbolMapping
 from src.core.logging import get_logger
@@ -13,7 +12,7 @@ logger = get_logger(__name__)
 class SymbolService:
     """Service for managing symbol mappings."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         """Initialize the symbol service.
         
         Args:
@@ -21,30 +20,41 @@ class SymbolService:
         """
         self.session = session
 
-    async def get_all_mappings(self) -> List[SymbolMapping]:
-        """Get all symbol mappings.
+    def get_all_mappings(self, broker_name: Optional[str] = None) -> List[SymbolMapping]:
+        """Get all symbol mappings, optionally filtered by broker.
         
+        Args:
+            broker_name: Optional broker name to filter by.
+            
         Returns:
             List of symbol mappings.
         """
-        result = await self.session.execute(select(SymbolMapping))
+        query = select(SymbolMapping)
+        if broker_name:
+            query = query.where(SymbolMapping.broker_name == broker_name)
+        
+        result = self.session.execute(query)
         return result.scalars().all()
 
-    async def get_mapping(self, standard_symbol: str) -> Optional[SymbolMapping]:
-        """Get a symbol mapping by standard symbol.
+    def get_mapping(self, standard_symbol: str, broker_name: str) -> Optional[SymbolMapping]:
+        """Get a symbol mapping by standard symbol and broker name.
         
         Args:
             standard_symbol: The standard symbol to look up.
+            broker_name: The broker name to look up.
             
         Returns:
             The symbol mapping if found, None otherwise.
         """
-        result = await self.session.execute(
-            select(SymbolMapping).where(SymbolMapping.standard_symbol == standard_symbol.upper())
+        result = self.session.execute(
+            select(SymbolMapping).where(
+                SymbolMapping.standard_symbol == standard_symbol.upper(),
+                SymbolMapping.broker_name == broker_name
+            )
         )
         return result.scalars().first()
 
-    async def create_mapping(
+    def create_mapping(
         self, 
         standard_symbol: str,
         broker_symbol: str,
@@ -69,14 +79,14 @@ class SymbolService:
             description=description
         )
         self.session.add(mapping)
-        await self.session.commit()
+        self.session.commit()
         return mapping
 
-    async def update_mapping(
+    def update_mapping(
         self,
         standard_symbol: str,
-        broker_symbol: Optional[str] = None,
-        broker_name: Optional[str] = None,
+        broker_symbol: str,
+        broker_name: str,
         description: Optional[str] = None
     ) -> bool:
         """Update an existing symbol mapping.
@@ -84,44 +94,43 @@ class SymbolService:
         Args:
             standard_symbol: The standard symbol to update.
             broker_symbol: The new broker symbol.
-            broker_name: The new broker name.
+            broker_name: The broker name.
             description: The new description.
             
         Returns:
             True if the mapping was updated, False otherwise.
         """
-        update_data = {}
-        if broker_symbol is not None:
-            update_data["broker_symbol"] = broker_symbol
-        if broker_name is not None:
-            update_data["broker_name"] = broker_name
-        if description is not None:
-            update_data["description"] = description
-
-        if not update_data:
-            return False
-
-        result = await self.session.execute(
+        result = self.session.execute(
             update(SymbolMapping)
-            .where(SymbolMapping.standard_symbol == standard_symbol.upper())
-            .values(**update_data)
+            .where(
+                SymbolMapping.standard_symbol == standard_symbol.upper(),
+                SymbolMapping.broker_name == broker_name
+            )
+            .values(
+                broker_symbol=broker_symbol,
+                description=description
+            )
         )
-        await self.session.commit()
+        self.session.commit()
         return result.rowcount > 0
 
-    async def delete_mapping(self, standard_symbol: str) -> bool:
+    def delete_mapping(self, standard_symbol: str, broker_name: str) -> bool:
         """Delete a symbol mapping.
         
         Args:
             standard_symbol: The standard symbol to delete.
+            broker_name: The broker name.
             
         Returns:
             True if the mapping was deleted, False otherwise.
         """
-        result = await self.session.execute(
-            delete(SymbolMapping).where(SymbolMapping.standard_symbol == standard_symbol.upper())
+        result = self.session.execute(
+            delete(SymbolMapping).where(
+                SymbolMapping.standard_symbol == standard_symbol.upper(),
+                SymbolMapping.broker_name == broker_name
+            )
         )
-        await self.session.commit()
+        self.session.commit()
         return result.rowcount > 0
 
     def map_symbol(self, standard_symbol: str, broker_name: str) -> str:
@@ -139,5 +148,6 @@ class SymbolService:
                 SymbolMapping.standard_symbol == standard_symbol.upper(),
                 SymbolMapping.broker_name == broker_name
             )
-        ).first()
-        return result.broker_symbol if result else standard_symbol
+        )
+        mapping = result.scalars().first()
+        return mapping.broker_symbol if mapping else standard_symbol

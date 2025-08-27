@@ -1,19 +1,18 @@
 ---
-description: Comprehensive rules and guidelines for the AI Trading Bot project, ensuring consistent AI agent understanding, code quality, and system optimization
-globs: ["**/*.py", "**/*.md", "**/*.txt", "**/*.json", "**/*.yaml", "**/*.yml"]
-alwaysApply: true
+trigger: always_on
+description: Comprehensive rules for telegram-ai-trade project - AI-powered automated trading bot with MT5 integration
+globs: ["**/*.py", "**/*.mq5", "**/*.mq4", "**/*.yaml", "**/*.json"]
 ---
 
-# AI TRADING BOT PROJECT RULES
+# TELEGRAM-AI-TRADE PROJECT RULES
 
 ## PROJECT OVERVIEW
 This is an institutional-grade AI-powered automated trading bot that integrates:
-- OpenAI GPT-5 for market analysis and signal generation
-- MT5/MT4 execution via Expert Advisors with Socket.IO communication
-- Telegram bot for user interface, monitoring, and alerts
+- OpenAI GPT-5 for market analysis
+- MT5/MT4 execution via Expert Advisors
+- Telegram bot for signal distribution
 - Advanced risk management and position sizing
 - Trailing stop and take profit automation
-- Real-time 2-way communication between Python app and MT5 EA
 
 ## CORE ARCHITECTURE PRINCIPLES
 
@@ -22,43 +21,17 @@ This is an institutional-grade AI-powered automated trading bot that integrates:
 - Clear interfaces between modules
 - Dependency injection for components
 - No circular dependencies
-- Follow SOLID principles strictly
 
 ### 2. ASYNCHRONOUS OPERATIONS
 - Use async/await for all I/O operations
 - Background task management for continuous operations
 - Proper error handling and recovery
-- Graceful shutdown procedures
 
 ### 3. RISK-FIRST APPROACH
 - Capital preservation is paramount
 - Never exceed 2% risk per trade
 - Maximum 6% daily drawdown
 - Automatic circuit breakers
-- Real-time risk monitoring
-
-## COMMUNICATION ARCHITECTURE
-
-### 1. SOCKET.IO INTEGRATION
-- Primary communication method with MT5 EA
-- Real-time bidirectional communication
-- Automatic fallback to HTTP long polling
-- Event-driven architecture
-- Authentication with bridge tokens
-
-### 2. TELEGRAM INTEGRATION
-- User interface and monitoring
-- Real-time signal alerts
-- Position and trade notifications
-- Risk alerts and warnings
-- Performance reporting
-- Command handling for user interaction
-
-### 3. FALLBACK MECHANISMS
-- HTTP endpoints for bridge communication
-- Long polling when Socket.IO fails
-- Graceful degradation
-- Automatic recovery
 
 ## TRADING STRATEGY RULES
 
@@ -111,7 +84,6 @@ This is an institutional-grade AI-powered automated trading bot that integrates:
 - Slippage tolerance: 10 points
 - Order filling: FOK (Fill or Kill)
 - Order time: GTC (Good Till Cancelled)
-- Mock implementation for development/testing
 
 ### 2. ORDER TYPES
 - Preferred: Limit orders for better fills
@@ -272,7 +244,6 @@ This is an institutional-grade AI-powered automated trading bot that integrates:
 - MQL5 standards for EA code
 - Comprehensive error handling
 - Extensive logging and monitoring
-- Type hints for all functions
 
 ### 2. TESTING REQUIREMENTS
 - Unit test coverage > 80%
@@ -368,20 +339,19 @@ This is an institutional-grade AI-powered automated trading bot that integrates:
 
 ## IMPLEMENTATION PRIORITIES
 
-### 1. PHASE 1 (CORE) ✅ COMPLETED
-- MT5 execution engine with mock implementation
+### 1. PHASE 1 (CORE)
+- MT5 execution engine
 - Basic risk management
 - Signal processing
 - Telegram integration
-- Socket.IO bridge with HTTP fallback
 
-### 2. PHASE 2 (ADVANCED) 🔄 IN PROGRESS
+### 2. PHASE 2 (ADVANCED)
 - Trailing stop automation
 - Advanced risk controls
 - Performance analytics
 - User management
 
-### 3. PHASE 3 (OPTIMIZATION) 📋 PLANNED
+### 3. PHASE 3 (OPTIMIZATION)
 - Machine learning integration
 - Multi-timeframe analysis
 - Advanced correlation management
@@ -689,19 +659,19 @@ This is an institutional-grade AI-powered automated trading bot that integrates:
 
 ## SUCCESS CRITERIA
 
-### 1. IMMEDIATE SUCCESS (30 DAYS) ✅ ACHIEVED
+### 1. IMMEDIATE SUCCESS (30 DAYS)
 - System stability > 95%
 - Basic functionality operational
 - Risk management active
 - User access functional
 
-### 2. SHORT-TERM SUCCESS (90 DAYS) 🔄 IN PROGRESS
+### 2. SHORT-TERM SUCCESS (90 DAYS)
 - Performance targets met
 - User satisfaction > 80%
 - Risk controls effective
 - Monitoring operational
 
-### 3. LONG-TERM SUCCESS (1 YEAR) 📋 PLANNED
+### 3. LONG-TERM SUCCESS (1 YEAR)
 - Trading performance targets met
 - System reliability > 99.5%
 - User retention > 90%
@@ -766,31 +736,3 @@ Success depends on:
 - Proactive risk management
 
 Remember: Capital preservation is always the primary objective. All decisions must prioritize risk management over potential returns.
-
-## CURRENT STATUS
-
-✅ **COMPLETED FEATURES:**
-- Core FastAPI application with lifespan management
-- Socket.IO bridge with HTTP fallback
-- Telegram bot integration with notifications
-- MT5 executor with mock implementation
-- Trading managers (Order, Position, Trailing)
-- Comprehensive configuration system
-- Structured logging system
-- Health check and status endpoints
-- Bridge API endpoints for EA communication
-
-🔄 **WORKING FEATURES:**
-- Application startup and shutdown
-- Component initialization
-- Telegram bot authentication and operation
-- Socket.IO fallback to HTTP
-- Mock MT5 operations
-
-📋 **NEXT PRIORITIES:**
-- Fix minor configuration issues
-- Test complete trading workflow
-- Implement real MT5 integration
-- Add comprehensive testing
-- Performance optimization
-- Security hardening

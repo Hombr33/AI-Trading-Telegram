@@ -228,3 +228,8 @@ Thumbs.db
 
 # Docker
 .dockerignore
+
+# AI RULES
+*CLAUDE*
+.cursor
+.windsurf
