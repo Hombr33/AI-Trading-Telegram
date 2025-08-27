@@ -440,7 +440,9 @@ class AutoTradingService(IAutoTradingService):
             "risk_per_trade": config.auto_trading.risk_per_trade_percent,
             "active_symbols": list(self.active_trades.keys())
         }
+"""Global service instance for automatic trading.
 
-
-# Global service instance - will be initialized in main.py
+This will be initialized in main.py and provides access to the AutoTradingService
+throughout the application.
+"""
 auto_trading_service = None
