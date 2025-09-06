@@ -1,5 +1,7 @@
 """System callback handlers for Telegram bot."""
 
+from datetime import datetime
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -1102,24 +1104,71 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📈 Trading signals notification settings")
 
-        message = (
-            "📈 **TRADING SIGNALS NOTIFICATIONS** 📈\n\n"
-            "**Configure signal notifications:**\n"
-            "• New trading signals\n"
-            "• Signal updates\n"
-            "• Signal expirations\n\n"
-            "Settings will be implemented in future updates."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
 
-        keyboard = create_keyboard(
-            [
-                [("⬅️ Back", "notif_trading")],
-            ]
-        )
+            # Get trading pairs configuration
+            trading = config.get("trading", {})
+            allowed_symbols = trading.get("allowed_symbols", [])
 
-        await query.edit_message_text(
-            message, reply_markup=keyboard, parse_mode="Markdown"
-        )
+            # Check current signal notification settings
+            signals_enabled = notifications.get("signals", True)
+            signal_updates_enabled = notifications.get("signal_updates", True)
+            signal_expirations_enabled = notifications.get("signal_expirations", True)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📈 **TRADING SIGNALS NOTIFICATIONS** 📈\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(signals_enabled)} New Trading Signals\n"
+                f"{status_icon(signal_updates_enabled)} Signal Updates\n"
+                f"{status_icon(signal_expirations_enabled)} Signal Expirations\n\n"
+                f"**Trading Pairs**: {len(allowed_symbols)} pairs configured\n"
+                f"**Configure**: Toggle notifications and manage trading pairs.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📈 Toggle Signals", "toggle_notification:signals"),
+                        ("🔄 Toggle Updates", "toggle_notification:signal_updates"),
+                    ],
+                    [
+                        (
+                            "⏰ Toggle Expirations",
+                            "toggle_notification:signal_expirations",
+                        ),
+                        ("📋 Trading Pairs", "notification_trading_pairs"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in trading signals settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading trading signals settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_trading")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
     async def _handle_trading_positions_settings_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1128,24 +1177,65 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📊 Trading positions notification settings")
 
-        message = (
-            "📊 **TRADING POSITIONS NOTIFICATIONS** 📊\n\n"
-            "**Configure position notifications:**\n"
-            "• Position opened\n"
-            "• Position closed\n"
-            "• Position modified\n\n"
-            "Settings will be implemented in future updates."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
 
-        keyboard = create_keyboard(
-            [
-                [("⬅️ Back", "notif_trading")],
-            ]
-        )
+            # Check current position notification settings
+            positions_enabled = notifications.get("positions", True)
+            position_opened_enabled = notifications.get("position_opened", True)
+            position_closed_enabled = notifications.get("position_closed", True)
+            position_modified_enabled = notifications.get("position_modified", True)
 
-        await query.edit_message_text(
-            message, reply_markup=keyboard, parse_mode="Markdown"
-        )
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📊 **TRADING POSITIONS NOTIFICATIONS** 📊\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(positions_enabled)} All Position Updates\n"
+                f"{status_icon(position_opened_enabled)} Position Opened\n"
+                f"{status_icon(position_closed_enabled)} Position Closed\n"
+                f"{status_icon(position_modified_enabled)} Position Modified\n\n"
+                f"**Configure**: Toggle specific position notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📊 Toggle All", "toggle_notification:positions"),
+                        ("🟢 Toggle Opened", "toggle_notification:position_opened"),
+                    ],
+                    [
+                        ("🔴 Toggle Closed", "toggle_notification:position_closed"),
+                        ("🔄 Toggle Modified", "toggle_notification:position_modified"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in trading positions settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading trading positions settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_trading")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
     async def _handle_trading_orders_settings_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1154,24 +1244,65 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📋 Trading orders notification settings")
 
-        message = (
-            "📋 **TRADING ORDERS NOTIFICATIONS** 📋\n\n"
-            "**Configure order notifications:**\n"
-            "• Order placed\n"
-            "• Order executed\n"
-            "• Order cancelled\n\n"
-            "Settings will be implemented in future updates."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
 
-        keyboard = create_keyboard(
-            [
-                [("⬅️ Back", "notif_trading")],
-            ]
-        )
+            # Check current order notification settings
+            orders_enabled = notifications.get("orders", True)
+            order_placed_enabled = notifications.get("order_placed", True)
+            order_executed_enabled = notifications.get("order_executed", True)
+            order_cancelled_enabled = notifications.get("order_cancelled", True)
 
-        await query.edit_message_text(
-            message, reply_markup=keyboard, parse_mode="Markdown"
-        )
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📋 **TRADING ORDERS NOTIFICATIONS** 📋\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(orders_enabled)} All Order Updates\n"
+                f"{status_icon(order_placed_enabled)} Order Placed\n"
+                f"{status_icon(order_executed_enabled)} Order Executed\n"
+                f"{status_icon(order_cancelled_enabled)} Order Cancelled\n\n"
+                f"**Configure**: Toggle specific order notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📋 Toggle All", "toggle_notification:orders"),
+                        ("📝 Toggle Placed", "toggle_notification:order_placed"),
+                    ],
+                    [
+                        ("✅ Toggle Executed", "toggle_notification:order_executed"),
+                        ("❌ Toggle Cancelled", "toggle_notification:order_cancelled"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in trading orders settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading trading orders settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_trading")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
     async def _handle_trading_risk_settings_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1180,24 +1311,68 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("⚠️ Trading risk notification settings")
 
-        message = (
-            "⚠️ **TRADING RISK NOTIFICATIONS** ⚠️\n\n"
-            "**Configure risk notifications:**\n"
-            "• Risk limit breaches\n"
-            "• Drawdown warnings\n"
-            "• Position size alerts\n\n"
-            "Settings will be implemented in future updates."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
 
-        keyboard = create_keyboard(
-            [
-                [("⬅️ Back", "notif_trading")],
-            ]
-        )
+            # Check current risk notification settings
+            risk_enabled = notifications.get("risk", True)
+            risk_limit_enabled = notifications.get("risk_limit", True)
+            drawdown_warning_enabled = notifications.get("drawdown_warning", True)
+            position_size_alert_enabled = notifications.get("position_size_alert", True)
 
-        await query.edit_message_text(
-            message, reply_markup=keyboard, parse_mode="Markdown"
-        )
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"⚠️ **TRADING RISK NOTIFICATIONS** ⚠️\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(risk_enabled)} All Risk Alerts\n"
+                f"{status_icon(risk_limit_enabled)} Risk Limit Reached\n"
+                f"{status_icon(drawdown_warning_enabled)} Drawdown Warning\n"
+                f"{status_icon(position_size_alert_enabled)} Position Size Alert\n\n"
+                f"**Configure**: Toggle specific risk notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("⚠️ Toggle All", "toggle_notification:risk"),
+                        ("🚨 Toggle Risk Limit", "toggle_notification:risk_limit"),
+                    ],
+                    [
+                        ("📉 Toggle Drawdown", "toggle_notification:drawdown_warning"),
+                        (
+                            "📊 Toggle Position Size",
+                            "toggle_notification:position_size_alert",
+                        ),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in trading risk settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading trading risk settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_trading")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
     # Reports notification settings callbacks
     async def _handle_reports_performance_settings_callback(
@@ -1213,7 +1388,9 @@ class SystemCallbackHandler:
             "• Daily performance summaries\n"
             "• Weekly performance reports\n"
             "• Monthly performance analysis\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1239,7 +1416,9 @@ class SystemCallbackHandler:
             "• Market analysis reports\n"
             "• Strategy performance analysis\n"
             "• Risk analysis reports\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1265,7 +1444,9 @@ class SystemCallbackHandler:
             "• Trading statistics\n"
             "• Win/loss ratios\n"
             "• Performance metrics\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1291,7 +1472,9 @@ class SystemCallbackHandler:
             "• System health reports\n"
             "• Resource usage reports\n"
             "• Error reports\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1318,7 +1501,9 @@ class SystemCallbackHandler:
             "• Bot updates\n"
             "• Feature updates\n"
             "• System updates\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1344,7 +1529,9 @@ class SystemCallbackHandler:
             "• Market news\n"
             "• Economic announcements\n"
             "• Trading alerts\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1370,7 +1557,9 @@ class SystemCallbackHandler:
             "• Scheduled maintenance\n"
             "• System downtime\n"
             "• Maintenance completion\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
@@ -1396,7 +1585,9 @@ class SystemCallbackHandler:
             "• New features\n"
             "• Feature announcements\n"
             "• Feature updates\n\n"
-            "Settings will be implemented in future updates."
+            "🚧 **Coming Soon** 🚧\n\n"
+            "These notification settings will be available in the next update.\n"
+            "For now, you can configure basic notifications in the main settings."
         )
 
         keyboard = create_keyboard(
