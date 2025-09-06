@@ -90,6 +90,13 @@ class CallbackRouter:
             "general_features_settings",
             "theme_settings",
             "sound_settings",
+            # Trading pairs management callbacks
+            "add_trading_pair",
+            "remove_trading_pair",
+            "reset_symbols",
+            "view_all_symbols",
+            "add_popular_forex",
+            "add_popular_crypto",
             "trading_guide",
             "risk_guide",
             "ta_guide",
