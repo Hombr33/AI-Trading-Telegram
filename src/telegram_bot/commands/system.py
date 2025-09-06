@@ -76,6 +76,10 @@ class SystemCommandHandler(BaseCommandHandler):
             "trading_pairs": self.trading_pairs_callback,
             "add_trading_pair": self.add_trading_pair_callback,
             "remove_trading_pair": self.remove_trading_pair_callback,
+            "reset_symbols": self.reset_symbols_callback,
+            "view_all_symbols": self.view_all_symbols_callback,
+            "add_popular_forex": self.add_popular_forex_callback,
+            "add_popular_crypto": self.add_popular_crypto_callback,
         }
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -439,7 +443,10 @@ class SystemCommandHandler(BaseCommandHandler):
                         ("🔧 System", "settings_system"),
                     ],
                     [
+                        ("📋 Trading Pairs", "manage_symbols"),
                         ("⏰ Intervals", "notification_intervals"),
+                    ],
+                    [
                         ("📈 Performance", "performance"),
                     ],
                     [("🏠 Main Menu", "start")],
@@ -1700,3 +1707,297 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in remove_trading_pair_callback: {e}")
             await self._handle_settings_error(update, context, "remove_pair")
+
+    async def reset_symbols_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reset symbols callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Reset to default trading pairs
+            default_symbols = [
+                "EURUSD",
+                "GBPUSD",
+                "USDJPY",
+                "USDCAD",
+                "XAUUSD",
+                "BTCUSD",
+                "ETHUSD",
+            ]
+
+            success = await self.user_config_service.update_user_config(
+                telegram_id, "trading", "allowed_symbols", default_symbols
+            )
+
+            if success:
+                message = (
+                    f"🔄 **TRADING SYMBOLS RESET** 🔄\n\n"
+                    f"✅ **Successfully reset to default symbols**:\n"
+                )
+
+                for symbol in default_symbols:
+                    message += f"• {symbol}\n"
+
+                message += f"\n**Total**: {len(default_symbols)} symbols\n\n"
+                message += (
+                    "Your trading pairs have been reset to the default configuration."
+                )
+
+                keyboard = create_keyboard(
+                    [
+                        [("📋 Manage Symbols", "manage_symbols")],
+                        [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                    ]
+                )
+
+                await self.edit_message(update, context, message, keyboard)
+            else:
+                await self._handle_settings_error(update, context, "reset_symbols")
+
+        except Exception as e:
+            logger.error(f"Error in reset_symbols_callback: {e}")
+            await self._handle_settings_error(update, context, "reset_symbols")
+
+    async def view_all_symbols_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle view all symbols callback."""
+        try:
+            # Define all available trading symbols
+            forex_pairs = [
+                "EURUSD",
+                "GBPUSD",
+                "USDJPY",
+                "USDCAD",
+                "AUDUSD",
+                "NZDUSD",
+                "USDCHF",
+                "EURJPY",
+                "GBPJPY",
+                "EURGBP",
+            ]
+            crypto_pairs = [
+                "BTCUSD",
+                "ETHUSD",
+                "XRPUSD",
+                "LTCUSD",
+                "ADAUSD",
+                "DOTUSD",
+                "LINKUSD",
+                "UNIUSD",
+            ]
+            metals = ["XAUUSD", "XAGUSD", "XPTUSD", "XPDUSD"]
+            indices = [
+                "SPX500",
+                "NAS100",
+                "GER30",
+                "UK100",
+                "FRA40",
+                "JPN225",
+                "AUS200",
+            ]
+            commodities = ["USOIL", "UKOIL", "NATGAS", "WHEAT", "CORN", "SOYBEAN"]
+
+            message = (
+                f"📊 **ALL AVAILABLE TRADING SYMBOLS** 📊\n\n"
+                f"**Forex Pairs** ({len(forex_pairs)}):\n"
+            )
+
+            for pair in forex_pairs:
+                message += f"• {pair}\n"
+
+            message += f"\n**Cryptocurrencies** ({len(crypto_pairs)}):\n"
+            for pair in crypto_pairs:
+                message += f"• {pair}\n"
+
+            message += f"\n**Metals** ({len(metals)}):\n"
+            for pair in metals:
+                message += f"• {pair}\n"
+
+            message += f"\n**Indices** ({len(indices)}):\n"
+            for pair in indices:
+                message += f"• {pair}\n"
+
+            message += f"\n**Commodities** ({len(commodities)}):\n"
+            for pair in commodities:
+                message += f"• {pair}\n"
+
+            total_symbols = (
+                len(forex_pairs)
+                + len(crypto_pairs)
+                + len(metals)
+                + len(indices)
+                + len(commodities)
+            )
+            message += f"\n**Total Available**: {total_symbols} symbols\n\n"
+            message += "💡 **Tip**: Use 'Add Symbol' to add any of these symbols to your trading pairs."
+
+            keyboard = create_keyboard(
+                [
+                    [("➕ Add Symbol", "add_trading_pair")],
+                    [("📋 Manage Symbols", "manage_symbols")],
+                    [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in view_all_symbols_callback: {e}")
+            await self._handle_settings_error(update, context, "view_symbols")
+
+    async def add_popular_forex_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add popular forex pairs callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Popular forex pairs
+            popular_forex = ["EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD"]
+
+            # Get current allowed symbols
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            # Add new symbols (avoid duplicates)
+            added_count = 0
+            for symbol in popular_forex:
+                if symbol not in allowed_symbols:
+                    allowed_symbols.append(symbol)
+                    added_count += 1
+
+            if added_count > 0:
+                success = await self.user_config_service.update_user_config(
+                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                )
+
+                if success:
+                    message = (
+                        f"📋 **POPULAR FOREX PAIRS ADDED** 📋\n\n"
+                        f"✅ **Successfully added {added_count} forex pairs**:\n"
+                    )
+
+                    for symbol in popular_forex:
+                        if symbol in allowed_symbols:
+                            message += f"• {symbol}\n"
+
+                    message += f"\n**Total Trading Pairs**: {len(allowed_symbols)}\n\n"
+                    message += "Popular forex pairs have been added to your trading configuration."
+
+                    keyboard = create_keyboard(
+                        [
+                            [("📋 Manage Symbols", "manage_symbols")],
+                            [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                        ]
+                    )
+
+                    await self.edit_message(update, context, message, keyboard)
+                else:
+                    await self._handle_settings_error(update, context, "add_forex")
+            else:
+                message = (
+                    f"📋 **POPULAR FOREX PAIRS** 📋\n\n"
+                    f"ℹ️ **All popular forex pairs are already configured**:\n"
+                )
+
+                for symbol in popular_forex:
+                    message += f"• {symbol} ✅\n"
+
+                message += f"\n**Total Trading Pairs**: {len(allowed_symbols)}\n\n"
+                message += "No new pairs were added as they already exist in your configuration."
+
+                keyboard = create_keyboard(
+                    [
+                        [("📋 Manage Symbols", "manage_symbols")],
+                        [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                    ]
+                )
+
+                await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in add_popular_forex_callback: {e}")
+            await self._handle_settings_error(update, context, "add_forex")
+
+    async def add_popular_crypto_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add popular crypto pairs callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Popular crypto pairs
+            popular_crypto = [
+                "BTCUSD",
+                "ETHUSD",
+                "XRPUSD",
+                "LTCUSD",
+                "ADAUSD",
+                "DOTUSD",
+            ]
+
+            # Get current allowed symbols
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            # Add new symbols (avoid duplicates)
+            added_count = 0
+            for symbol in popular_crypto:
+                if symbol not in allowed_symbols:
+                    allowed_symbols.append(symbol)
+                    added_count += 1
+
+            if added_count > 0:
+                success = await self.user_config_service.update_user_config(
+                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                )
+
+                if success:
+                    message = (
+                        f"₿ **POPULAR CRYPTO PAIRS ADDED** ₿\n\n"
+                        f"✅ **Successfully added {added_count} crypto pairs**:\n"
+                    )
+
+                    for symbol in popular_crypto:
+                        if symbol in allowed_symbols:
+                            message += f"• {symbol}\n"
+
+                    message += f"\n**Total Trading Pairs**: {len(allowed_symbols)}\n\n"
+                    message += "Popular cryptocurrency pairs have been added to your trading configuration."
+
+                    keyboard = create_keyboard(
+                        [
+                            [("📋 Manage Symbols", "manage_symbols")],
+                            [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                        ]
+                    )
+
+                    await self.edit_message(update, context, message, keyboard)
+                else:
+                    await self._handle_settings_error(update, context, "add_crypto")
+            else:
+                message = (
+                    f"₿ **POPULAR CRYPTO PAIRS** ₿\n\n"
+                    f"ℹ️ **All popular crypto pairs are already configured**:\n"
+                )
+
+                for symbol in popular_crypto:
+                    message += f"• {symbol} ✅\n"
+
+                message += f"\n**Total Trading Pairs**: {len(allowed_symbols)}\n\n"
+                message += "No new pairs were added as they already exist in your configuration."
+
+                keyboard = create_keyboard(
+                    [
+                        [("📋 Manage Symbols", "manage_symbols")],
+                        [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                    ]
+                )
+
+                await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in add_popular_crypto_callback: {e}")
+            await self._handle_settings_error(update, context, "add_crypto")
