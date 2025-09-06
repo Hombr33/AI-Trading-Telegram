@@ -65,10 +65,28 @@ class CallbackRouter:
             "risk_settings",
             "notification_settings",
             "settings_notifications",  # Add the missing callback key
+            "settings_trading",  # Add trading settings callback
+            "settings_risk",  # Add risk settings callback
+            "settings_system",  # Add system settings callback
             "notif_critical",
             "notif_trading",
             "notif_reports",
             "notif_general",
+            # Trading notification settings
+            "trading_signals_settings",
+            "trading_positions_settings",
+            "trading_orders_settings",
+            "trading_risk_settings",
+            # Reports notification settings
+            "reports_performance_settings",
+            "reports_analysis_settings",
+            "reports_statistics_settings",
+            "reports_system_settings",
+            # General notification settings
+            "general_updates_settings",
+            "general_news_settings",
+            "general_maintenance_settings",
+            "general_features_settings",
             "theme_settings",
             "sound_settings",
             "trading_guide",
