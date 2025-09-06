@@ -801,7 +801,7 @@ Try again with /register_crypto"""
 No platform connections found.
 
 **Available Platforms:**
-• MT5 (MetaTrader 5) - Forex & CFD trading
+• MT5 (MetaTrader 5) - Forex and CFD trading
 • Crypto Exchanges - Binance, Bybit, KuCoin
 
 **To connect a platform:**

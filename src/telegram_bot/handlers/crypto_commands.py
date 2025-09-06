@@ -50,8 +50,8 @@ class CryptoCommandHandlers:
 Select your crypto exchange:
 
 **Supported Exchanges:**
-- Binance (Spot & Futures)
-- Bybit (Spot & Derivatives)
+- Binance (Spot and Futures)
+- Bybit (Spot and Derivatives)
 
 Choose an exchange to continue:""",
             reply_markup=reply_markup,
@@ -270,7 +270,7 @@ Please register your crypto exchange first:
             )
             return
 
-        message = "📊 **Crypto Positions & Orders**\n\n"
+        message = "📊 **Crypto Positions and Orders**\n\n"
 
         for pos in positions:
             symbol = pos.get("symbol", "N/A")

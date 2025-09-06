@@ -314,7 +314,7 @@ class SystemCallbackHandler:
         query = update.callback_query
 
         message = (
-            "🔄 **UPDATES & CHANGELOG** 🔄\n\n"
+            "🔄 **UPDATES AND CHANGELOG** 🔄\n\n"
             "📅 **Latest Version**: v2.0.0\n"
             "🚀 **Release Date**: January 2024\n\n"
             "✨ **New Features**:\n"
@@ -355,7 +355,7 @@ class SystemCallbackHandler:
             "🎯 **Basic Trading Concepts:**\n"
             "• Position Sizing\n"
             "• Risk Management\n"
-            "• Stop Loss & Take Profit\n\n"
+            "• Stop Loss and Take Profit\n\n"
             "📊 **Trading Strategies:**\n"
             "• Trend Following\n"
             "• Scalping\n"
@@ -425,9 +425,9 @@ class SystemCallbackHandler:
             "• RSI (Relative Strength Index)\n"
             "• MACD (Moving Average Convergence)\n\n"
             "📉 **Chart Patterns:**\n"
-            "• Support & Resistance\n"
+            "• Support and Resistance\n"
             "• Trend Lines\n"
-            "• Breakouts & Reversals\n\n"
+            "• Breakouts and Reversals\n\n"
             "⏰ **Timeframes:**\n"
             "• M1-M5: Scalping\n"
             "• M15-H1: Day Trading\n"
@@ -854,9 +854,9 @@ class SystemCallbackHandler:
             "• Risk Warnings: ✅ Enabled\n\n"
             "🔇 **Notification Types:**\n"
             "• 🚨 Critical: System alerts\n"
-            "• 📊 Trading: Signal & position updates\n"
+            "• 📊 Trading: Signal and position updates\n"
             "• 📈 Performance: Daily/weekly reports\n"
-            "• 🔔 General: Updates & news"
+            "• 🔔 General: Updates and news"
         )
 
         keyboard = create_keyboard(
