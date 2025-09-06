@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, AI Trading Bot"
 #property link      "https://example.com"
-#property version   "1.00"
+#property version   "1.10"
 #property strict
 
 #include <Trade\Trade.mqh>
@@ -57,7 +57,7 @@ bool trailingManagementEnabled = true;
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
-int init()
+int OnInit()
 {
     Print("BridgeEA MT5 Initialized");
 
@@ -74,8 +74,11 @@ int init()
     screenshotPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL5\\Files\\Screenshots\\";
 
     // Set up headers for authentication
-    headers = "Authorization: Bearer " + BRIDGE_TOKEN + "\r\n";
-    headers += "Content-Type: application/json\r\n";
+    headers = "Content-Type: application/json\r\n";
+    if(BRIDGE_TOKEN != "")
+    {
+        headers += "Authorization: Bearer " + BRIDGE_TOKEN + "\r\n";
+    }
 
     // Test connection
     TestConnection();
@@ -93,63 +96,15 @@ int init()
 //+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
-int deinit()
+void OnDeinit(const int reason)
 {
     Print("BridgeEA MT5 Deinitialized");
 
     // Remove timer
-    EventSetTimer(0);
-
-    return(0);
+    EventKillTimer();
 }
 
-//+------------------------------------------------------------------+
-//| Expert start function                                            |
-//+------------------------------------------------------------------+
-int start()
-{
-    // Send heartbeat
-    if(TimeCurrent() - lastHeartbeatTime >= HEARTBEAT_INTERVAL)
-    {
-       SendHeartbeat();
-       lastHeartbeatTime = TimeCurrent();
-    }
 
-    // Send position snapshot
-    if(TimeCurrent() - lastPositionSnapshotTime >= POSITION_SNAPSHOT_INTERVAL)
-    {
-       SendPositionSnapshot();
-       lastPositionSnapshotTime = TimeCurrent();
-    }
-
-    // Send tick data if enabled and enough time has passed
-    if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
-    {
-       SendTickData();
-       lastTickTime = TimeCurrent();
-    }
-
-    // Check for incoming orders from Python
-    if(ENABLE_ORDER_EXECUTION)
-    {
-       CheckForIncomingOrders();
-    }
-
-    // Manage trailing stops if enabled
-    if(ENABLE_TRAILING_MANAGEMENT)
-    {
-       ManageTrailingStops();
-    }
-
-    // Take and send screenshot for AI analysis
-    if(ENABLE_SCREENSHOT_ANALYSIS && (TimeCurrent() - lastScreenshotTime >= SCREENSHOT_INTERVAL))
-    {
-       TakeAndSendScreenshot();
-       lastScreenshotTime = TimeCurrent();
-    }
-
-    return(0);
-}
 
 //+------------------------------------------------------------------+
 //| Timer function                                                   |
@@ -168,6 +123,25 @@ void OnTimer()
    {
       SendPositionSnapshot();
       lastPositionSnapshotTime = TimeCurrent();
+   }
+   
+   // Send tick data if enabled
+   if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
+   {
+      SendTickData();
+      lastTickTime = TimeCurrent();
+   }
+   
+   // Check for incoming orders from Python
+   if(ENABLE_ORDER_EXECUTION)
+   {
+      CheckForIncomingOrders();
+   }
+   
+   // Manage trailing stops if enabled
+   if(ENABLE_TRAILING_MANAGEMENT)
+   {
+      ManageTrailingStops();
    }
    
    // Take and send screenshot for AI analysis
@@ -190,37 +164,32 @@ void OnTimer()
 void TestConnection()
 {
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
-   string postData = CreateHeartbeatData();
-   
-   char post[];
-   StringToCharArray(postData, post);
-   char result_data[];
-   string result_headers;
-   
-   int result = WebRequest("POST", url, headers, 5000, post, result_data, result_headers);
-   
-   if(result == 200)
-   {
-      if(!isConnected)
-      {
-         isConnected = true;
-         retryCount = 0;
-         Print("Connection established with Python API");
-      }
-   }
-   else
-   {
-      if(isConnected)
-      {
-         isConnected = false;
-         Print("Connection lost with Python API");
-         
-         if(ENABLE_AUTO_RECONNECT)
-         {
-            HandleReconnection();
-         }
-      }
-   }
+    string postData = CreateHeartbeatData();
+    
+    int result = MakeWebRequest("POST", url, headers, postData, 5000);
+    
+    if(result == 200)
+    {
+        if(!isConnected)
+        {
+            isConnected = true;
+            retryCount = 0;
+            Print("Connection established with Python API");
+        }
+    }
+    else
+    {
+        if(isConnected)
+        {
+            isConnected = false;
+            Print("Connection lost with Python API. Result code: ", result);
+            
+            if(ENABLE_AUTO_RECONNECT)
+            {
+                HandleReconnection();
+            }
+        }
+    }
 }
 
 //+------------------------------------------------------------------+
@@ -228,21 +197,18 @@ void TestConnection()
 //+------------------------------------------------------------------+
 void SendHeartbeat()
 {
-   if(!isConnected) return;
-   
+    if(!isConnected) return;
+    
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
-   string postData = CreateHeartbeatData();
-   
-   char post[];
-   StringToCharArray(postData, post);
-   char result_data[];
-   string result_headers;
-   int result = WebRequest("POST", url, headers, 5000, post, result_data, result_headers);
+    string postData = CreateHeartbeatData();
+    
+    int result = MakeWebRequest("POST", url, headers, postData, 5000);
 
-   if(result != 200)
-   {
-      Print("Heartbeat send failed with code: ", result);
-   }
+    if(result != 200)
+    {
+        Print("Heartbeat send failed with code: ", result);
+        isConnected = false;
+    }
 }
 
 //+------------------------------------------------------------------+
@@ -250,21 +216,17 @@ void SendHeartbeat()
 //+------------------------------------------------------------------+
 void SendTickData()
 {
-   if(!isConnected) return;
-   
+    if(!isConnected) return;
+    
     string url = API_ENDPOINT + "/api/v1/bridge/tick_data";
-   string postData = CreateTickData();
-   
-   char post[];
-   StringToCharArray(postData, post);
-   char result_data[];
-   string response_headers;
-   int result = WebRequest("POST", url, headers, 5000, post, result_data, response_headers);
-   
-   if(result != 200)
-   {
-      Print("Tick data send failed with code: ", result);
-   }
+    string postData = CreateTickData();
+    
+    int result = MakeWebRequest("POST", url, headers, postData, 5000);
+    
+    if(result != 200)
+    {
+        Print("Tick data send failed with code: ", result);
+    }
 }
 
 //+------------------------------------------------------------------+
@@ -286,32 +248,37 @@ void SendPositionSnapshot()
 }
 
 //+------------------------------------------------------------------+
-//| Check for incoming orders from Python                            |
+//| Check for incoming orders from Python (FIXED)                   |
 //+------------------------------------------------------------------+
 void CheckForIncomingOrders()
 {
-   if(!isConnected) return;
-   
-    string url = API_ENDPOINT + "/api/v1/bridge/pending_orders";
-   string postData = CreateHeartbeatData(); // Use heartbeat as authentication
-   
-   int result = MakeWebRequest("POST", url, headers, postData, 5000);
-   
-   if(result == 200)
-   {
-      // Parse response for pending orders
-      char result_data[];
-      string response_headers;
-      char empty[];  // Empty array for GET request
-      if(WebRequest("GET", url, headers, 5000, empty, result_data, response_headers) == 200)
-      {
-         string response = CharArrayToString(result_data);
-         if(response != "")
-         {
-            ProcessIncomingOrders(response);
-         }
-      }
-   }
+    if(!isConnected) return;
+    
+    // First authenticate with POST request
+    string authUrl = API_ENDPOINT + "/api/v1/bridge/pending_orders";
+    string authData = CreateHeartbeatData(); // Use heartbeat as authentication
+    
+    int authResult = MakeWebRequest("POST", authUrl, headers, authData, 5000);
+    
+    if(authResult == 200)
+    {
+        // Now get orders with GET request (fallback)
+        string getUrl = API_ENDPOINT + "/api/v1/bridge/pending_orders";
+        char empty[];  // Empty array for GET request
+        char result_data[];
+        string response_headers;
+        
+        int getResult = WebRequest("GET", getUrl, headers, 5000, empty, result_data, response_headers);
+        
+        if(getResult == 200)
+        {
+            string response = CharArrayToString(result_data);
+            if(response != "" && StringFind(response, "orders") >= 0)
+            {
+                ProcessIncomingOrders(response);
+            }
+        }
+    }
 }
 
 //+------------------------------------------------------------------+
@@ -579,22 +546,46 @@ string CreateSignalAckData(string symbol, string bias)
 }
 
 //+------------------------------------------------------------------+
-//| Extract value from JSON response (simplified)                    |
+//| Extract JSON value (IMPROVED)                                   |
 //+------------------------------------------------------------------+
 string ExtractValue(string json, string key)
 {
-   string searchStr = "\"" + key + "\":\"";
-   int start = StringFind(json, searchStr);
-   if(start >= 0)
-   {
-      start += StringLen(searchStr);
-      int end = StringFind(json, "\"", start);
-      if(end > start)
-      {
-         return StringSubstr(json, start, end - start);
-      }
-   }
-   return "";
+    string searchStr = "\"" + key + "\":\"";
+    int start = StringFind(json, searchStr);
+    if(start >= 0)
+    {
+        start += StringLen(searchStr);
+        int end = StringFind(json, "\"", start);
+        if(end > start)
+        {
+            return StringSubstr(json, start, end - start);
+        }
+    }
+    
+    // Try numeric value format
+    searchStr = "\"" + key + "\":";
+    start = StringFind(json, searchStr);
+    if(start >= 0)
+    {
+        start += StringLen(searchStr);
+        int end = start;
+        
+        // Find end of numeric value
+        while(end < StringLen(json))
+        {
+            string charStr = StringSubstr(json, end, 1);
+            if(charStr == "," || charStr == "}" || charStr == " " || charStr == "\n" || charStr == "\r")
+                break;
+            end++;
+        }
+        
+        if(end > start)
+        {
+            return StringSubstr(json, start, end - start);
+        }
+    }
+    
+    return "";
 }
 
 //+------------------------------------------------------------------+
@@ -655,8 +646,7 @@ string CreatePositionSnapshotData()
          json += "\"swap\":" + DoubleToString(positionInfo.Swap(), 2) + ",";
          json += "\"commission\":" + DoubleToString(positionInfo.Commission(), 2) + ",";
          long openTimeRaw = positionInfo.Time();
-         datetime openTime;
-         openTime = (datetime)openTimeRaw;
+         datetime openTime = (datetime)openTimeRaw;
          json += "\"time_open\":\"" + TimeToString(openTime, TIME_DATE|TIME_SECONDS) + "\"";
          json += "}";
          

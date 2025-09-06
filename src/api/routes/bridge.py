@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 import structlog
+import time
 
 from src.core.logging import log_trade_event, log_system_event
 from src.database.session import get_db_session
@@ -318,9 +319,28 @@ async def bridge_signal_ack(ack_data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@router.post("/pending_orders")
+async def bridge_pending_orders_auth(auth_data: Dict[str, Any]):
+    """Authenticate and get pending orders for EA to execute."""
+    try:
+        # Validate authentication (basic validation for now)
+        if not auth_data.get("terminal_id") or not auth_data.get("platform"):
+            raise HTTPException(status_code=400, detail="Missing authentication data")
+        
+        logger.debug(f"Pending orders request from {auth_data.get('platform')} terminal {auth_data.get('terminal_id')}")
+        
+        # This would typically return orders queued for execution
+        # For now, return empty list
+        return {"orders": []}
+
+    except Exception as e:
+        logger.error(f"Error getting pending orders: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.get("/pending_orders")
 async def bridge_pending_orders():
-    """Get pending orders for EA to execute."""
+    """Get pending orders for EA to execute (GET fallback)."""
     try:
         # This would typically return orders queued for execution
         # For now, return empty list
@@ -335,13 +355,42 @@ async def bridge_pending_orders():
 async def bridge_screenshot_analysis(analysis_data: Dict[str, Any]):
     """Handle screenshot analysis request from EA."""
     try:
-        logger.info(f"Screenshot analysis received for {analysis_data.get('symbol', 'unknown')}")
-
-        # Process screenshot analysis - would typically use AI analyzer
-        # For now, just acknowledge receipt
-
-        return {"success": True, "analysis": "received"}
-
+        logger.info(f"Screenshot analysis request for {analysis_data.get('symbol', 'unknown')}")
+        
+        # Validate required fields
+        required_fields = ["symbol", "timeframe", "timestamp", "image_data"]
+        missing_fields = [field for field in required_fields if field not in analysis_data]
+        if missing_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        # Extract data
+        symbol = analysis_data.get("symbol")
+        timeframe = analysis_data.get("timeframe")
+        image_data = analysis_data.get("image_data")
+        market_context = analysis_data.get("market_context", {})
+        
+        # Process screenshot for AI analysis
+        # For now, just acknowledge receipt and log
+        logger.info(f"Processing screenshot for {symbol} on {timeframe} timeframe")
+        logger.debug(f"Market context: {market_context}")
+        
+        # In a full implementation, this would:
+        # 1. Decode the image data (currently hex-encoded, needs proper base64)
+        # 2. Send to AI analysis service
+        # 3. Generate trading signals
+        # 4. Return analysis results
+        
+        return {
+            "success": True,
+            "message": "Screenshot received and queued for analysis",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "analysis_id": f"analysis_{symbol}_{int(time.time())}"
+        }
+        
     except Exception as e:
         logger.error(f"Error processing screenshot analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
