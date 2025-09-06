@@ -71,6 +71,13 @@ class SystemCallbackHandler:
             "general_news_settings": self._handle_general_news_settings_callback,
             # Trading pairs notification settings
             "notification_trading_pairs": self._handle_notification_trading_pairs_callback,
+            # Trading pairs management callbacks
+            "add_trading_pair": self._handle_add_trading_pair_callback,
+            "remove_trading_pair": self._handle_remove_trading_pair_callback,
+            "reset_symbols": self._handle_reset_symbols_callback,
+            "view_all_symbols": self._handle_view_all_symbols_callback,
+            "add_popular_forex": self._handle_add_popular_forex_callback,
+            "add_popular_crypto": self._handle_add_popular_crypto_callback,
             "general_maintenance_settings": self._handle_general_maintenance_settings_callback,
             "general_features_settings": self._handle_general_features_settings_callback,
             "theme_settings": self._handle_theme_settings_callback,
@@ -1642,3 +1649,64 @@ class SystemCallbackHandler:
 
         # Route to the system command handler's notification trading pairs
         await self.system_handler.notification_trading_pairs_callback(update, context)
+
+    # Trading pairs management callbacks
+    async def _handle_add_trading_pair_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add trading pair callback."""
+        query = update.callback_query
+        await query.answer("➕ Add trading pair")
+
+        # Route to the system command handler's add trading pair
+        await self.system_handler.add_trading_pair_callback(update, context)
+
+    async def _handle_remove_trading_pair_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle remove trading pair callback."""
+        query = update.callback_query
+        await query.answer("➖ Remove trading pair")
+
+        # Route to the system command handler's remove trading pair
+        await self.system_handler.remove_trading_pair_callback(update, context)
+
+    async def _handle_reset_symbols_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reset symbols callback."""
+        query = update.callback_query
+        await query.answer("🔄 Reset to defaults")
+
+        # Route to the system command handler's reset symbols
+        await self.system_handler.reset_symbols_callback(update, context)
+
+    async def _handle_view_all_symbols_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle view all symbols callback."""
+        query = update.callback_query
+        await query.answer("📊 View all symbols")
+
+        # Route to the system command handler's view all symbols
+        await self.system_handler.view_all_symbols_callback(update, context)
+
+    async def _handle_add_popular_forex_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add popular forex callback."""
+        query = update.callback_query
+        await query.answer("📋 Add popular forex pairs")
+
+        # Route to the system command handler's add popular forex
+        await self.system_handler.add_popular_forex_callback(update, context)
+
+    async def _handle_add_popular_crypto_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add popular crypto callback."""
+        query = update.callback_query
+        await query.answer("📋 Add popular crypto pairs")
+
+        # Route to the system command handler's add popular crypto
+        await self.system_handler.add_popular_crypto_callback(update, context)
