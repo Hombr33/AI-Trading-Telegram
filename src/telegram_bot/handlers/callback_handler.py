@@ -65,6 +65,10 @@ class CallbackRouter:
             "risk_settings",
             "notification_settings",
             "settings_notifications",  # Add the missing callback key
+            "notif_critical",
+            "notif_trading",
+            "notif_reports",
+            "notif_general",
             "theme_settings",
             "sound_settings",
             "trading_guide",
