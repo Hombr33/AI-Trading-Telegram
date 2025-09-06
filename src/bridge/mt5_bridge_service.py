@@ -66,7 +66,11 @@ class MT5BridgeService:
 
             # Initialize signal service if available
             try:
-                self.signal_service = SignalGenerationService()
+                # Get config and telegram_bot from global instances
+                from src.core.config import config
+                from src.main import telegram_bot
+
+                self.signal_service = SignalGenerationService(config, telegram_bot)
                 logger.info("Signal generation service initialized")
             except Exception as e:
                 logger.warning(f"Signal service not available: {e}")

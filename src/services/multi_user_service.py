@@ -1379,8 +1379,8 @@ class MultiUserService:
 
             if self.telegram_bot:
                 try:
-                    await self.telegram_bot.send_admin_alert(
-                        f"Health check system failure: {e}"
+                    await self.telegram_bot.send_notification(
+                        f"Health check system failure: {e}", "critical"
                     )
                 except Exception as alert_error:
                     logger.error(f"Failed to send health check alert: {alert_error}")
@@ -1423,18 +1423,29 @@ class MultiUserService:
                 # Check if bot is running and responsive
                 try:
                     # Test bot connection with getMe
-                    bot_info = await self.telegram_bot.bot.get_me()
-                    if bot_info:
-                        health_status["telegram_bot"]["status"] = "healthy"
-                        health_status["telegram_bot"][
-                            "bot_username"
-                        ] = bot_info.username
-                        logger.debug(
-                            f"Telegram bot health check: HEALTHY - {bot_info.username}"
-                        )
+                    if (
+                        hasattr(self.telegram_bot, "application")
+                        and self.telegram_bot.application
+                    ):
+                        bot_info = await self.telegram_bot.application.bot.get_me()
+                        if bot_info:
+                            health_status["telegram_bot"]["status"] = "healthy"
+                            health_status["telegram_bot"][
+                                "bot_username"
+                            ] = bot_info.username
+                            logger.debug(
+                                f"Telegram bot health check: HEALTHY - {bot_info.username}"
+                            )
+                        else:
+                            health_status["telegram_bot"]["status"] = "warning"
+                            health_status["telegram_bot"][
+                                "error"
+                            ] = "Bot info unavailable"
                     else:
                         health_status["telegram_bot"]["status"] = "warning"
-                        health_status["telegram_bot"]["error"] = "Bot info unavailable"
+                        health_status["telegram_bot"][
+                            "error"
+                        ] = "Bot application not initialized"
 
                 except Exception as e:
                     health_status["telegram_bot"]["status"] = "critical"
@@ -1710,7 +1721,7 @@ class MultiUserService:
             # Send to administrators
             if self.telegram_bot:
                 try:
-                    await self.telegram_bot.send_admin_alert(message)
+                    await self.telegram_bot.send_notification(message, "critical")
                 except Exception as e:
                     logger.error(f"Failed to send health alert: {e}")
 
