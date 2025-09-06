@@ -69,6 +69,8 @@ class SystemCallbackHandler:
             # General notification settings
             "general_updates_settings": self._handle_general_updates_settings_callback,
             "general_news_settings": self._handle_general_news_settings_callback,
+            # Trading pairs notification settings
+            "notification_trading_pairs": self._handle_notification_trading_pairs_callback,
             "general_maintenance_settings": self._handle_general_maintenance_settings_callback,
             "general_features_settings": self._handle_general_features_settings_callback,
             "theme_settings": self._handle_theme_settings_callback,
@@ -1630,3 +1632,13 @@ class SystemCallbackHandler:
 
         # Route to the system command handler's system settings
         await self.system_handler.settings_system(update, context)
+
+    async def _handle_notification_trading_pairs_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle notification trading pairs callback."""
+        query = update.callback_query
+        await query.answer("📋 Trading pairs notification settings")
+
+        # Route to the system command handler's notification trading pairs
+        await self.system_handler.notification_trading_pairs_callback(update, context)
