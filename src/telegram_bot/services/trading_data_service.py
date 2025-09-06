@@ -162,7 +162,7 @@ class TradingDataService:
         """
         try:
             session = SessionLocal()
-            query = session.query(Signal).filter(Signal.status == "ACTIVE")
+            query = session.query(Signal).filter(Signal.is_active == True)
 
             if user_id:
                 # Filter signals based on user preferences and subscriptions

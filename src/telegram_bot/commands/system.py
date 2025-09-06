@@ -71,6 +71,7 @@ class SystemCommandHandler(BaseCommandHandler):
             "reset_system": self.reset_system_callback,
             "system_info": self.info_command,
             "notification_intervals": self.notification_intervals_callback,
+            "notification_trading_pairs": self.notification_trading_pairs_callback,
             "set_interval": self.set_interval_callback,
             "trading_pairs": self.trading_pairs_callback,
             "add_trading_pair": self.add_trading_pair_callback,
@@ -480,6 +481,10 @@ class SystemCommandHandler(BaseCommandHandler):
             def status_icon(enabled):
                 return "✅" if enabled else "❌"
 
+            # Get trading config for allowed symbols
+            trading = config.get("trading", {})
+            allowed_symbols = trading.get("allowed_symbols", [])
+
             message = (
                 f"🔔 **NOTIFICATION SETTINGS** 🔔\n\n"
                 f"**Current Status**:\n"
@@ -489,8 +494,8 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"{status_icon(notifications.get('risk', True))} Risk Alerts\n"
                 f"{status_icon(notifications.get('performance', True))} Performance Reports\n"
                 f"{status_icon(notifications.get('system', True))} System Alerts\n\n"
-                f"**Toggle Notifications**:\n"
-                f"Click any notification type below to enable/disable it."
+                f"**Trading Pairs**: {len(allowed_symbols)} pairs configured\n"
+                f"**Configure**: Select options below to customize notifications."
             )
 
             keyboard = create_keyboard(
@@ -506,6 +511,10 @@ class SystemCommandHandler(BaseCommandHandler):
                     [
                         ("📊 Performance", "toggle_notification:performance"),
                         ("🔧 System", "toggle_notification:system"),
+                    ],
+                    [
+                        ("📋 Trading Pairs", "notification_trading_pairs"),
+                        ("⏰ Intervals", "notification_intervals"),
                     ],
                     [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
                 ]
@@ -1407,6 +1416,60 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in notification_intervals_callback: {e}")
             await self._handle_settings_error(update, context, "intervals")
+
+    async def notification_trading_pairs_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle notification trading pairs callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            message = (
+                f"📋 **NOTIFICATION TRADING PAIRS** 📋\n\n"
+                f"**Current Allowed Pairs**:\n"
+            )
+
+            if allowed_symbols:
+                for symbol in allowed_symbols:
+                    message += f"• {symbol}\n"
+            else:
+                message += "• No pairs configured\n"
+
+            message += f"\n**Total**: {len(allowed_symbols)} pairs\n\n"
+            message += "**Popular Pairs**:\n"
+            message += "• Forex: EURUSD, GBPUSD, USDJPY, USDCAD\n"
+            message += "• Crypto: BTCUSD, ETHUSD, XRPUSD\n"
+            message += "• Metals: XAUUSD, XAGUSD\n"
+            message += "• Indices: SPX500, NAS100, GER30\n\n"
+            message += (
+                "**Configure**: Select options below to manage your trading pairs."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("➕ Add Pair", "add_trading_pair"),
+                        ("➖ Remove Pair", "remove_trading_pair"),
+                    ],
+                    [
+                        ("📋 Popular Forex", "add_popular_forex"),
+                        ("📋 Popular Crypto", "add_popular_crypto"),
+                    ],
+                    [
+                        ("🔄 Reset Defaults", "reset_trading_pairs"),
+                        ("📊 View All", "view_all_pairs"),
+                    ],
+                    [("⬅️ Back", "settings_notifications"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in notification_trading_pairs_callback: {e}")
+            await self._handle_settings_error(update, context, "trading_pairs")
 
     async def set_interval_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

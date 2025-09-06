@@ -65,6 +65,7 @@ class CallbackRouter:
             "risk_settings",
             "notification_settings",
             "settings_notifications",  # Add the missing callback key
+            "notification_trading_pairs",  # Add notification trading pairs callback
             "settings_trading",  # Add trading settings callback
             "settings_risk",  # Add risk settings callback
             "settings_system",  # Add system settings callback
