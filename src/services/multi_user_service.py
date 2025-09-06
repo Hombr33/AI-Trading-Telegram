@@ -1394,7 +1394,9 @@ class MultiUserService:
             session = SessionLocal()
             try:
                 # Simple query to test connection
-                result = session.execute("SELECT 1")
+                from sqlalchemy import text
+
+                result = session.execute(text("SELECT 1"))
                 result.fetchone()
 
                 health_status["database"]["status"] = "healthy"
@@ -1465,7 +1467,7 @@ class MultiUserService:
                             [
                                 conn
                                 for conn in connection_health.values()
-                                if conn.get("connected")
+                                if isinstance(conn, dict) and conn.get("connected")
                             ]
                         )
                         total_users = len(connection_health)

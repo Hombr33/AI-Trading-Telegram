@@ -213,6 +213,9 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing multi-user service...")
         multi_user_service = MultiUserService(config.telegram.bot_token)
 
+        # Set telegram bot instance for multi-user service
+        multi_user_service.set_telegram_bot(telegram_bot)
+
         # Set multi-user service for API routes
         multi_user.set_multi_user_service(multi_user_service)
 
