@@ -439,9 +439,8 @@ class SystemCommandHandler(BaseCommandHandler):
                     ],
                     [
                         ("⏰ Intervals", "notification_intervals"),
-                        ("📋 Trading Pairs", "trading_pairs"),
+                        ("📈 Performance", "performance"),
                     ],
-                    [("📈 Trading", "positions"), ("💰 Account", "account")],
                     [("🏠 Main Menu", "start")],
                 ]
             )

@@ -51,6 +51,21 @@ class SystemCallbackHandler:
             "notif_trading": self._handle_notif_trading_callback,
             "notif_reports": self._handle_notif_reports_callback,
             "notif_general": self._handle_notif_general_callback,
+            # Trading notification settings
+            "trading_signals_settings": self._handle_trading_signals_settings_callback,
+            "trading_positions_settings": self._handle_trading_positions_settings_callback,
+            "trading_orders_settings": self._handle_trading_orders_settings_callback,
+            "trading_risk_settings": self._handle_trading_risk_settings_callback,
+            # Reports notification settings
+            "reports_performance_settings": self._handle_reports_performance_settings_callback,
+            "reports_analysis_settings": self._handle_reports_analysis_settings_callback,
+            "reports_statistics_settings": self._handle_reports_statistics_settings_callback,
+            "reports_system_settings": self._handle_reports_system_settings_callback,
+            # General notification settings
+            "general_updates_settings": self._handle_general_updates_settings_callback,
+            "general_news_settings": self._handle_general_news_settings_callback,
+            "general_maintenance_settings": self._handle_general_maintenance_settings_callback,
+            "general_features_settings": self._handle_general_features_settings_callback,
             "theme_settings": self._handle_theme_settings_callback,
             "sound_settings": self._handle_sound_settings_callback,
         }
@@ -923,12 +938,12 @@ class SystemCallbackHandler:
         keyboard = create_keyboard(
             [
                 [
-                    ("📈 Signals", "settings_notifications"),
-                    ("📊 Positions", "settings_notifications"),
+                    ("📈 Signals", "trading_signals_settings"),
+                    ("📊 Positions", "trading_positions_settings"),
                 ],
                 [
-                    ("📋 Orders", "settings_notifications"),
-                    ("⚠️ Risk", "settings_notifications"),
+                    ("📋 Orders", "trading_orders_settings"),
+                    ("⚠️ Risk", "trading_risk_settings"),
                 ],
                 [("⬅️ Back", "notification_settings")],
             ]
@@ -958,12 +973,12 @@ class SystemCallbackHandler:
         keyboard = create_keyboard(
             [
                 [
-                    ("📊 Performance", "settings_notifications"),
-                    ("📈 Analysis", "settings_notifications"),
+                    ("📊 Performance", "reports_performance_settings"),
+                    ("📈 Analysis", "reports_analysis_settings"),
                 ],
                 [
-                    ("📋 Statistics", "settings_notifications"),
-                    ("🔧 System", "settings_notifications"),
+                    ("📋 Statistics", "reports_statistics_settings"),
+                    ("🔧 System", "reports_system_settings"),
                 ],
                 [("⬅️ Back", "notification_settings")],
             ]
@@ -993,12 +1008,12 @@ class SystemCallbackHandler:
         keyboard = create_keyboard(
             [
                 [
-                    ("📢 Updates", "settings_notifications"),
-                    ("📰 News", "settings_notifications"),
+                    ("📢 Updates", "general_updates_settings"),
+                    ("📰 News", "general_news_settings"),
                 ],
                 [
-                    ("🔧 Maintenance", "settings_notifications"),
-                    ("🆕 Features", "settings_notifications"),
+                    ("🔧 Maintenance", "general_maintenance_settings"),
+                    ("🆕 Features", "general_features_settings"),
                 ],
                 [("⬅️ Back", "notification_settings")],
             ]
@@ -1069,6 +1084,321 @@ class SystemCallbackHandler:
                 [("🔇 Mute", "sound_mute"), ("🔉 Low", "sound_low")],
                 [("🔊 Medium", "sound_medium"), ("📢 High", "sound_high")],
                 [("⚙️ Settings", "settings"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    # Trading notification settings callbacks
+    async def _handle_trading_signals_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle trading signals settings callback."""
+        query = update.callback_query
+        await query.answer("📈 Trading signals notification settings")
+
+        message = (
+            "📈 **TRADING SIGNALS NOTIFICATIONS** 📈\n\n"
+            "**Configure signal notifications:**\n"
+            "• New trading signals\n"
+            "• Signal updates\n"
+            "• Signal expirations\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_trading")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_trading_positions_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle trading positions settings callback."""
+        query = update.callback_query
+        await query.answer("📊 Trading positions notification settings")
+
+        message = (
+            "📊 **TRADING POSITIONS NOTIFICATIONS** 📊\n\n"
+            "**Configure position notifications:**\n"
+            "• Position opened\n"
+            "• Position closed\n"
+            "• Position modified\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_trading")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_trading_orders_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle trading orders settings callback."""
+        query = update.callback_query
+        await query.answer("📋 Trading orders notification settings")
+
+        message = (
+            "📋 **TRADING ORDERS NOTIFICATIONS** 📋\n\n"
+            "**Configure order notifications:**\n"
+            "• Order placed\n"
+            "• Order executed\n"
+            "• Order cancelled\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_trading")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_trading_risk_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle trading risk settings callback."""
+        query = update.callback_query
+        await query.answer("⚠️ Trading risk notification settings")
+
+        message = (
+            "⚠️ **TRADING RISK NOTIFICATIONS** ⚠️\n\n"
+            "**Configure risk notifications:**\n"
+            "• Risk limit breaches\n"
+            "• Drawdown warnings\n"
+            "• Position size alerts\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_trading")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    # Reports notification settings callbacks
+    async def _handle_reports_performance_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reports performance settings callback."""
+        query = update.callback_query
+        await query.answer("📊 Performance reports notification settings")
+
+        message = (
+            "📊 **PERFORMANCE REPORTS NOTIFICATIONS** 📊\n\n"
+            "**Configure performance notifications:**\n"
+            "• Daily performance summaries\n"
+            "• Weekly performance reports\n"
+            "• Monthly performance analysis\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_reports")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_reports_analysis_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reports analysis settings callback."""
+        query = update.callback_query
+        await query.answer("📈 Analysis reports notification settings")
+
+        message = (
+            "📈 **ANALYSIS REPORTS NOTIFICATIONS** 📈\n\n"
+            "**Configure analysis notifications:**\n"
+            "• Market analysis reports\n"
+            "• Strategy performance analysis\n"
+            "• Risk analysis reports\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_reports")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_reports_statistics_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reports statistics settings callback."""
+        query = update.callback_query
+        await query.answer("📋 Statistics reports notification settings")
+
+        message = (
+            "📋 **STATISTICS REPORTS NOTIFICATIONS** 📋\n\n"
+            "**Configure statistics notifications:**\n"
+            "• Trading statistics\n"
+            "• Win/loss ratios\n"
+            "• Performance metrics\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_reports")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_reports_system_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reports system settings callback."""
+        query = update.callback_query
+        await query.answer("🔧 System reports notification settings")
+
+        message = (
+            "🔧 **SYSTEM REPORTS NOTIFICATIONS** 🔧\n\n"
+            "**Configure system notifications:**\n"
+            "• System health reports\n"
+            "• Resource usage reports\n"
+            "• Error reports\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_reports")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    # General notification settings callbacks
+    async def _handle_general_updates_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle general updates settings callback."""
+        query = update.callback_query
+        await query.answer("📢 General updates notification settings")
+
+        message = (
+            "📢 **GENERAL UPDATES NOTIFICATIONS** 📢\n\n"
+            "**Configure update notifications:**\n"
+            "• Bot updates\n"
+            "• Feature updates\n"
+            "• System updates\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_general")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_general_news_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle general news settings callback."""
+        query = update.callback_query
+        await query.answer("📰 General news notification settings")
+
+        message = (
+            "📰 **GENERAL NEWS NOTIFICATIONS** 📰\n\n"
+            "**Configure news notifications:**\n"
+            "• Market news\n"
+            "• Economic announcements\n"
+            "• Trading alerts\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_general")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_general_maintenance_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle general maintenance settings callback."""
+        query = update.callback_query
+        await query.answer("🔧 General maintenance notification settings")
+
+        message = (
+            "🔧 **GENERAL MAINTENANCE NOTIFICATIONS** 🔧\n\n"
+            "**Configure maintenance notifications:**\n"
+            "• Scheduled maintenance\n"
+            "• System downtime\n"
+            "• Maintenance completion\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_general")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_general_features_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle general features settings callback."""
+        query = update.callback_query
+        await query.answer("🆕 General features notification settings")
+
+        message = (
+            "🆕 **GENERAL FEATURES NOTIFICATIONS** 🆕\n\n"
+            "**Configure feature notifications:**\n"
+            "• New features\n"
+            "• Feature announcements\n"
+            "• Feature updates\n\n"
+            "Settings will be implemented in future updates."
+        )
+
+        keyboard = create_keyboard(
+            [
+                [("⬅️ Back", "notif_general")],
             ]
         )
 
