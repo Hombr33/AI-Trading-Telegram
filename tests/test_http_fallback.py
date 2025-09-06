@@ -83,11 +83,11 @@ class TestHTTPFallback:
             "symbol": "EURUSD",
             "action": "BUY",
             "volume": 0.1,
-            "price": 1.1234
+            "price": 1.1234,
         }
 
         # Mock successful HTTP fallback
-        with patch('src.bridge.socketio_bridge.aiohttp.ClientSession') as mock_session:
+        with patch("src.bridge.socketio_bridge.aiohttp.ClientSession") as mock_session:
             mock_response = Mock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value={"success": True})
@@ -113,11 +113,11 @@ class TestHTTPFallback:
             "signal_id": "test_signal_123",
             "symbol": "EURUSD",
             "action": "BUY",
-            "strength": 0.8
+            "strength": 0.8,
         }
 
         # Mock successful HTTP fallback
-        with patch('src.bridge.socketio_bridge.aiohttp.ClientSession') as mock_session:
+        with patch("src.bridge.socketio_bridge.aiohttp.ClientSession") as mock_session:
             mock_response = Mock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value={"success": True})
@@ -138,7 +138,7 @@ class TestHTTPFallback:
         socketio_bridge.fallback_enabled = True
 
         # Mock HTTP error
-        with patch('src.bridge.socketio_bridge.aiohttp.ClientSession') as mock_session:
+        with patch("src.bridge.socketio_bridge.aiohttp.ClientSession") as mock_session:
             mock_response = Mock()
             mock_response.status = 500
             mock_response.text = AsyncMock(return_value="Internal Server Error")
@@ -161,10 +161,7 @@ class TestHTTPFallback:
         assert socketio_bridge.message_queue == []
 
         # Test queue structure (would be populated during actual operation)
-        test_message = {
-            "type": "order",
-            "data": {"symbol": "EURUSD", "action": "BUY"}
-        }
+        test_message = {"type": "order", "data": {"symbol": "EURUSD", "action": "BUY"}}
 
         socketio_bridge.message_queue.append(test_message)
         assert len(socketio_bridge.message_queue) == 1
@@ -182,13 +179,24 @@ class TestHTTPFallback:
             "/api/v1/ea/close",
             "/api/v1/ea/history",
             "/api/v1/ea/settings",
-            "/api/v1/ea/health"
+            "/api/v1/ea/health",
         ]
 
         for endpoint in expected_endpoints:
             assert endpoint.startswith("/api/v1/ea/")
-            assert endpoint.endswith(("/validate", "/order", "/positions", "/account",
-                                    "/modify", "/close", "/history", "/settings", "/health"))
+            assert endpoint.endswith(
+                (
+                    "/validate",
+                    "/order",
+                    "/positions",
+                    "/account",
+                    "/modify",
+                    "/close",
+                    "/history",
+                    "/settings",
+                    "/health",
+                )
+            )
 
     def test_bridge_fallback_timeout_handling(self, socketio_bridge):
         """Test timeout handling in fallback mechanism."""
@@ -217,10 +225,9 @@ class TestHTTPFallback:
 
         # Simulate multiple messages being queued
         for i in range(5):
-            socketio_bridge.message_queue.append({
-                "type": "order",
-                "data": {"id": i, "symbol": "EURUSD"}
-            })
+            socketio_bridge.message_queue.append(
+                {"type": "order", "data": {"id": i, "symbol": "EURUSD"}}
+            )
 
         assert len(socketio_bridge.message_queue) == 5
 
@@ -282,19 +289,26 @@ class TestEASecurity:
         rate_limit_config = {
             "max_requests_per_minute": 60,
             "burst_limit": 10,
-            "window_seconds": 60
+            "window_seconds": 60,
         }
 
         assert rate_limit_config["max_requests_per_minute"] > 0
-        assert rate_limit_config["burst_limit"] <= rate_limit_config["max_requests_per_minute"]
+        assert (
+            rate_limit_config["burst_limit"]
+            <= rate_limit_config["max_requests_per_minute"]
+        )
 
     def test_input_validation_security(self):
         """Test input validation for security."""
         # Test various malicious inputs that should be rejected
         malicious_inputs = [
             {"symbol": "<script>alert('xss')</script>", "action": "BUY"},
-            {"symbol": "EURUSD", "action": "DELETE", "volume": "'; DROP TABLE users;--"},
-            {"symbol": "EURUSD", "action": "BUY", "price": float('inf')},
+            {
+                "symbol": "EURUSD",
+                "action": "DELETE",
+                "volume": "'; DROP TABLE users;--",
+            },
+            {"symbol": "EURUSD", "action": "BUY", "price": float("inf")},
             {"symbol": "EURUSD", "action": "BUY", "volume": -1},
         ]
 

@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings
 from .logging import get_logger
 
 # Load environment variables from .env file
-env_path = Path(__file__).parent.parent.parent / '.env'
+env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
 
 
@@ -37,18 +37,20 @@ class DatabaseConfig(BaseSettings):
 class MT5Config(BaseSettings):
     """MT5 configuration."""
 
-    login: Optional[int] = Field(default=None, env="MT5_LOGIN")  # Default to None for demo/testing
+    login: Optional[int] = Field(
+        default=None, env="MT5_LOGIN"
+    )  # Default to None for demo/testing
     password: Optional[str] = Field(default="")
     server: Optional[str] = Field(default="")
     broker_name: Optional[str] = Field(default="", env="MT5_BROKER_NAME")
     timeout: int = Field(default=30000)
     retry_attempts: int = Field(default=3)
     retry_delay_ms: int = Field(default=1000)
-    
-    @field_validator('login', mode='before')
+
+    @field_validator("login", mode="before")
     @classmethod
     def validate_login(cls, v):
-        if v == '' or v is None:
+        if v == "" or v is None:
             return None
         return int(v) if v else None
 
@@ -83,18 +85,20 @@ class TelegramConfig(BaseSettings):
     chat_id: Optional[int] = Field(default=6077091585)
     webhook_url: Optional[str] = Field(default=None)
     webhook_enabled: bool = Field(default=False)
-    
-    @field_validator('chat_id', mode='before')
+
+    @field_validator("chat_id", mode="before")
     @classmethod
     def validate_chat_id(cls, v):
-        if v == '' or v is None:
+        if v == "" or v is None:
             return None
         return int(v) if v else None
 
     @property
     def is_configured(self) -> bool:
         """Check if Telegram is properly configured."""
-        return bool(self.bot_token and ":" in self.bot_token and len(self.bot_token) > 10)
+        return bool(
+            self.bot_token and ":" in self.bot_token and len(self.bot_token) > 10
+        )
 
     class Config:
         env_prefix = "TELEGRAM_"
@@ -140,38 +144,40 @@ class RiskConfig(BaseSettings):
 
 class CryptoConfig(BaseSettings):
     """Crypto exchange configuration."""
-    
+
     # Binance
     binance_api_key: str = Field(default="")
     binance_secret_key: str = Field(default="")
     binance_testnet: bool = Field(default=True)
-    
+
     # Bybit
     bybit_api_key: str = Field(default="")
     bybit_secret_key: str = Field(default="")
     bybit_testnet: bool = Field(default=True)
-    
+
     # Bitget
     bitget_api_key: str = Field(default="")
     bitget_secret_key: str = Field(default="")
     bitget_passphrase: str = Field(default="")
     bitget_testnet: bool = Field(default=True)
-    
+
     # Common settings
     default_leverage: int = Field(default=1)
     max_leverage: int = Field(default=10)
-    
+
     @property
     def binance_configured(self) -> bool:
         return bool(self.binance_api_key and self.binance_secret_key)
-    
+
     @property
     def bybit_configured(self) -> bool:
         return bool(self.bybit_api_key and self.bybit_secret_key)
-    
+
     @property
     def bitget_configured(self) -> bool:
-        return bool(self.bitget_api_key and self.bitget_secret_key and self.bitget_passphrase)
+        return bool(
+            self.bitget_api_key and self.bitget_secret_key and self.bitget_passphrase
+        )
 
     class Config:
         env_prefix = "CRYPTO_"
@@ -248,19 +254,19 @@ class LoggingConfig(BaseSettings):
 
 class AutoTradingConfig(BaseSettings):
     """Auto trading configuration."""
-    
+
     enabled: bool = Field(default=False, env="AUTO_TRADING_ENABLED")
     auto_signal_generation: bool = Field(default=False, env="AUTO_SIGNAL_GENERATION")
     signal_interval_minutes: int = Field(default=15, env="SIGNAL_INTERVAL_MINUTES")
     max_trades_per_day: int = Field(default=10, env="MAX_TRADES_PER_DAY")
-    
+
     # Trading pairs for auto signals (no env vars to avoid JSON parsing issues)
     forex_pairs: List[str] = Field(default=["EURUSD", "GBPUSD", "USDJPY"])
     crypto_pairs: List[str] = Field(default=["BTCUSDT", "ETHUSDT", "ADAUSDT"])
-    
+
     # Risk per trade for auto trading
     risk_per_trade_percent: float = Field(default=1.0, env="AUTO_RISK_PER_TRADE")
-    
+
     class Config:
         env_prefix = "AUTO_"
         env_ignore = {"forex_pairs", "crypto_pairs"}
@@ -304,7 +310,7 @@ class AppConfig(BaseSettings):
 
     def __init__(self, **kwargs):
         """Initialize configuration.
-        
+
         This method handles the initialization of all configuration components
         and ensures proper validation of all settings.
         """
@@ -313,23 +319,31 @@ class AppConfig(BaseSettings):
             kwargs["host"] = os.getenv("API_HOST")
         if "port" not in kwargs and os.getenv("API_PORT"):
             kwargs["port"] = int(os.getenv("API_PORT"))
-            
+
         super().__init__(**kwargs)
         self.debug = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
-        
+
         # Initialize auto_trading manually with safe defaults
         if self.auto_trading is None:
             # Create simple object with attributes to avoid Pydantic validation issues
             class SimpleAutoConfig:
                 def __init__(self):
-                    self.enabled = os.getenv("AUTO_TRADING_ENABLED", "false").lower() == "true"
-                    self.auto_signal_generation = os.getenv("AUTO_SIGNAL_GENERATION", "false").lower() == "true"
-                    self.signal_interval_minutes = int(os.getenv("SIGNAL_INTERVAL_MINUTES", "15"))
+                    self.enabled = (
+                        os.getenv("AUTO_TRADING_ENABLED", "false").lower() == "true"
+                    )
+                    self.auto_signal_generation = (
+                        os.getenv("AUTO_SIGNAL_GENERATION", "false").lower() == "true"
+                    )
+                    self.signal_interval_minutes = int(
+                        os.getenv("SIGNAL_INTERVAL_MINUTES", "15")
+                    )
                     self.max_trades_per_day = int(os.getenv("MAX_TRADES_PER_DAY", "10"))
                     self.forex_pairs = ["EURUSD", "GBPUSD", "USDJPY"]
                     self.crypto_pairs = ["BTCUSDT", "ETHUSDT", "ADAUSDT"]
-                    self.risk_per_trade_percent = float(os.getenv("AUTO_RISK_PER_TRADE", "1.0"))
-            
+                    self.risk_per_trade_percent = float(
+                        os.getenv("AUTO_RISK_PER_TRADE", "1.0")
+                    )
+
             self.auto_trading = SimpleAutoConfig()
 
     def get_database_url(self) -> str:

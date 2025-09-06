@@ -8,6 +8,7 @@ import httpx
 import json
 from datetime import datetime, timezone
 
+
 async def test_bridge_endpoints():
     """Test bridge endpoints."""
     base_url = "http://localhost:8000/api/v1/bridge"
@@ -17,7 +18,7 @@ async def test_bridge_endpoints():
         "terminal_id": "test_terminal",
         "platform": "MT5",
         "account": "123456",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     signal_data = {
@@ -26,7 +27,7 @@ async def test_bridge_endpoints():
         "entry_price": 1.0950,
         "stop_loss": 1.0900,
         "take_profit": 1.1000,
-        "volume": 0.01
+        "volume": 0.01,
     }
 
     async with httpx.AsyncClient() as client:
@@ -38,7 +39,7 @@ async def test_bridge_endpoints():
             response = await client.post(
                 f"{base_url}/heartbeat",
                 json=heartbeat_data,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text}")
@@ -51,7 +52,7 @@ async def test_bridge_endpoints():
             response = await client.post(
                 f"{base_url}/signal",
                 json=signal_data,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text}")
@@ -63,12 +64,13 @@ async def test_bridge_endpoints():
         try:
             response = await client.get(
                 f"{base_url}/pending_orders",
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             print(f"Status: {response.status_code}")
             print(f"Response: {response.text}")
         except Exception as e:
             print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_bridge_endpoints())

@@ -17,16 +17,15 @@ AioMQLExecutor: Optional[type] = None
 
 try:
     import platform
+
     if platform.system() == "Windows":
         from .mt5_executor import MT5Executor
         from .aiomql_executor import AioMQLExecutor
+
         logger.info("Forex executors loaded successfully")
     else:
         logger.warning("Forex executors not available on this platform")
 except ImportError as e:
     logger.warning(f"Failed to import forex executors: {e}")
 
-__all__ = [
-    "MT5Executor",
-    "AioMQLExecutor"
-]
+__all__ = ["MT5Executor", "AioMQLExecutor"]

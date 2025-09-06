@@ -18,10 +18,10 @@ from pathlib import Path
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class EATestSuite:
     """Test suite for EA MQL script functionality."""
@@ -34,14 +34,14 @@ class EATestSuite:
             "terminal_id": "TEST_TERMINAL_001",
             "platform": "MT5",
             "account": "12345678",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.test_tick_data = {
             "symbol": "EURUSD",
             "bid": 1.09567,
             "ask": 1.09587,
-            "time": datetime.now().isoformat()
+            "time": datetime.now().isoformat(),
         }
 
         self.test_position_data = {
@@ -55,7 +55,7 @@ class EATestSuite:
             "profit": 45.67,
             "swap": -0.23,
             "commission": -2.50,
-            "time_open": datetime.now().isoformat()
+            "time_open": datetime.now().isoformat(),
         }
 
     async def setup(self):
@@ -79,14 +79,16 @@ class EATestSuite:
             logger.error(f"Failed to cleanup test environment: {e}")
             return False
 
-    def log_test_result(self, test_name: str, success: bool, message: str = "", error: str = ""):
+    def log_test_result(
+        self, test_name: str, success: bool, message: str = "", error: str = ""
+    ):
         """Log test result."""
         result = {
             "test": test_name,
             "success": success,
             "message": message,
             "error": error,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.test_results.append(result)
@@ -107,25 +109,33 @@ class EATestSuite:
             mt5_script = ea_dir / "BridgeEA.mq5"
 
             if not mt4_script.exists():
-                self.log_test_result(test_name, False, "MT4 script not found", str(mt4_script))
+                self.log_test_result(
+                    test_name, False, "MT4 script not found", str(mt4_script)
+                )
                 return False
 
             if not mt5_script.exists():
-                self.log_test_result(test_name, False, "MT5 script not found", str(mt5_script))
+                self.log_test_result(
+                    test_name, False, "MT5 script not found", str(mt5_script)
+                )
                 return False
 
             # Read and analyze MT4 script
-            with open(mt4_script, 'r', encoding='utf-8') as f:
+            with open(mt4_script, "r", encoding="utf-8") as f:
                 mt4_content = f.read()
 
             # Read and analyze MT5 script
-            with open(mt5_script, 'r', encoding='utf-8') as f:
+            with open(mt5_script, "r", encoding="utf-8") as f:
                 mt5_content = f.read()
 
             # Check for required functions
             required_functions = [
-                "init()", "deinit()", "start()",
-                "SendHeartbeat()", "SendTickData()", "SendPositionSnapshot()"
+                "init()",
+                "deinit()",
+                "start()",
+                "SendHeartbeat()",
+                "SendTickData()",
+                "SendPositionSnapshot()",
             ]
 
             mt4_missing = []
@@ -138,13 +148,15 @@ class EATestSuite:
                     mt5_missing.append(func)
 
             if mt4_missing:
-                self.log_test_result(test_name, False,
-                    f"MT4 script missing functions: {mt4_missing}")
+                self.log_test_result(
+                    test_name, False, f"MT4 script missing functions: {mt4_missing}"
+                )
                 return False
 
             if mt5_missing:
-                self.log_test_result(test_name, False,
-                    f"MT5 script missing functions: {mt5_missing}")
+                self.log_test_result(
+                    test_name, False, f"MT5 script missing functions: {mt5_missing}"
+                )
                 return False
 
             # Check for required input parameters
@@ -152,15 +164,23 @@ class EATestSuite:
 
             for input_param in required_inputs:
                 if input_param not in mt4_content:
-                    self.log_test_result(test_name, False,
-                        f"MT4 script missing input parameter: {input_param}")
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"MT4 script missing input parameter: {input_param}",
+                    )
                     return False
                 if input_param not in mt5_content:
-                    self.log_test_result(test_name, False,
-                        f"MT5 script missing input parameter: {input_param}")
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"MT5 script missing input parameter: {input_param}",
+                    )
                     return False
 
-            self.log_test_result(test_name, True, "EA scripts have valid syntax and structure")
+            self.log_test_result(
+                test_name, True, "EA scripts have valid syntax and structure"
+            )
             return True
 
         except Exception as e:
@@ -180,7 +200,7 @@ class EATestSuite:
                 "/bridge/order_confirmation",
                 "/bridge/signal_ack",
                 "/bridge/pending_orders",
-                "/bridge/screenshot_analysis"
+                "/bridge/screenshot_analysis",
             ]
 
             success_count = 0
@@ -192,35 +212,33 @@ class EATestSuite:
                         response = requests.post(
                             f"{base_url}{endpoint}",
                             json=self.test_heartbeat_data,
-                            timeout=5
+                            timeout=5,
                         )
                     elif endpoint == "/bridge/tick_data":
                         response = requests.post(
-                            f"{base_url}{endpoint}",
-                            json=self.test_tick_data,
-                            timeout=5
+                            f"{base_url}{endpoint}", json=self.test_tick_data, timeout=5
                         )
                     elif endpoint == "/bridge/position_snapshot":
                         response = requests.post(
                             f"{base_url}{endpoint}",
                             json={
                                 "positions": [self.test_position_data],
-                                "timestamp": datetime.now().isoformat()
+                                "timestamp": datetime.now().isoformat(),
                             },
-                            timeout=5
+                            timeout=5,
                         )
                     else:
                         response = requests.post(
-                            f"{base_url}{endpoint}",
-                            json={"test": True},
-                            timeout=5
+                            f"{base_url}{endpoint}", json={"test": True}, timeout=5
                         )
 
                     if response.status_code in [200, 201]:
                         success_count += 1
                         logger.debug(f"✅ {endpoint}: {response.status_code}")
                     else:
-                        logger.warning(f"⚠️ {endpoint}: {response.status_code} - {response.text}")
+                        logger.warning(
+                            f"⚠️ {endpoint}: {response.status_code} - {response.text}"
+                        )
 
                 except requests.exceptions.RequestException as e:
                     logger.warning(f"⚠️ {endpoint}: Connection failed - {e}")
@@ -230,16 +248,24 @@ class EATestSuite:
                     logger.warning(f"⚠️ {endpoint}: Error - {e}")
 
             if success_count >= len(endpoints) * 0.5:  # 50% success rate (more lenient)
-                self.log_test_result(test_name, True,
-                    f"Bridge endpoints structure validated ({success_count}/{len(endpoints)})")
+                self.log_test_result(
+                    test_name,
+                    True,
+                    f"Bridge endpoints structure validated ({success_count}/{len(endpoints)})",
+                )
                 return True
             else:
-                self.log_test_result(test_name, False,
-                    f"Bridge endpoints not accessible ({success_count}/{len(endpoints)})")
+                self.log_test_result(
+                    test_name,
+                    False,
+                    f"Bridge endpoints not accessible ({success_count}/{len(endpoints)})",
+                )
                 return False
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Bridge endpoints test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Bridge endpoints test failed", str(e)
+            )
             return False
 
     async def test_socketio_communication(self) -> bool:
@@ -255,27 +281,31 @@ class EATestSuite:
                 "volume": 0.1,
                 "price": 1.09567,
                 "sl": 1.09000,
-                "tp": 1.10567
+                "tp": 1.10567,
             }
 
             # Test HTTP fallback mechanism
             logger.info("Testing HTTP communication...")
             try:
                 response = requests.post(
-                    "http://127.0.0.1:8000/bridge/order",
-                    json=test_order,
-                    timeout=5
+                    "http://127.0.0.1:8000/bridge/order", json=test_order, timeout=5
                 )
 
                 if response.status_code == 200:
                     self.log_test_result(test_name, True, "HTTP communication working")
                     return True
                 else:
-                    self.log_test_result(test_name, False, f"HTTP communication failed: {response.status_code}")
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"HTTP communication failed: {response.status_code}",
+                    )
                     return False
 
             except requests.exceptions.RequestException as e:
-                self.log_test_result(test_name, False, f"HTTP communication failed: {e}")
+                self.log_test_result(
+                    test_name, False, f"HTTP communication failed: {e}"
+                )
                 return False
 
         except Exception as e:
@@ -291,23 +321,37 @@ class EATestSuite:
             endpoints_to_test = [
                 "/bridge/heartbeat",
                 "/bridge/tick_data",
-                "/bridge/position_snapshot"
+                "/bridge/position_snapshot",
             ]
 
             success_count = 0
             for endpoint in endpoints_to_test:
                 try:
-                    response = requests.get(f"http://127.0.0.1:8000{endpoint}", timeout=5)
-                    if response.status_code in [200, 404, 405]:  # 404/405 means endpoint exists but wrong method
+                    response = requests.get(
+                        f"http://127.0.0.1:8000{endpoint}", timeout=5
+                    )
+                    if response.status_code in [
+                        200,
+                        404,
+                        405,
+                    ]:  # 404/405 means endpoint exists but wrong method
                         success_count += 1
                 except:
                     pass
 
             if success_count >= len(endpoints_to_test) * 0.7:
-                self.log_test_result(test_name, True, f"EA Bridge endpoints available ({success_count}/{len(endpoints_to_test)})")
+                self.log_test_result(
+                    test_name,
+                    True,
+                    f"EA Bridge endpoints available ({success_count}/{len(endpoints_to_test)})",
+                )
                 return True
             else:
-                self.log_test_result(test_name, False, f"EA Bridge endpoints not available ({success_count}/{len(endpoints_to_test)})")
+                self.log_test_result(
+                    test_name,
+                    False,
+                    f"EA Bridge endpoints not available ({success_count}/{len(endpoints_to_test)})",
+                )
                 return False
 
         except Exception as e:
@@ -323,17 +367,27 @@ class EATestSuite:
             try:
                 response = requests.get("http://127.0.0.1:8000/health", timeout=5)
                 if response.status_code == 200:
-                    self.log_test_result(test_name, True, "MT5 Bridge Service responding")
+                    self.log_test_result(
+                        test_name, True, "MT5 Bridge Service responding"
+                    )
                     return True
                 else:
-                    self.log_test_result(test_name, False, f"MT5 Bridge Service unhealthy: {response.status_code}")
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"MT5 Bridge Service unhealthy: {response.status_code}",
+                    )
                     return False
             except requests.exceptions.RequestException as e:
-                self.log_test_result(test_name, False, f"MT5 Bridge Service not responding: {e}")
+                self.log_test_result(
+                    test_name, False, f"MT5 Bridge Service not responding: {e}"
+                )
                 return False
 
         except Exception as e:
-            self.log_test_result(test_name, False, "MT5 Bridge Service test failed", str(e))
+            self.log_test_result(
+                test_name, False, "MT5 Bridge Service test failed", str(e)
+            )
             return False
 
     async def test_communication_flow(self) -> bool:
@@ -346,7 +400,7 @@ class EATestSuite:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "http://127.0.0.1:8000/bridge/heartbeat",
-                    json=self.test_heartbeat_data
+                    json=self.test_heartbeat_data,
                 ) as response:
                     if response.status != 200:
                         self.log_test_result(test_name, False, "Heartbeat flow failed")
@@ -356,8 +410,7 @@ class EATestSuite:
             logger.info("Testing tick data flow...")
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://127.0.0.1:8000/bridge/tick_data",
-                    json=self.test_tick_data
+                    "http://127.0.0.1:8000/bridge/tick_data", json=self.test_tick_data
                 ) as response:
                     if response.status != 200:
                         self.log_test_result(test_name, False, "Tick data flow failed")
@@ -370,18 +423,22 @@ class EATestSuite:
                     "http://127.0.0.1:8000/bridge/position_snapshot",
                     json={
                         "positions": [self.test_position_data],
-                        "timestamp": datetime.now().isoformat()
-                    }
+                        "timestamp": datetime.now().isoformat(),
+                    },
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, "Position snapshot flow failed")
+                        self.log_test_result(
+                            test_name, False, "Position snapshot flow failed"
+                        )
                         return False
 
             self.log_test_result(test_name, True, "Complete communication flow working")
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Communication flow test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Communication flow test failed", str(e)
+            )
             return False
 
     async def test_error_handling(self) -> bool:
@@ -394,12 +451,14 @@ class EATestSuite:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         "http://127.0.0.1:8000/bridge/invalid_endpoint",
-                        json={"test": True}
+                        json={"test": True},
                     ) as response:
                         if response.status == 404:
                             logger.debug("✅ Invalid endpoint correctly returns 404")
                         else:
-                            logger.warning(f"⚠️ Invalid endpoint returned {response.status}")
+                            logger.warning(
+                                f"⚠️ Invalid endpoint returned {response.status}"
+                            )
             except Exception as e:
                 logger.debug(f"Invalid endpoint test error (expected): {e}")
 
@@ -408,7 +467,7 @@ class EATestSuite:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         "http://127.0.0.1:8000/bridge/heartbeat",
-                        json={"invalid": "data"}
+                        json={"invalid": "data"},
                     ) as response:
                         logger.debug(f"Malformed data response: {response.status}")
             except Exception as e:
@@ -416,10 +475,12 @@ class EATestSuite:
 
             # Test connection timeout
             try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=0.001)) as session:
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=0.001)
+                ) as session:
                     async with session.post(
                         "http://127.0.0.1:8000/bridge/heartbeat",
-                        json=self.test_heartbeat_data
+                        json=self.test_heartbeat_data,
                     ) as response:
                         pass
             except asyncio.TimeoutError:
@@ -475,24 +536,27 @@ class EATestSuite:
                 "total": total,
                 "success_rate": success_rate,
                 "results": self.test_results,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             if summary["success"]:
                 logger.info(f"🎉 All tests passed! Success rate: {success_rate:.1f}%")
             else:
-                logger.warning(f"⚠️ Some tests failed. Success rate: {success_rate:.1f}%")
+                logger.warning(
+                    f"⚠️ Some tests failed. Success rate: {success_rate:.1f}%"
+                )
             return summary
 
         finally:
             # Cleanup
             await self.teardown()
 
+
 def print_test_summary(summary: Dict[str, Any]):
     """Print test summary."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🧪 EA MQL SCRIPT FUNCTIONALITY TEST RESULTS")
-    print("="*60)
+    print("=" * 60)
 
     print(f"Overall Status: {'✅ PASS' if summary['success'] else '❌ FAIL'}")
     print(".1f")
@@ -502,18 +566,18 @@ def print_test_summary(summary: Dict[str, Any]):
     print("\n📋 DETAILED RESULTS:")
     print("-" * 40)
 
-    for result in summary['results']:
-        status = "✅ PASS" if result['success'] else "❌ FAIL"
+    for result in summary["results"]:
+        status = "✅ PASS" if result["success"] else "❌ FAIL"
         print(f"{status} {result['test']}")
-        if result['message']:
+        if result["message"]:
             print(f"   {result['message']}")
-        if result['error']:
+        if result["error"]:
             print(f"   Error: {result['error']}")
         print()
 
-    print("="*60)
+    print("=" * 60)
 
-    if summary['success']:
+    if summary["success"]:
         print("🎉 EA integration is ready for production!")
         print("📝 Next steps:")
         print("   1. Deploy the EA scripts to your MT4/MT5 terminals")
@@ -528,6 +592,7 @@ def print_test_summary(summary: Dict[str, Any]):
         print("   3. Verify network connectivity")
         print("   4. Review the detailed error messages")
 
+
 async def main():
     """Main test execution function."""
     print("🚀 Starting EA MQL Script Functionality Tests...")
@@ -539,11 +604,12 @@ async def main():
     summary = await test_suite.run_all_tests()
     print_test_summary(summary)
 
+
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     # Run async main

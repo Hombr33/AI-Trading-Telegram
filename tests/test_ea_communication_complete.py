@@ -63,10 +63,14 @@ class TestEACommunicationComplete:
         """Setup test environment."""
         # Set mock instances for EA routes
         set_ea_globals(
-            self.mock_user_manager if hasattr(self, 'mock_user_manager') else Mock(),
-            self.mock_config_manager if hasattr(self, 'mock_config_manager') else Mock(),
-            self.mock_order_manager if hasattr(self, 'mock_order_manager') else Mock(),
-            self.mock_telegram_bot if hasattr(self, 'mock_telegram_bot') else Mock()
+            self.mock_user_manager if hasattr(self, "mock_user_manager") else Mock(),
+            (
+                self.mock_config_manager
+                if hasattr(self, "mock_config_manager")
+                else Mock()
+            ),
+            self.mock_order_manager if hasattr(self, "mock_order_manager") else Mock(),
+            self.mock_telegram_bot if hasattr(self, "mock_telegram_bot") else Mock(),
         )
 
     async def test_ea_api_key_validation_success(self, client, mock_user_manager):
@@ -96,7 +100,9 @@ class TestEACommunicationComplete:
         assert data["valid"] is False
         assert "Invalid API key" in data["message"]
 
-    async def test_ea_order_success(self, client, mock_user_manager, mock_order_manager):
+    async def test_ea_order_success(
+        self, client, mock_user_manager, mock_order_manager
+    ):
         """Test successful EA order execution."""
         # Mock successful authentication and order execution
         mock_user = Mock()
@@ -105,7 +111,7 @@ class TestEACommunicationComplete:
 
         mock_order_manager.execute_signal.return_value = {
             "success": True,
-            "ticket": "12345"
+            "ticket": "12345",
         }
 
         order_data = {
@@ -114,8 +120,8 @@ class TestEACommunicationComplete:
                 "symbol": "EURUSD",
                 "action": "BUY",
                 "volume": 0.1,
-                "price": 1.1234
-            }
+                "price": 1.1234,
+            },
         }
 
         response = client.post("/api/v1/ea/order", json=order_data)
@@ -125,7 +131,9 @@ class TestEACommunicationComplete:
         assert data["success"] is True
         assert data["ticket"] == "12345"
 
-    async def test_ea_order_failure(self, client, mock_user_manager, mock_order_manager):
+    async def test_ea_order_failure(
+        self, client, mock_user_manager, mock_order_manager
+    ):
         """Test failed EA order execution."""
         # Mock successful authentication but failed order
         mock_user = Mock()
@@ -134,7 +142,7 @@ class TestEACommunicationComplete:
 
         mock_order_manager.execute_signal.return_value = {
             "success": False,
-            "error": "Insufficient funds"
+            "error": "Insufficient funds",
         }
 
         order_data = {
@@ -143,8 +151,8 @@ class TestEACommunicationComplete:
                 "symbol": "EURUSD",
                 "action": "BUY",
                 "volume": 10.0,
-                "price": 1.1234
-            }
+                "price": 1.1234,
+            },
         }
 
         response = client.post("/api/v1/ea/order", json=order_data)
@@ -162,7 +170,7 @@ class TestEACommunicationComplete:
         mock_user_manager.get_user_by_api_key.return_value = mock_user
 
         # Mock database query
-        with patch('src.api.routes.ea.get_db_session') as mock_session:
+        with patch("src.api.routes.ea.get_db_session") as mock_session:
             mock_db = Mock()
             mock_session.return_value = mock_db
 
@@ -180,9 +188,13 @@ class TestEACommunicationComplete:
             mock_position.commission = -0.1
             mock_position.time_open = datetime.now(timezone.utc)
 
-            mock_db.query.return_value.filter.return_value.all.return_value = [mock_position]
+            mock_db.query.return_value.filter.return_value.all.return_value = [
+                mock_position
+            ]
 
-            response = client.post("/api/v1/ea/positions", json={"api_key": "valid_key"})
+            response = client.post(
+                "/api/v1/ea/positions", json={"api_key": "valid_key"}
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -205,7 +217,9 @@ class TestEACommunicationComplete:
         assert data["account"]["user_id"] == 123
         assert "balance" in data["account"]
 
-    async def test_ea_modify_position_success(self, client, mock_user_manager, mock_order_manager):
+    async def test_ea_modify_position_success(
+        self, client, mock_user_manager, mock_order_manager
+    ):
         """Test successful position modification."""
         # Mock successful authentication
         mock_user = Mock()
@@ -216,7 +230,7 @@ class TestEACommunicationComplete:
             "api_key": "valid_key",
             "ticket": 12345,
             "new_sl": 1.1200,
-            "new_tp": 1.1300
+            "new_tp": 1.1300,
         }
 
         response = client.post("/api/v1/ea/modify", json=modify_data)
@@ -225,18 +239,16 @@ class TestEACommunicationComplete:
         data = response.json()
         assert data["success"] is True
 
-    async def test_ea_close_position_success(self, client, mock_user_manager, mock_order_manager):
+    async def test_ea_close_position_success(
+        self, client, mock_user_manager, mock_order_manager
+    ):
         """Test successful position close."""
         # Mock successful authentication
         mock_user = Mock()
         mock_user.id = 123
         mock_user_manager.get_user_by_api_key.return_value = mock_user
 
-        close_data = {
-            "api_key": "valid_key",
-            "ticket": 12345,
-            "volume": 0.05
-        }
+        close_data = {"api_key": "valid_key", "ticket": 12345, "volume": 0.05}
 
         response = client.post("/api/v1/ea/close", json=close_data)
 
@@ -252,7 +264,7 @@ class TestEACommunicationComplete:
         mock_user_manager.get_user_by_api_key.return_value = mock_user
 
         # Mock database query
-        with patch('src.api.routes.ea.get_db_session') as mock_session:
+        with patch("src.api.routes.ea.get_db_session") as mock_session:
             mock_db = Mock()
             mock_session.return_value = mock_db
 
@@ -268,12 +280,11 @@ class TestEACommunicationComplete:
             mock_trade.time_open = datetime.now(timezone.utc)
             mock_trade.time_close = datetime.now(timezone.utc)
 
-            mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_trade]
+            mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
+                mock_trade
+            ]
 
-            history_data = {
-                "api_key": "valid_key",
-                "days": 7
-            }
+            history_data = {"api_key": "valid_key", "days": 7}
 
             response = client.post("/api/v1/ea/history", json=history_data)
 
@@ -282,7 +293,9 @@ class TestEACommunicationComplete:
             assert len(data["trades"]) == 1
             assert data["trades"][0]["ticket"] == "12345"
 
-    async def test_ea_settings_update(self, client, mock_user_manager, mock_config_manager):
+    async def test_ea_settings_update(
+        self, client, mock_user_manager, mock_config_manager
+    ):
         """Test EA settings update."""
         # Mock successful authentication
         mock_user = Mock()
@@ -291,10 +304,7 @@ class TestEACommunicationComplete:
 
         settings_data = {
             "api_key": "valid_key",
-            "settings": {
-                "max_risk_per_trade": 2.0,
-                "enable_auto_trading": True
-            }
+            "settings": {"max_risk_per_trade": 2.0, "enable_auto_trading": True},
         }
 
         response = client.post("/api/v1/ea/settings", json=settings_data)
@@ -325,7 +335,7 @@ class TestEACommunicationComplete:
             ("/api/v1/ea/modify", {"api_key": "invalid", "ticket": 123}),
             ("/api/v1/ea/close", {"api_key": "invalid", "ticket": 123}),
             ("/api/v1/ea/history", {"api_key": "invalid", "days": 7}),
-            ("/api/v1/ea/settings", {"api_key": "invalid", "settings": {}})
+            ("/api/v1/ea/settings", {"api_key": "invalid", "settings": {}}),
         ]
 
         for endpoint, payload in endpoints:
@@ -339,13 +349,18 @@ class TestEACommunicationComplete:
         # Test direct HTTP communication to EA endpoints
         async with aiohttp.ClientSession() as session:
             # Test health endpoint
-            async with session.get("http://127.0.0.1:8000/api/v1/ea/health") as response:
+            async with session.get(
+                "http://127.0.0.1:8000/api/v1/ea/health"
+            ) as response:
                 if response.status == 200:
                     data = await response.json()
                     assert data["status"] == "healthy"
                 else:
                     # If server is not running, that's expected for this test
-                    assert response.status in [404, 500]  # Server not running or internal error
+                    assert response.status in [
+                        404,
+                        500,
+                    ]  # Server not running or internal error
 
     async def test_ea_communication_error_handling(self, client, mock_user_manager):
         """Test error handling in EA communication."""
@@ -412,7 +427,7 @@ class TestEACommunicationComplete:
             "/api/v1/ea/modify",
             "/api/v1/ea/close",
             "/api/v1/ea/history",
-            "/api/v1/ea/settings"
+            "/api/v1/ea/settings",
         ]
 
         for endpoint in endpoints:

@@ -13,12 +13,14 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+
 def test_imports():
     """Test critical imports for single-user workflow."""
     try:
         print("Testing core imports...")
         from src.core.config import config
         from src.core.logging import get_logger
+
         print("✅ Core imports successful")
 
         print("Testing database models...")
@@ -26,21 +28,25 @@ def test_imports():
         from src.models.users import User
         from src.models.trades import Trade
         from src.models.signals import Signal
+
         print("✅ Database models successful")
 
         print("Testing services...")
         from src.services.auto_trading_service import AutoTradingService
         from src.services.signal_generation_service import SignalGenerationService
+
         print("✅ Services imports successful")
 
         print("Testing execution components...")
         from src.execution.platform_manager import PlatformManager
         from src.execution.order_manager import OrderManager
         from src.execution.position_manager import PositionManager
+
         print("✅ Execution components successful")
 
         print("Testing Telegram bot...")
         from src.telegram_bot.core.trading_bot import TradingBot
+
         print("✅ Telegram bot imports successful")
 
         return True
@@ -49,6 +55,7 @@ def test_imports():
         print(f"❌ Import error: {e}")
         traceback.print_exc()
         return False
+
 
 def test_configuration():
     """Test configuration for single-user workflow."""
@@ -80,6 +87,7 @@ def test_configuration():
         print(f"❌ Configuration error: {e}")
         traceback.print_exc()
         return False
+
 
 async def test_database_connection():
     """Test database connection and basic operations."""
@@ -122,7 +130,7 @@ async def test_database_connection():
                     email="admin@tradingbot.local",
                     password_hash="admin123",  # In real implementation, this should be hashed
                     is_admin=True,
-                    is_active=True
+                    is_active=True,
                 )
                 db.add(admin_user)
                 db.commit()
@@ -139,6 +147,7 @@ async def test_database_connection():
         print(f"❌ Database error: {e}")
         traceback.print_exc()
         return False
+
 
 async def test_signal_generation():
     """Test signal generation service."""
@@ -175,6 +184,7 @@ async def test_signal_generation():
         traceback.print_exc()
         return False
 
+
 async def test_auto_trading_service():
     """Test auto trading service."""
     try:
@@ -201,7 +211,7 @@ async def test_auto_trading_service():
             "entry_price": 1.1000,
             "stop_loss": 1.0950,
             "take_profit": 1.1100,
-            "confidence": 75
+            "confidence": 75,
         }
 
         result = auto_trading.add_signal(test_signal)
@@ -217,6 +227,7 @@ async def test_auto_trading_service():
         print(f"❌ Auto trading error: {e}")
         traceback.print_exc()
         return False
+
 
 async def test_platform_manager():
     """Test platform manager."""
@@ -247,6 +258,7 @@ async def test_platform_manager():
         traceback.print_exc()
         return False
 
+
 async def test_telegram_bot():
     """Test Telegram bot initialization."""
     try:
@@ -272,6 +284,7 @@ async def test_telegram_bot():
         print(f"❌ Telegram bot error: {e}")
         traceback.print_exc()
         return False
+
 
 async def test_end_to_end_workflow():
     """Test end-to-end workflow simulation."""
@@ -299,6 +312,7 @@ async def test_end_to_end_workflow():
         print(f"❌ End-to-end workflow error: {e}")
         traceback.print_exc()
         return False
+
 
 async def main():
     """Run all single-user workflow tests."""
@@ -357,6 +371,7 @@ async def main():
     else:
         print("⚠️ Some tests failed. Please fix the issues above.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))

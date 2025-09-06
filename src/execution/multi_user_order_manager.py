@@ -27,8 +27,13 @@ logger = get_logger(__name__)
 class MultiUserOrderManager(IOrderManager):
     """Enhanced order manager with user-specific routing and isolation."""
 
-    def __init__(self, ea_bridge: EABridge, position_manager: MultiUserPositionManager,
-                 user_manager: UserManager, config_manager: ConfigManager):
+    def __init__(
+        self,
+        ea_bridge: EABridge,
+        position_manager: MultiUserPositionManager,
+        user_manager: UserManager,
+        config_manager: ConfigManager,
+    ):
         self.ea_bridge = ea_bridge
         self.position_manager = position_manager
         self.user_manager = user_manager
@@ -37,7 +42,9 @@ class MultiUserOrderManager(IOrderManager):
         # User-specific order tracking
         self._user_orders = defaultdict(dict)  # telegram_id -> {order_id: Order}
         self._user_order_history = defaultdict(list)  # telegram_id -> [Order]
-        self._pending_orders = defaultdict(dict)  # telegram_id -> {order_id: pending_order}
+        self._pending_orders = defaultdict(
+            dict
+        )  # telegram_id -> {order_id: pending_order}
 
         # Order routing and execution
         self._order_queues = defaultdict(asyncio.Queue)  # telegram_id -> Queue
@@ -51,7 +58,7 @@ class MultiUserOrderManager(IOrderManager):
             "pending_orders": 0,
             "executed_orders": 0,
             "failed_orders": 0,
-            "last_update": None
+            "last_update": None,
         }
 
     @with_error_handling("multi_user_order_manager_start", notify_telegram=True)
@@ -95,7 +102,9 @@ class MultiUserOrderManager(IOrderManager):
                 if telegram_id not in self._execution_workers:
                     task = asyncio.create_task(self._process_user_orders(telegram_id))
                     self._execution_workers[telegram_id] = task
-                    logger.info(f"Started order execution worker for user {telegram_id}")
+                    logger.info(
+                        f"Started order execution worker for user {telegram_id}"
+                    )
 
         except Exception as e:
             logger.error(f"Failed to initialize execution workers: {e}")
@@ -131,7 +140,9 @@ class MultiUserOrderManager(IOrderManager):
                 logger.error(f"Error processing order for user {telegram_id}: {e}")
                 await asyncio.sleep(1)
 
-    async def _execute_user_order(self, telegram_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_user_order(
+        self, telegram_id: int, order_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute order for specific user."""
         try:
             order_id = order_data.get("order_id")
@@ -143,12 +154,16 @@ class MultiUserOrderManager(IOrderManager):
                 return {"success": False, "error": "User not authorized"}
 
             # Pre-execution validation
-            validation_result = await self._validate_order_pre_execution(telegram_id, order_data)
+            validation_result = await self._validate_order_pre_execution(
+                telegram_id, order_data
+            )
             if not validation_result["valid"]:
                 return {"success": False, "error": validation_result["reason"]}
 
             # Execute order via EA bridge
-            execution_result = await self.ea_bridge.send_order_with_risk_check(telegram_id, order_data)
+            execution_result = await self.ea_bridge.send_order_with_risk_check(
+                telegram_id, order_data
+            )
 
             # Update statistics
             async with self._user_locks[telegram_id]:
@@ -159,9 +174,13 @@ class MultiUserOrderManager(IOrderManager):
 
             # Post-execution processing
             if execution_result and execution_result.get("success"):
-                await self._handle_successful_execution(telegram_id, order_data, execution_result)
+                await self._handle_successful_execution(
+                    telegram_id, order_data, execution_result
+                )
             else:
-                await self._handle_failed_execution(telegram_id, order_data, execution_result)
+                await self._handle_failed_execution(
+                    telegram_id, order_data, execution_result
+                )
 
             return execution_result or {"success": False, "error": "Execution failed"}
 
@@ -169,7 +188,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to execute order for user {telegram_id}: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _validate_user_order_access(self, telegram_id: int, order_data: Dict[str, Any]) -> bool:
+    async def _validate_user_order_access(
+        self, telegram_id: int, order_data: Dict[str, Any]
+    ) -> bool:
         """Validate user has access to execute this order."""
         try:
             # Check if user is authorized
@@ -185,8 +206,12 @@ class MultiUserOrderManager(IOrderManager):
             order_type = order_data.get("type", "").upper()
             if order_type in ["BUY", "SELL"]:
                 # Check trading permissions
-                user_config = await self.config_manager.get_user_config(telegram_id, "trading")
-                if not user_config or not user_config.get("auto_trading_enabled", False):
+                user_config = await self.config_manager.get_user_config(
+                    telegram_id, "trading"
+                )
+                if not user_config or not user_config.get(
+                    "auto_trading_enabled", False
+                ):
                     return False
 
             return True
@@ -195,14 +220,19 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Order access validation failed for user {telegram_id}: {e}")
             return False
 
-    async def _validate_order_pre_execution(self, telegram_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _validate_order_pre_execution(
+        self, telegram_id: int, order_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Validate order before execution."""
         try:
             # Basic validation
             required_fields = ["symbol", "type", "entry_zone"]
             for field in required_fields:
                 if field not in order_data:
-                    return {"valid": False, "reason": f"Missing required field: {field}"}
+                    return {
+                        "valid": False,
+                        "reason": f"Missing required field: {field}",
+                    }
 
             # Validate order type
             order_type = order_data.get("type", "").upper()
@@ -215,10 +245,15 @@ class MultiUserOrderManager(IOrderManager):
                 return {"valid": False, "reason": f"Symbol not authorized: {symbol}"}
 
             # Check position limits
-            current_positions = await self.position_manager.get_user_positions(telegram_id)
+            current_positions = await self.position_manager.get_user_positions(
+                telegram_id
+            )
             max_positions = await self._get_user_max_positions(telegram_id)
             if len(current_positions) >= max_positions:
-                return {"valid": False, "reason": f"Maximum positions ({max_positions}) reached"}
+                return {
+                    "valid": False,
+                    "reason": f"Maximum positions ({max_positions}) reached",
+                }
 
             return {"valid": True, "reason": "Order validated"}
 
@@ -248,7 +283,12 @@ class MultiUserOrderManager(IOrderManager):
         except Exception:
             return 5  # Default
 
-    async def _handle_successful_execution(self, telegram_id: int, order_data: Dict[str, Any], execution_result: Dict[str, Any]):
+    async def _handle_successful_execution(
+        self,
+        telegram_id: int,
+        order_data: Dict[str, Any],
+        execution_result: Dict[str, Any],
+    ):
         """Handle successful order execution."""
         try:
             # Create order record
@@ -261,7 +301,7 @@ class MultiUserOrderManager(IOrderManager):
                 price=execution_result.get("price", 0),
                 status="executed",
                 created_at=datetime.utcnow(),
-                executed_at=datetime.utcnow()
+                executed_at=datetime.utcnow(),
             )
 
             # Store in user-specific tracking
@@ -272,12 +312,21 @@ class MultiUserOrderManager(IOrderManager):
             # Update position tracking
             await self.position_manager.force_refresh_user_positions(telegram_id)
 
-            logger.info(f"Order {order.order_id} executed successfully for user {telegram_id}")
+            logger.info(
+                f"Order {order.order_id} executed successfully for user {telegram_id}"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to handle successful execution for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to handle successful execution for user {telegram_id}: {e}"
+            )
 
-    async def _handle_failed_execution(self, telegram_id: int, order_data: Dict[str, Any], execution_result: Optional[Dict[str, Any]]):
+    async def _handle_failed_execution(
+        self,
+        telegram_id: int,
+        order_data: Dict[str, Any],
+        execution_result: Optional[Dict[str, Any]],
+    ):
         """Handle failed order execution."""
         try:
             # Create failed order record
@@ -290,7 +339,11 @@ class MultiUserOrderManager(IOrderManager):
                 price=0,
                 status="failed",
                 created_at=datetime.utcnow(),
-                error_message=execution_result.get("error") if execution_result else "Unknown error"
+                error_message=(
+                    execution_result.get("error")
+                    if execution_result
+                    else "Unknown error"
+                ),
             )
 
             # Store in user-specific tracking
@@ -298,19 +351,27 @@ class MultiUserOrderManager(IOrderManager):
                 self._user_orders[telegram_id][order.order_id] = order
                 self._user_order_history[telegram_id].append(order)
 
-            logger.warning(f"Order {order.order_id} failed for user {telegram_id}: {order.error_message}")
+            logger.warning(
+                f"Order {order.order_id} failed for user {telegram_id}: {order.error_message}"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to handle failed execution for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to handle failed execution for user {telegram_id}: {e}"
+            )
 
     # Public Interface Methods
 
-    async def submit_order(self, telegram_id: int, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def submit_order(
+        self, telegram_id: int, order_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Submit order for specific user."""
         try:
             # Generate order ID if not provided
             if "order_id" not in order_data:
-                order_data["order_id"] = f"order_{telegram_id}_{int(datetime.utcnow().timestamp())}"
+                order_data["order_id"] = (
+                    f"order_{telegram_id}_{int(datetime.utcnow().timestamp())}"
+                )
 
             # Initialize user tracking if needed
             if telegram_id not in self._execution_workers:
@@ -328,7 +389,7 @@ class MultiUserOrderManager(IOrderManager):
             return {
                 "success": True,
                 "order_id": order_data["order_id"],
-                "message": "Order submitted for execution"
+                "message": "Order submitted for execution",
             }
 
         except Exception as e:
@@ -348,7 +409,9 @@ class MultiUserOrderManager(IOrderManager):
                     self._user_order_history[telegram_id] = []
                     self._pending_orders[telegram_id] = {}
 
-                logger.info(f"Initialized order execution worker for user {telegram_id}")
+                logger.info(
+                    f"Initialized order execution worker for user {telegram_id}"
+                )
 
         except Exception as e:
             logger.error(f"Failed to initialize worker for user {telegram_id}: {e}")
@@ -364,13 +427,20 @@ class MultiUserOrderManager(IOrderManager):
 
                     return {"success": True, "message": f"Order {order_id} cancelled"}
                 else:
-                    return {"success": False, "error": f"Order {order_id} not found or already executed"}
+                    return {
+                        "success": False,
+                        "error": f"Order {order_id} not found or already executed",
+                    }
 
         except Exception as e:
-            logger.error(f"Failed to cancel order {order_id} for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to cancel order {order_id} for user {telegram_id}: {e}"
+            )
             return {"success": False, "error": str(e)}
 
-    async def get_user_orders(self, telegram_id: int, status: Optional[str] = None) -> List[Order]:
+    async def get_user_orders(
+        self, telegram_id: int, status: Optional[str] = None
+    ) -> List[Order]:
         """Get orders for specific user."""
         try:
             async with self._user_locks[telegram_id]:
@@ -395,7 +465,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to get pending orders for user {telegram_id}: {e}")
             return []
 
-    async def get_user_order_history(self, telegram_id: int, limit: int = 100) -> List[Order]:
+    async def get_user_order_history(
+        self, telegram_id: int, limit: int = 100
+    ) -> List[Order]:
         """Get order history for specific user."""
         try:
             async with self._user_locks[telegram_id]:
@@ -406,7 +478,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to get order history for user {telegram_id}: {e}")
             return []
 
-    async def get_order_status(self, telegram_id: int, order_id: str) -> Optional[Dict[str, Any]]:
+    async def get_order_status(
+        self, telegram_id: int, order_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Get status of specific order."""
         try:
             async with self._user_locks[telegram_id]:
@@ -415,7 +489,7 @@ class MultiUserOrderManager(IOrderManager):
                     return {
                         "order_id": order_id,
                         "status": "pending",
-                        "submitted_at": datetime.utcnow().isoformat()
+                        "submitted_at": datetime.utcnow().isoformat(),
                     }
 
                 # Check executed orders
@@ -428,8 +502,10 @@ class MultiUserOrderManager(IOrderManager):
                         "order_type": order.order_type,
                         "volume": order.volume,
                         "price": order.price,
-                        "executed_at": order.executed_at.isoformat() if order.executed_at else None,
-                        "error_message": getattr(order, 'error_message', None)
+                        "executed_at": (
+                            order.executed_at.isoformat() if order.executed_at else None
+                        ),
+                        "error_message": getattr(order, "error_message", None),
                     }
 
                 return None
@@ -448,7 +524,7 @@ class MultiUserOrderManager(IOrderManager):
                 "executed_orders": self._stats["executed_orders"],
                 "failed_orders": self._stats["failed_orders"],
                 "active_workers": len(self._execution_workers),
-                "last_update": self._stats["last_update"]
+                "last_update": self._stats["last_update"],
             }
         except Exception as e:
             logger.error(f"Failed to get manager stats: {e}")
@@ -465,7 +541,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to get all users orders: {e}")
             return {}
 
-    async def emergency_cancel_all_user_orders(self, telegram_id: int) -> Dict[str, Any]:
+    async def emergency_cancel_all_user_orders(
+        self, telegram_id: int
+    ) -> Dict[str, Any]:
         """Emergency cancel all pending orders for user."""
         try:
             async with self._user_locks[telegram_id]:
@@ -476,7 +554,7 @@ class MultiUserOrderManager(IOrderManager):
                 return {
                     "success": True,
                     "cancelled": pending_count,
-                    "message": f"Emergency cancelled {pending_count} pending orders"
+                    "message": f"Emergency cancelled {pending_count} pending orders",
                 }
 
         except Exception as e:
@@ -485,16 +563,27 @@ class MultiUserOrderManager(IOrderManager):
 
     # Abstract Interface Implementation Methods
 
-    async def place_order(self, platform: str, symbol: str, order_type: OrderType, side: OrderSide,
-                         volume: float, price: Optional[float] = None,
-                         stop_loss: Optional[float] = None,
-                         take_profit: Optional[float] = None, **kwargs) -> Dict[str, Any]:
+    async def place_order(
+        self,
+        platform: str,
+        symbol: str,
+        order_type: OrderType,
+        side: OrderSide,
+        volume: float,
+        price: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
         """Place an order (interface implementation)."""
         try:
             # This is a simplified implementation - in practice you'd need telegram_id from kwargs or context
             telegram_id = kwargs.get("telegram_id")
             if not telegram_id:
-                return {"success": False, "error": "telegram_id required for multi-user order placement"}
+                return {
+                    "success": False,
+                    "error": "telegram_id required for multi-user order placement",
+                }
 
             # Convert to our internal format
             order_data = {
@@ -503,7 +592,7 @@ class MultiUserOrderManager(IOrderManager):
                 "entry_zone": [price] if price else [kwargs.get("entry_price", 0)],
                 "sl": stop_loss,
                 "tp": [take_profit] if take_profit else [],
-                "volume": volume
+                "volume": volume,
             }
 
             return await self.submit_order(telegram_id, order_data)
@@ -527,7 +616,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to cancel order {order_id}: {e}")
             return False
 
-    async def get_order(self, platform: str, order_id: str, symbol: str) -> Dict[str, Any]:
+    async def get_order(
+        self, platform: str, order_id: str, symbol: str
+    ) -> Dict[str, Any]:
         """Get information about a specific order (interface implementation)."""
         try:
             # Search across all users
@@ -541,7 +632,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to get order {order_id}: {e}")
             return {"error": str(e)}
 
-    async def get_open_orders(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+    async def get_open_orders(
+        self, platform: str = None, symbol: str = None
+    ) -> List[Dict[str, Any]]:
         """Get all open orders (interface implementation)."""
         try:
             all_orders = []
@@ -554,7 +647,9 @@ class MultiUserOrderManager(IOrderManager):
             logger.error(f"Failed to get open orders: {e}")
             return []
 
-    async def get_positions(self, platform: str = None, symbol: str = None) -> List[Dict[str, Any]]:
+    async def get_positions(
+        self, platform: str = None, symbol: str = None
+    ) -> List[Dict[str, Any]]:
         """Get all open positions (interface implementation)."""
         try:
             # Delegate to position manager
@@ -565,7 +660,11 @@ class MultiUserOrderManager(IOrderManager):
             for pos in positions:
                 pos_dict = {
                     "ticket": pos.mt_ticket,
-                    "symbol": getattr(pos, 'instrument', {}).symbol if hasattr(pos, 'instrument') else "Unknown",
+                    "symbol": (
+                        getattr(pos, "instrument", {}).symbol
+                        if hasattr(pos, "instrument")
+                        else "Unknown"
+                    ),
                     "type": pos.direction,
                     "volume": pos.volume,
                     "open_price": pos.open_price,
@@ -573,7 +672,7 @@ class MultiUserOrderManager(IOrderManager):
                     "stop_loss": pos.stop_loss,
                     "take_profit": pos.take_profit,
                     "profit": pos.unrealized_pnl,
-                    "open_time": pos.open_time
+                    "open_time": pos.open_time,
                 }
                 result.append(pos_dict)
 

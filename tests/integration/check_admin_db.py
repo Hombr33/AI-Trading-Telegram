@@ -15,33 +15,38 @@ from src.database import get_db_session
 from src.models.telegram_users import TelegramUser, UserRole, SubscriptionStatus
 from src.services.user_manager import UserManager
 
+
 def check_admin_setup():
     """Check admin user configuration and database setup"""
     print("=== Admin Configuration Check ===")
-    
+
     # Check environment configuration
     print(f"Telegram Chat ID from config: {config.telegram.chat_id}")
-    print(f"Telegram Bot Token configured: {'Yes' if config.telegram.bot_token else 'No'}")
-    
+    print(
+        f"Telegram Bot Token configured: {'Yes' if config.telegram.bot_token else 'No'}"
+    )
+
     # Check UserManager initial admin ID
     user_manager = UserManager()
     print(f"UserManager initial admin ID: {user_manager.initial_admin_id}")
-    
+
     # Check if they match
     if config.telegram.chat_id == user_manager.initial_admin_id:
         print("✅ Chat ID matches UserManager initial admin ID")
     else:
         print("❌ Chat ID does NOT match UserManager initial admin ID")
-    
+
     print("\n=== Database User Check ===")
-    
+
     try:
         with get_db_session() as session:
             # Check if admin user exists in database
-            admin_user = session.query(TelegramUser).filter(
-                TelegramUser.telegram_id == config.telegram.chat_id
-            ).first()
-            
+            admin_user = (
+                session.query(TelegramUser)
+                .filter(TelegramUser.telegram_id == config.telegram.chat_id)
+                .first()
+            )
+
             if admin_user:
                 print(f"✅ Admin user found in database:")
                 print(f"   - Telegram ID: {admin_user.telegram_id}")
@@ -51,42 +56,53 @@ def check_admin_setup():
                 print(f"   - Is Admin: {admin_user.is_admin}")
                 print(f"   - Is Active: {admin_user.is_active}")
                 print(f"   - Subscription: {admin_user.subscription_status.value}")
-                
+
                 if admin_user.is_admin:
                     print("✅ User has admin privileges")
                 else:
                     print("❌ User does NOT have admin privileges")
             else:
                 print("❌ Admin user NOT found in database")
-                print("   This user needs to be created by sending a message to the bot")
-            
+                print(
+                    "   This user needs to be created by sending a message to the bot"
+                )
+
             # List all users in database
             all_users = session.query(TelegramUser).all()
             print(f"\n=== All Users in Database ({len(all_users)} total) ===")
             for user in all_users:
-                print(f"ID: {user.telegram_id}, Role: {user.role.value}, Admin: {user.is_admin}, Active: {user.is_active}")
-                
+                print(
+                    f"ID: {user.telegram_id}, Role: {user.role.value}, Admin: {user.is_admin}, Active: {user.is_active}"
+                )
+
     except Exception as e:
         print(f"❌ Database error: {e}")
-    
+
     print("\n=== Recommendations ===")
     if config.telegram.chat_id != user_manager.initial_admin_id:
-        print("1. Update TELEGRAM_CHAT_ID in .env to match UserManager initial_admin_id")
+        print(
+            "1. Update TELEGRAM_CHAT_ID in .env to match UserManager initial_admin_id"
+        )
         print("   OR update UserManager.initial_admin_id to match TELEGRAM_CHAT_ID")
-    
+
     try:
         with get_db_session() as session:
-            admin_user = session.query(TelegramUser).filter(
-                TelegramUser.telegram_id == config.telegram.chat_id
-            ).first()
-            
+            admin_user = (
+                session.query(TelegramUser)
+                .filter(TelegramUser.telegram_id == config.telegram.chat_id)
+                .first()
+            )
+
             if not admin_user:
-                print("2. Send a message to the bot from the admin Telegram account to create the user")
+                print(
+                    "2. Send a message to the bot from the admin Telegram account to create the user"
+                )
             elif not admin_user.is_admin:
                 print("3. Update the user's role to admin in the database")
-                
+
     except Exception:
         pass
+
 
 if __name__ == "__main__":
     check_admin_setup()

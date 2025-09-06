@@ -25,21 +25,23 @@ class TestMultiUserEABridge:
         """Mock user manager."""
         manager = Mock(spec=UserManager)
         manager.is_user_authorized = AsyncMock(return_value=True)
-        manager.get_user_subscriptions = AsyncMock(return_value=[
-            {"symbol": "EURUSD", "min_confidence": 60}
-        ])
+        manager.get_user_subscriptions = AsyncMock(
+            return_value=[{"symbol": "EURUSD", "min_confidence": 60}]
+        )
         return manager
 
     @pytest.fixture
     def config_manager(self):
         """Mock config manager."""
         manager = Mock(spec=ConfigManager)
-        manager.get_user_config = AsyncMock(return_value={
-            "max_open_positions": 5,
-            "max_exposure": 10000,
-            "max_daily_drawdown_pct": 5.0,
-            "auto_trading_enabled": True
-        })
+        manager.get_user_config = AsyncMock(
+            return_value={
+                "max_open_positions": 5,
+                "max_exposure": 10000,
+                "max_daily_drawdown_pct": 5.0,
+                "auto_trading_enabled": True,
+            }
+        )
         return manager
 
     @pytest.fixture
@@ -60,11 +62,15 @@ class TestMultiUserEABridge:
     @pytest.fixture
     def order_manager(self, ea_bridge, position_manager, user_manager, config_manager):
         """Create order manager instance."""
-        manager = MultiUserOrderManager(ea_bridge, position_manager, user_manager, config_manager)
+        manager = MultiUserOrderManager(
+            ea_bridge, position_manager, user_manager, config_manager
+        )
         return manager
 
     @pytest.fixture
-    def multi_user_service(self, user_manager, config_manager, ea_bridge, position_manager, order_manager):
+    def multi_user_service(
+        self, user_manager, config_manager, ea_bridge, position_manager, order_manager
+    ):
         """Create multi-user service instance."""
         service = MultiUserService("test_token")
         service.user_manager = user_manager
@@ -79,8 +85,13 @@ class TestMultiUserEABridge:
         """Test user session initialization in EA bridge."""
         telegram_id = 12345
 
-        with patch.object(ea_bridge, '_establish_user_connection', new_callable=AsyncMock) as mock_establish:
-            mock_establish.return_value = {"api_key": "test_key", "server_endpoint": "http://test.com"}
+        with patch.object(
+            ea_bridge, "_establish_user_connection", new_callable=AsyncMock
+        ) as mock_establish:
+            mock_establish.return_value = {
+                "api_key": "test_key",
+                "server_endpoint": "http://test.com",
+            }
 
             result = await ea_bridge.initialize_user_session(telegram_id)
 
@@ -97,7 +108,7 @@ class TestMultiUserEABridge:
         # Mock user connections
         ea_bridge._user_connections = {
             user1_id: {"api_key": "key1", "server_endpoint": "http://test1.com"},
-            user2_id: {"api_key": "key2", "server_endpoint": "http://test2.com"}
+            user2_id: {"api_key": "key2", "server_endpoint": "http://test2.com"},
         }
 
         # Test user-specific data access
@@ -118,7 +129,7 @@ class TestMultiUserEABridge:
             telegram_id: {
                 "position_count": 3,
                 "total_exposure": 5000,
-                "daily_pnl": -200
+                "daily_pnl": -200,
             }
         }
 
@@ -127,17 +138,21 @@ class TestMultiUserEABridge:
             "type": "BUY",
             "entry_zone": [1.1000, 1.1010],
             "sl": 1.0950,
-            "tp": [1.1050]
+            "tp": [1.1050],
         }
 
-        with patch.object(ea_bridge.config_manager, 'get_user_config', new_callable=AsyncMock) as mock_config:
+        with patch.object(
+            ea_bridge.config_manager, "get_user_config", new_callable=AsyncMock
+        ) as mock_config:
             mock_config.return_value = {
                 "max_open_positions": 5,
                 "max_exposure": 10000,
-                "max_daily_drawdown_pct": 5.0
+                "max_daily_drawdown_pct": 5.0,
             }
 
-            valid, message = await ea_bridge.validate_user_risk_limits(telegram_id, order_data)
+            valid, message = await ea_bridge.validate_user_risk_limits(
+                telegram_id, order_data
+            )
 
             assert valid is True
             assert message == "Risk check passed"
@@ -188,10 +203,14 @@ class TestMultiUserEABridge:
             "type": "BUY",
             "entry_zone": [1.1000, 1.1010],
             "sl": 1.0950,
-            "tp": [1.1050]
+            "tp": [1.1050],
         }
 
-        with patch.object(order_manager.ea_bridge, 'send_order_with_risk_check', new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            order_manager.ea_bridge,
+            "send_order_with_risk_check",
+            new_callable=AsyncMock,
+        ) as mock_send:
             mock_send.return_value = {"success": True, "order_id": "test_order_123"}
 
             result = await order_manager.submit_order(telegram_id, order_data)
@@ -208,16 +227,22 @@ class TestMultiUserEABridge:
             "type": "BUY",
             "entry_zone": [1.1000, 1.1010],
             "sl": 1.0950,
-            "tp": [1.1050]
+            "tp": [1.1050],
         }
 
-        with patch.object(order_manager, '_validate_user_order_access', new_callable=AsyncMock) as mock_access:
+        with patch.object(
+            order_manager, "_validate_user_order_access", new_callable=AsyncMock
+        ) as mock_access:
             mock_access.return_value = True
 
-            with patch.object(order_manager, '_validate_symbol_access', new_callable=AsyncMock) as mock_symbol:
+            with patch.object(
+                order_manager, "_validate_symbol_access", new_callable=AsyncMock
+            ) as mock_symbol:
                 mock_symbol.return_value = True
 
-                validation = await order_manager._validate_order_pre_execution(telegram_id, order_data)
+                validation = await order_manager._validate_order_pre_execution(
+                    telegram_id, order_data
+                )
 
                 assert validation["valid"] is True
 
@@ -227,7 +252,9 @@ class TestMultiUserEABridge:
         telegram_id = 12345
 
         # Test session initialization
-        session_result = await multi_user_service.initialize_user_trading_session(telegram_id)
+        session_result = await multi_user_service.initialize_user_trading_session(
+            telegram_id
+        )
         assert session_result["success"] is True
 
         # Test order submission
@@ -236,13 +263,17 @@ class TestMultiUserEABridge:
             "type": "BUY",
             "entry_zone": [1.1000, 1.1010],
             "sl": 1.0950,
-            "tp": [1.1050]
+            "tp": [1.1050],
         }
 
-        with patch.object(multi_user_service.order_manager, 'submit_order', new_callable=AsyncMock) as mock_submit:
+        with patch.object(
+            multi_user_service.order_manager, "submit_order", new_callable=AsyncMock
+        ) as mock_submit:
             mock_submit.return_value = {"success": True, "order_id": "test_order"}
 
-            order_result = await multi_user_service.submit_user_order(telegram_id, order_data)
+            order_result = await multi_user_service.submit_user_order(
+                telegram_id, order_data
+            )
             assert order_result["success"] is True
 
     @pytest.mark.asyncio
@@ -250,19 +281,37 @@ class TestMultiUserEABridge:
         """Test multi-user service status reporting."""
         telegram_id = 12345
 
-        with patch.object(multi_user_service.position_manager, 'get_user_positions', new_callable=AsyncMock) as mock_pos:
+        with patch.object(
+            multi_user_service.position_manager,
+            "get_user_positions",
+            new_callable=AsyncMock,
+        ) as mock_pos:
             mock_pos.return_value = []
 
-            with patch.object(multi_user_service.position_manager, 'get_user_risk_metrics', new_callable=AsyncMock) as mock_risk:
+            with patch.object(
+                multi_user_service.position_manager,
+                "get_user_risk_metrics",
+                new_callable=AsyncMock,
+            ) as mock_risk:
                 mock_risk.return_value = {"total_exposure": 0, "total_pnl": 0}
 
-                with patch.object(multi_user_service.order_manager, 'get_user_pending_orders', new_callable=AsyncMock) as mock_orders:
+                with patch.object(
+                    multi_user_service.order_manager,
+                    "get_user_pending_orders",
+                    new_callable=AsyncMock,
+                ) as mock_orders:
                     mock_orders.return_value = []
 
-                    with patch.object(multi_user_service.order_manager, 'get_user_order_history', new_callable=AsyncMock) as mock_history:
+                    with patch.object(
+                        multi_user_service.order_manager,
+                        "get_user_order_history",
+                        new_callable=AsyncMock,
+                    ) as mock_history:
                         mock_history.return_value = []
 
-                        status = await multi_user_service.get_user_trading_status(telegram_id)
+                        status = await multi_user_service.get_user_trading_status(
+                            telegram_id
+                        )
 
                         assert "positions" in status
                         assert "risk_metrics" in status
@@ -274,13 +323,25 @@ class TestMultiUserEABridge:
         """Test emergency stop functionality for users."""
         telegram_id = 12345
 
-        with patch.object(multi_user_service.order_manager, 'emergency_cancel_all_user_orders', new_callable=AsyncMock) as mock_cancel:
+        with patch.object(
+            multi_user_service.order_manager,
+            "emergency_cancel_all_user_orders",
+            new_callable=AsyncMock,
+        ) as mock_cancel:
             mock_cancel.return_value = {"success": True, "cancelled": 2}
 
-            with patch.object(multi_user_service.position_manager, 'emergency_close_all_user_positions', new_callable=AsyncMock) as mock_close:
+            with patch.object(
+                multi_user_service.position_manager,
+                "emergency_close_all_user_positions",
+                new_callable=AsyncMock,
+            ) as mock_close:
                 mock_close.return_value = {"success": True, "closed": 1}
 
-                with patch.object(multi_user_service.ea_bridge, 'cleanup_user_session', new_callable=AsyncMock) as mock_cleanup:
+                with patch.object(
+                    multi_user_service.ea_bridge,
+                    "cleanup_user_session",
+                    new_callable=AsyncMock,
+                ) as mock_cleanup:
                     mock_cleanup.return_value = None
 
                     result = await multi_user_service.emergency_user_stop(telegram_id)
@@ -292,13 +353,19 @@ class TestMultiUserEABridge:
     @pytest.mark.asyncio
     async def test_service_stats_enhancement(self, multi_user_service):
         """Test enhanced service statistics."""
-        with patch.object(multi_user_service.position_manager, 'get_manager_stats') as mock_pos_stats:
+        with patch.object(
+            multi_user_service.position_manager, "get_manager_stats"
+        ) as mock_pos_stats:
             mock_pos_stats.return_value = {"total_positions": 5}
 
-            with patch.object(multi_user_service.order_manager, 'get_manager_stats') as mock_order_stats:
+            with patch.object(
+                multi_user_service.order_manager, "get_manager_stats"
+            ) as mock_order_stats:
                 mock_order_stats.return_value = {"total_orders": 10}
 
-                with patch.object(multi_user_service.ea_bridge, 'get_all_user_connections_health') as mock_ea_stats:
+                with patch.object(
+                    multi_user_service.ea_bridge, "get_all_user_connections_health"
+                ) as mock_ea_stats:
                     mock_ea_stats.return_value = {"total_connections": 3}
 
                     stats = await multi_user_service.get_enhanced_service_stats()
@@ -324,13 +391,15 @@ class TestMultiUserEABridge:
             "type": "BUY",
             "entry_zone": [1.1000, 1.1010],
             "sl": 1.0950,
-            "tp": [1.1050]
+            "tp": [1.1050],
         }
 
-        with patch.object(multi_user_service.order_manager, 'submit_order', new_callable=AsyncMock) as mock_submit:
+        with patch.object(
+            multi_user_service.order_manager, "submit_order", new_callable=AsyncMock
+        ) as mock_submit:
             mock_submit.side_effect = [
                 {"success": True, "order_id": "test_order_12345"},
-                {"success": True, "order_id": "test_order_67890"}
+                {"success": True, "order_id": "test_order_67890"},
             ]
 
             # Execute concurrent operations

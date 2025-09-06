@@ -16,10 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from src.main import app
 
+
 async def main():
     """Main entry point with proper signal handling."""
     import uvicorn
-    
+
     # Create server config
     config = uvicorn.Config(
         app,
@@ -27,13 +28,13 @@ async def main():
         port=int(os.getenv("API_PORT")),
         log_level="info",
         access_log=False,
-        reload=False
+        reload=False,
     )
-    
+
     server = uvicorn.Server(config)
-    
+
     # Let uvicorn handle signals naturally - no custom handlers needed
-    
+
     try:
         # Run the server
         await server.serve()
@@ -41,8 +42,9 @@ async def main():
         pass
     finally:
         # Ensure clean shutdown
-        if hasattr(server, 'shutdown'):
+        if hasattr(server, "shutdown"):
             await server.shutdown()
+
 
 if __name__ == "__main__":
     try:

@@ -32,7 +32,9 @@ class UserCommandHandlers:
         self.ea_bridge = EABridge()
         self.signal_distributor = SignalDistributor()
 
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def start_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /start command."""
         user = update.effective_user
         telegram_id = user.id
@@ -42,7 +44,7 @@ class UserCommandHandlers:
             telegram_id=telegram_id,
             username=user.username,
             first_name=user.first_name,
-            last_name=user.last_name
+            last_name=user.last_name,
         )
 
         if db_user.is_admin:
@@ -110,9 +112,11 @@ Once activated, you'll have access to:
 
 Contact support for subscription activation."""
 
-        await update.message.reply_text(welcome_msg, parse_mode='Markdown')
+        await update.message.reply_text(welcome_msg, parse_mode="Markdown")
 
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def help_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /help command."""
         telegram_id = update.effective_user.id
         is_admin = await self.user_manager.is_admin(telegram_id)
@@ -197,14 +201,18 @@ Contact support for subscription activation."""
 
 Contact an administrator for subscription activation."""
 
-        await update.message.reply_text(help_text, parse_mode='Markdown')
+        await update.message.reply_text(help_text, parse_mode="Markdown")
 
-    async def config_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def config_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /config command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to access configuration.")
+            await update.message.reply_text(
+                "❌ Subscription required to access configuration."
+            )
             return
 
         # Create configuration menu
@@ -213,25 +221,33 @@ Contact an administrator for subscription activation."""
             [InlineKeyboardButton("📊 Symbol Settings", callback_data="config_symbol")],
             [InlineKeyboardButton("🎯 Signal Settings", callback_data="config_signal")],
             [InlineKeyboardButton("🤖 Model Settings", callback_data="config_model")],
-            [InlineKeyboardButton("📈 Trading Settings", callback_data="config_trading")],
+            [
+                InlineKeyboardButton(
+                    "📈 Trading Settings", callback_data="config_trading"
+                )
+            ],
             [InlineKeyboardButton("📋 Rules Settings", callback_data="config_rules")],
             [InlineKeyboardButton("🔄 Reset All", callback_data="config_reset_all")],
-            [InlineKeyboardButton("📄 View All", callback_data="config_view_all")]
+            [InlineKeyboardButton("📄 View All", callback_data="config_view_all")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
             "⚙️ **Configuration Management**\n\nSelect a configuration category to modify:",
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
-    async def register_mt5_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def register_mt5_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle /register_mt5 command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to register MT5 connection.")
+            await update.message.reply_text(
+                "❌ Subscription required to register MT5 connection."
+            )
             return ConversationHandler.END
 
         await update.message.reply_text(
@@ -244,25 +260,27 @@ To register your MT5 Expert Advisor:
 3. Copy that API key and send it here
 
 Please send your EA API key:""",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_API_KEY
 
-    async def handle_mt5_api_key(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_mt5_api_key(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle MT5 API key input."""
         telegram_id = update.effective_user.id
         api_key = update.message.text.strip()
 
         if len(api_key) < 10:
-            await update.message.reply_text("❌ Invalid API key format. Please try again:")
+            await update.message.reply_text(
+                "❌ Invalid API key format. Please try again:"
+            )
             return WAITING_API_KEY
 
         # Register EA connection
         success = await self.ea_bridge.register_ea_connection(
-            telegram_id=telegram_id,
-            api_key=api_key,
-            connection_name="MT5 EA"
+            telegram_id=telegram_id, api_key=api_key, connection_name="MT5 EA"
         )
 
         if success:
@@ -275,7 +293,7 @@ Your EA is now connected to the trading system. You can now:
 - Configure EA settings remotely
 
 Use /positions to view current positions or /config to adjust settings.""",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
         else:
             await update.message.reply_text(
@@ -291,23 +309,31 @@ Try again with /register_mt5"""
 
         return ConversationHandler.END
 
-    async def positions_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def positions_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /positions command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to view positions.")
+            await update.message.reply_text(
+                "❌ Subscription required to view positions."
+            )
             return
 
         # Get positions from EA
         positions = await self.ea_bridge.get_positions_from_ea(telegram_id)
 
         if positions is None:
-            await update.message.reply_text("❌ Could not retrieve positions. Check your EA connection.")
+            await update.message.reply_text(
+                "❌ Could not retrieve positions. Check your EA connection."
+            )
             return
 
         if not positions:
-            await update.message.reply_text("📊 **Current Positions**\n\nNo open positions.")
+            await update.message.reply_text(
+                "📊 **Current Positions**\n\nNo open positions."
+            )
             return
 
         # Format positions message
@@ -315,15 +341,15 @@ Try again with /register_mt5"""
         total_pnl = 0
 
         for pos in positions:
-            symbol = pos.get('symbol', 'N/A')
-            ticket = pos.get('ticket', 'N/A')
-            type_str = pos.get('type', 'N/A')
-            volume = pos.get('volume', 0)
-            open_price = pos.get('open_price', 0)
-            current_price = pos.get('current_price', 0)
-            pnl = pos.get('pnl', 0)
-            sl = pos.get('sl', 0)
-            tp = pos.get('tp', 0)
+            symbol = pos.get("symbol", "N/A")
+            ticket = pos.get("ticket", "N/A")
+            type_str = pos.get("type", "N/A")
+            volume = pos.get("volume", 0)
+            open_price = pos.get("open_price", 0)
+            current_price = pos.get("current_price", 0)
+            pnl = pos.get("pnl", 0)
+            sl = pos.get("sl", 0)
+            tp = pos.get("tp", 0)
 
             total_pnl += pnl
 
@@ -337,9 +363,11 @@ Try again with /register_mt5"""
 
         message += f"💰 **Total P&L: ${total_pnl:.2f}**"
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def status_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /status command."""
         telegram_id = update.effective_user.id
         is_admin = await self.user_manager.is_admin(telegram_id)
@@ -351,13 +379,15 @@ Try again with /register_mt5"""
 
         # Get user info
         with self.user_manager.get_session() as session:
-            user = session.query(TelegramUser).filter(
-                TelegramUser.telegram_id == telegram_id
-            ).first()
+            user = (
+                session.query(TelegramUser)
+                .filter(TelegramUser.telegram_id == telegram_id)
+                .first()
+            )
 
         # Get platform connections
         connections = await self.user_manager.get_user_platform_connections(telegram_id)
-        
+
         # Get subscriptions
         subscriptions = await self.user_manager.get_user_subscriptions(telegram_id)
 
@@ -377,7 +407,9 @@ Subscription: {user.subscription_status.value.title()}
 
         if connections:
             for conn in connections:
-                status_msg += f"- {conn['platform_type'].upper()}: {conn['connection_name']}\n"
+                status_msg += (
+                    f"- {conn['platform_type'].upper()}: {conn['connection_name']}\n"
+                )
         else:
             status_msg += "- No platforms connected\n"
 
@@ -389,10 +421,10 @@ Subscription: {user.subscription_status.value.title()}
             status_msg += "- No symbol subscriptions\n"
 
         if account_info:
-            balance = account_info.get('balance', 0)
-            equity = account_info.get('equity', 0)
-            margin = account_info.get('margin', 0)
-            free_margin = account_info.get('free_margin', 0)
+            balance = account_info.get("balance", 0)
+            equity = account_info.get("equity", 0)
+            margin = account_info.get("margin", 0)
+            free_margin = account_info.get("free_margin", 0)
 
             status_msg += f"""
 💰 **Account Info:**
@@ -401,29 +433,52 @@ Equity: ${equity:.2f}
 Margin: ${margin:.2f}
 Free Margin: ${free_margin:.2f}"""
 
-        await update.message.reply_text(status_msg, parse_mode='Markdown')
+        await update.message.reply_text(status_msg, parse_mode="Markdown")
 
-    async def symbols_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def symbols_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /symbols command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to manage symbols.")
+            await update.message.reply_text(
+                "❌ Subscription required to manage symbols."
+            )
             return
 
         # Get current subscriptions
-        subscriptions = await self.signal_distributor.get_user_active_symbols(telegram_id)
-        
+        subscriptions = await self.signal_distributor.get_user_active_symbols(
+            telegram_id
+        )
+
         # Available symbols
-        available_symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD", "USDCHF"]
+        available_symbols = [
+            "XAUUSD",
+            "EURUSD",
+            "GBPUSD",
+            "USDJPY",
+            "USDCAD",
+            "AUDUSD",
+            "NZDUSD",
+            "USDCHF",
+        ]
 
         # Create keyboard for symbol management
         keyboard = []
         for symbol in available_symbols:
             status = "✅" if symbol in subscriptions else "❌"
-            keyboard.append([InlineKeyboardButton(f"{status} {symbol}", callback_data=f"symbol_{symbol}")])
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        f"{status} {symbol}", callback_data=f"symbol_{symbol}"
+                    )
+                ]
+            )
 
-        keyboard.append([InlineKeyboardButton("📊 View Settings", callback_data="symbol_settings")])
+        keyboard.append(
+            [InlineKeyboardButton("📊 View Settings", callback_data="symbol_settings")]
+        )
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         message = f"""📊 **Symbol Subscriptions**
@@ -433,10 +488,14 @@ Active symbols: {', '.join(subscriptions) if subscriptions else 'None'}
 
 Click symbols to toggle subscription:"""
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
     # Callback handlers for inline keyboards
-    async def handle_config_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def handle_config_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle configuration callback queries."""
         query = update.callback_query
         await query.answer()
@@ -446,46 +505,64 @@ Click symbols to toggle subscription:"""
 
         if data.startswith("config_"):
             config_type = data.replace("config_", "")
-            
+
             if config_type == "view_all":
                 configs = await self.config_manager.get_all_user_configs(telegram_id)
                 message = "📄 **All Configurations:**\n\n"
-                
+
                 for cfg_type, cfg_data in configs.items():
                     message += f"**{cfg_type.title()}:**\n```json\n{str(cfg_data)[:200]}...\n```\n\n"
-                
-                await query.edit_message_text(message, parse_mode='Markdown')
+
+                await query.edit_message_text(message, parse_mode="Markdown")
                 return
 
             elif config_type == "reset_all":
                 # Reset all configurations
                 for cfg_type in self.config_manager.DEFAULT_CONFIGS.keys():
                     await self.config_manager.reset_user_config(telegram_id, cfg_type)
-                
-                await query.edit_message_text("✅ All configurations reset to defaults.")
+
+                await query.edit_message_text(
+                    "✅ All configurations reset to defaults."
+                )
                 return
 
             # Show specific configuration
-            config_data = await self.config_manager.get_user_config(telegram_id, config_type)
-            
+            config_data = await self.config_manager.get_user_config(
+                telegram_id, config_type
+            )
+
             if config_data:
                 message = f"⚙️ **{config_type.title()} Configuration:**\n\n```json\n{str(config_data)[:500]}\n```"
-                
+
                 keyboard = [
-                    [InlineKeyboardButton("✏️ Edit", callback_data=f"edit_{config_type}")],
-                    [InlineKeyboardButton("🔄 Reset", callback_data=f"reset_{config_type}")],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="config_back")]
+                    [
+                        InlineKeyboardButton(
+                            "✏️ Edit", callback_data=f"edit_{config_type}"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "🔄 Reset", callback_data=f"reset_{config_type}"
+                        )
+                    ],
+                    [InlineKeyboardButton("⬅️ Back", callback_data="config_back")],
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
-    async def register_crypto_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+                await query.edit_message_text(
+                    message, reply_markup=reply_markup, parse_mode="Markdown"
+                )
+
+    async def register_crypto_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle /register_crypto command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to register crypto exchange.")
+            await update.message.reply_text(
+                "❌ Subscription required to register crypto exchange."
+            )
             return ConversationHandler.END
 
         # Show exchange selection
@@ -493,7 +570,7 @@ Click symbols to toggle subscription:"""
             [InlineKeyboardButton("🏦 Binance", callback_data="crypto_binance")],
             [InlineKeyboardButton("🏛️ Bybit", callback_data="crypto_bybit")],
             [InlineKeyboardButton("🏪 KuCoin", callback_data="crypto_kucoin")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="crypto_cancel")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="crypto_cancel")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -502,12 +579,14 @@ Click symbols to toggle subscription:"""
 
 Select your preferred exchange to register:""",
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_CRYPTO_EXCHANGE
 
-    async def handle_crypto_exchange_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_crypto_exchange_selection(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle crypto exchange selection."""
         query = update.callback_query
         await query.answer()
@@ -520,46 +599,54 @@ Select your preferred exchange to register:""",
             return ConversationHandler.END
 
         exchange = data.replace("crypto_", "")
-        context.user_data['selected_exchange'] = exchange
+        context.user_data["selected_exchange"] = exchange
 
         await query.edit_message_text(
             f"🔑 **{exchange.title()} API Setup**\n\n"
             f"Please provide your {exchange.title()} API Key:\n\n"
             f"**Note:** Make sure the API key has trading permissions.",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_CRYPTO_API_KEY
 
-    async def handle_crypto_api_key(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_crypto_api_key(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle crypto API key input."""
         telegram_id = update.effective_user.id
         api_key = update.message.text.strip()
-        exchange = context.user_data.get('selected_exchange')
+        exchange = context.user_data.get("selected_exchange")
 
         if len(api_key) < 10:
-            await update.message.reply_text("❌ Invalid API key format. Please try again:")
+            await update.message.reply_text(
+                "❌ Invalid API key format. Please try again:"
+            )
             return WAITING_CRYPTO_API_KEY
 
-        context.user_data['api_key'] = api_key
+        context.user_data["api_key"] = api_key
 
         await update.message.reply_text(
             f"🔐 **{exchange.title()} API Secret**\n\n"
             f"Please provide your {exchange.title()} API Secret:",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_CRYPTO_API_SECRET
 
-    async def handle_crypto_api_secret(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_crypto_api_secret(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle crypto API secret input."""
         telegram_id = update.effective_user.id
         api_secret = update.message.text.strip()
-        exchange = context.user_data.get('selected_exchange')
-        api_key = context.user_data.get('api_key')
+        exchange = context.user_data.get("selected_exchange")
+        api_key = context.user_data.get("api_key")
 
         if len(api_secret) < 10:
-            await update.message.reply_text("❌ Invalid API secret format. Please try again:")
+            await update.message.reply_text(
+                "❌ Invalid API secret format. Please try again:"
+            )
             return WAITING_CRYPTO_API_SECRET
 
         # Register crypto connection
@@ -569,7 +656,7 @@ Select your preferred exchange to register:""",
             connection_name=f"{exchange.title()} Trading",
             api_key=api_key,
             api_secret=api_secret,
-            server_endpoint=exchange
+            server_endpoint=exchange,
         )
 
         if success:
@@ -583,7 +670,7 @@ Your crypto exchange is now connected to the trading system. You can now:
 - Configure crypto-specific settings
 
 Use /positions to view current positions or /config to adjust settings.""",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
         else:
             await update.message.reply_text(
@@ -599,7 +686,9 @@ Try again with /register_crypto"""
 
         return ConversationHandler.END
 
-    async def my_id_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def my_id_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /myid command - show user's Telegram ID."""
         user = update.effective_user
         telegram_id = user.id
@@ -609,7 +698,7 @@ Try again with /register_crypto"""
             telegram_id=telegram_id,
             username=user.username,
             first_name=user.first_name,
-            last_name=user.last_name
+            last_name=user.last_name,
         )
 
         message = f"""🆔 **Your Telegram Information**
@@ -628,16 +717,20 @@ Try again with /register_crypto"""
 • Admin privilege requests
 • Support requests"""
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def subscription_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def subscription_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /subscription command - show subscription status."""
         telegram_id = update.effective_user.id
 
         # Get user info
         user = await self.user_manager.get_user(telegram_id)
         if not user:
-            await update.message.reply_text("❌ User not found. Please contact support.")
+            await update.message.reply_text(
+                "❌ User not found. Please contact support."
+            )
             return
 
         # Get subscription details
@@ -659,7 +752,9 @@ Try again with /register_crypto"""
 
         if subscription_expires:
             days_left = (subscription_expires - datetime.utcnow()).days
-            message += f"• Expires: {subscription_expires.strftime('%Y-%m-%d %H:%M UTC')}\n"
+            message += (
+                f"• Expires: {subscription_expires.strftime('%Y-%m-%d %H:%M UTC')}\n"
+            )
             message += f"• Days Left: {max(0, days_left)}\n"
         else:
             message += "• Expires: Never (Lifetime)\n"
@@ -682,14 +777,18 @@ Try again with /register_crypto"""
             message += "• ❌ Telegram Notifications\n\n"
             message += "Contact an administrator to activate your subscription."
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def connections_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def connections_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /connections command - show platform connections."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to view connections.")
+            await update.message.reply_text(
+                "❌ Subscription required to view connections."
+            )
             return
 
         # Get platform connections
@@ -710,18 +809,24 @@ No platform connections found.
 
             keyboard = [
                 [InlineKeyboardButton("🔗 Register MT5", callback_data="register_mt5")],
-                [InlineKeyboardButton("🏦 Register Crypto", callback_data="register_crypto")]
+                [
+                    InlineKeyboardButton(
+                        "🏦 Register Crypto", callback_data="register_crypto"
+                    )
+                ],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.message.reply_text(
+                message, reply_markup=reply_markup, parse_mode="Markdown"
+            )
             return
 
         message = "🔗 **Your Platform Connections**\n\n"
 
         for conn in connections:
-            platform_emoji = "📊" if conn['platform_type'] == 'mt5' else "🏦"
-            status_emoji = "🟢" if conn['last_connected'] else "🔴"
+            platform_emoji = "📊" if conn["platform_type"] == "mt5" else "🏦"
+            status_emoji = "🟢" if conn["last_connected"] else "🔴"
 
             message += f"""{platform_emoji} **{conn['connection_name']}**
 • Platform: {conn['platform_type'].upper()}
@@ -736,18 +841,28 @@ No platform connections found.
         keyboard = [
             [InlineKeyboardButton("🔗 Add MT5", callback_data="add_mt5")],
             [InlineKeyboardButton("🏦 Add Crypto", callback_data="add_crypto")],
-            [InlineKeyboardButton("🔄 Test Connections", callback_data="test_connections")]
+            [
+                InlineKeyboardButton(
+                    "🔄 Test Connections", callback_data="test_connections"
+                )
+            ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
-    async def performance_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def performance_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /performance command - show user performance."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to view performance.")
+            await update.message.reply_text(
+                "❌ Subscription required to view performance."
+            )
             return
 
         # Get user performance data (placeholder - implement actual performance tracking)
@@ -773,9 +888,11 @@ No platform connections found.
 
 *Performance tracking will be available after your first trades.*"""
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def history_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def history_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /history command - show trading history."""
         telegram_id = update.effective_user.id
 
@@ -799,9 +916,11 @@ No trading history found.
 
 *Your trading history will appear here once you start trading.*"""
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def handle_user_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def handle_user_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle user callback queries."""
         query = update.callback_query
         await query.answer()
@@ -814,7 +933,7 @@ No trading history found.
                 "🔗 **MT5 Registration**\n\n"
                 "Use the /register_mt5 command to connect your MT5 account.\n\n"
                 "You'll need your EA API key from the MT5 terminal.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "register_crypto":
@@ -822,7 +941,7 @@ No trading history found.
                 "🏦 **Crypto Exchange Registration**\n\n"
                 "Use the /register_crypto command to connect your exchange.\n\n"
                 "You'll need API key and secret from your exchange.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "add_mt5":
@@ -835,29 +954,43 @@ No trading history found.
 
         elif data == "test_connections":
             # Test all connections
-            await query.edit_message_text("🔄 **Testing Connections...**\n\nPlease wait while we test your platform connections.")
+            await query.edit_message_text(
+                "🔄 **Testing Connections...**\n\nPlease wait while we test your platform connections."
+            )
 
             # Implement connection testing logic here
-            await query.edit_message_text("✅ **Connection Test Complete!**\n\nAll connections are operational.")
+            await query.edit_message_text(
+                "✅ **Connection Test Complete!**\n\nAll connections are operational."
+            )
 
         elif data.startswith("symbol_"):
             # Handle symbol subscription toggle
             symbol = data.replace("symbol_", "")
-            current_subscriptions = await self.signal_distributor.get_user_active_symbols(telegram_id)
+            current_subscriptions = (
+                await self.signal_distributor.get_user_active_symbols(telegram_id)
+            )
 
             if symbol in current_subscriptions:
                 # Unsubscribe
-                success = await self.user_manager.unsubscribe_from_symbol(telegram_id, symbol)
+                success = await self.user_manager.unsubscribe_from_symbol(
+                    telegram_id, symbol
+                )
                 action = "unsubscribed from"
             else:
                 # Subscribe with default confidence
-                success = await self.user_manager.subscribe_to_symbol(telegram_id, symbol, 60)
+                success = await self.user_manager.subscribe_to_symbol(
+                    telegram_id, symbol, 60
+                )
                 action = "subscribed to"
 
             if success:
-                await query.edit_message_text(f"✅ Successfully {action} {symbol} signals!")
+                await query.edit_message_text(
+                    f"✅ Successfully {action} {symbol} signals!"
+                )
             else:
-                await query.edit_message_text(f"❌ Failed to {action} {symbol} signals.")
+                await query.edit_message_text(
+                    f"❌ Failed to {action} {symbol} signals."
+                )
 
         elif data == "symbol_settings":
             # Show symbol settings
@@ -873,9 +1006,11 @@ No trading history found.
                 message += f"   Min Confidence: {sub['min_confidence']}%\n"
                 message += f"   Active: {'Yes' if sub['is_active'] else 'No'}\n\n"
 
-            await query.edit_message_text(message, parse_mode='Markdown')
+            await query.edit_message_text(message, parse_mode="Markdown")
 
-    async def cancel_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def cancel_conversation(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Cancel current conversation."""
         await update.message.reply_text("❌ Operation cancelled.")
         return ConversationHandler.END

@@ -51,7 +51,9 @@ def mock_telegram_bot():
 def app(mock_user_manager, mock_config_manager, mock_order_manager, mock_telegram_bot):
     """Create test app with EA routes."""
     # Set mock instances for EA routes
-    set_ea_globals(mock_user_manager, mock_config_manager, mock_order_manager, mock_telegram_bot)
+    set_ea_globals(
+        mock_user_manager, mock_config_manager, mock_order_manager, mock_telegram_bot
+    )
 
     app = FastAPI()
     app.include_router(ea_router, prefix="/api/v1/ea")
@@ -116,7 +118,7 @@ class TestEARoutes:
             ("/api/v1/ea/modify", {"api_key": "invalid", "ticket": 123}),
             ("/api/v1/ea/close", {"api_key": "invalid", "ticket": 123}),
             ("/api/v1/ea/history", {"api_key": "invalid", "days": 7}),
-            ("/api/v1/ea/settings", {"api_key": "invalid", "settings": {}})
+            ("/api/v1/ea/settings", {"api_key": "invalid", "settings": {}}),
         ]
 
         for endpoint, payload in endpoints:
@@ -148,7 +150,7 @@ class TestEARoutes:
             "/api/v1/ea/modify",
             "/api/v1/ea/close",
             "/api/v1/ea/history",
-            "/api/v1/ea/settings"
+            "/api/v1/ea/settings",
         ]
 
         for endpoint in endpoints:

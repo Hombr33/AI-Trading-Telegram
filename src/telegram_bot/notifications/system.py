@@ -23,7 +23,7 @@ class SystemNotifications:
 
     def __init__(self, notification_manager: NotificationManager):
         """Initialize system notifications.
-        
+
         Args:
             notification_manager: The notification manager to use.
         """
@@ -31,7 +31,7 @@ class SystemNotifications:
 
     async def send_startup_notification(self, system_info: Dict[str, Any] = None):
         """Send startup notification.
-        
+
         Args:
             system_info: System information to include in the notification.
         """
@@ -54,10 +54,10 @@ class SystemNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, 
-                notification_type="info", 
-                priority=NotificationPriority.MEDIUM, 
-                parse_mode="Markdown"
+                message,
+                notification_type="info",
+                priority=NotificationPriority.MEDIUM,
+                parse_mode="Markdown",
             )
 
         except Exception as e:
@@ -65,7 +65,7 @@ class SystemNotifications:
 
     async def send_shutdown_notification(self, reason: str = None):
         """Send shutdown notification.
-        
+
         Args:
             reason: The reason for shutdown.
         """
@@ -81,27 +81,27 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, 
-                notification_type="info", 
-                priority=NotificationPriority.HIGH, 
-                parse_mode="Markdown"
+                message,
+                notification_type="info",
+                priority=NotificationPriority.HIGH,
+                parse_mode="Markdown",
             )
 
         except Exception as e:
             logger.error(f"Error sending shutdown notification: {e}")
 
-    async def send_error_notification(self, error_message: str, error_type: str = None, details: Dict[str, Any] = None):
+    async def send_error_notification(
+        self, error_message: str, error_type: str = None, details: Dict[str, Any] = None
+    ):
         """Send error notification.
-        
+
         Args:
             error_message: The error message.
             error_type: The type of error.
             details: Additional details about the error.
         """
         try:
-            message = (
-                f"❌ **SYSTEM ERROR** ❌\n\n"
-            )
+            message = f"❌ **SYSTEM ERROR** ❌\n\n"
 
             if error_type:
                 message += f"📝 **Type**: {error_type}\n"
@@ -117,27 +117,30 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, 
-                notification_type="error", 
-                priority=NotificationPriority.HIGH, 
-                parse_mode="Markdown"
+                message,
+                notification_type="error",
+                priority=NotificationPriority.HIGH,
+                parse_mode="Markdown",
             )
 
         except Exception as e:
             logger.error(f"Error sending error notification: {e}")
 
-    async def send_warning_notification(self, warning_message: str, warning_type: str = None, details: Dict[str, Any] = None):
+    async def send_warning_notification(
+        self,
+        warning_message: str,
+        warning_type: str = None,
+        details: Dict[str, Any] = None,
+    ):
         """Send warning notification.
-        
+
         Args:
             warning_message: The warning message.
             warning_type: The type of warning.
             details: Additional details about the warning.
         """
         try:
-            message = (
-                f"⚠️ **SYSTEM WARNING** ⚠️\n\n"
-            )
+            message = f"⚠️ **SYSTEM WARNING** ⚠️\n\n"
 
             if warning_type:
                 message += f"📝 **Type**: {warning_type}\n"
@@ -153,24 +156,27 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, notification_type="warning", priority="medium", parse_mode="Markdown"
+                message,
+                notification_type="warning",
+                priority="medium",
+                parse_mode="Markdown",
             )
 
         except Exception as e:
             logger.error(f"Error sending warning notification: {e}")
 
-    async def send_info_notification(self, info_message: str, info_type: str = None, details: Dict[str, Any] = None):
+    async def send_info_notification(
+        self, info_message: str, info_type: str = None, details: Dict[str, Any] = None
+    ):
         """Send info notification.
-        
+
         Args:
             info_message: The info message.
             info_type: The type of info.
             details: Additional details about the info.
         """
         try:
-            message = (
-                f"ℹ️ **SYSTEM INFO** ℹ️\n\n"
-            )
+            message = f"ℹ️ **SYSTEM INFO** ℹ️\n\n"
 
             if info_type:
                 message += f"📝 **Type**: {info_type}\n"
@@ -186,10 +192,10 @@ class SystemNotifications:
             message += f"⏰ **Time**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             await self.notification_manager.send_notification(
-                message, 
-                notification_type="info", 
-                priority=NotificationPriority.LOW, 
-                parse_mode="Markdown"
+                message,
+                notification_type="info",
+                priority=NotificationPriority.LOW,
+                parse_mode="Markdown",
             )
 
         except Exception as e:

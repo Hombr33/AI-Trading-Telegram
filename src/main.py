@@ -32,7 +32,12 @@ from .core.workflow import performance_monitor
 from .core.health_monitor import health_monitor
 from .bridge.socketio_bridge import SocketIOBridge
 from .execution.platform_manager import PlatformManager
-from .common.interfaces import IPlatformManager, ISignalGenerationService, IOrderManager, IPositionManager
+from .common.interfaces import (
+    IPlatformManager,
+    ISignalGenerationService,
+    IOrderManager,
+    IPositionManager,
+)
 from .execution.order_manager import OrderManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
@@ -46,6 +51,7 @@ from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_ser
 
 # Import MT5/AioMQL only on Windows
 import sys
+
 if sys.platform == "win32":
     try:
         from .execution.platforms.forex.aiomql_executor import AioMQLExecutor
@@ -60,11 +66,13 @@ else:
 from src.api.routes import health, v1, bridge, trading, multi_user, ea
 
 # Import admin dashboard
-from src.admin_dashboard.router import router as admin_router, set_multi_user_service as set_admin_multi_user_service
+from src.admin_dashboard.router import (
+    router as admin_router,
+    set_multi_user_service as set_admin_multi_user_service,
+)
 
 # Get logger
 logger = get_logger(__name__)
-
 
 
 # Remove conflicting signal handlers - let uvicorn handle shutdown gracefully
@@ -87,26 +95,30 @@ config_manager: ConfigManager = None
 # Global shutdown flag
 shutdown_event = asyncio.Event()
 
+
 async def shutdown_handler(sig, loop):
     """Graceful shutdown handler for signals."""
     logger.info(f"Received exit signal {sig.name}...")
     shutdown_event.set()
-    
+
     # Cancel all running tasks except current one
     tasks = [task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
     logger.info(f"Cancelling {len(tasks)} outstanding tasks")
-    
+
     for task in tasks:
         task.cancel()
-    
+
     # Wait for tasks to complete cancellation
     if tasks:
         try:
-            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10.0)
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), timeout=10.0
+            )
         except asyncio.TimeoutError:
             logger.warning("Some tasks did not complete cancellation in time")
-    
+
     loop.stop()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -120,28 +132,34 @@ async def lifespan(app: FastAPI):
 
     # Print startup banner
     print_banner(
-         "AI Trading Bot Starting",
-         "Initializing components and establishing connections...",
-         "cyan",
+        "AI Trading Bot Starting",
+        "Initializing components and establishing connections...",
+        "cyan",
     )
-    
+
     try:
         # Initialize Platform Manager (supports MT5 + Crypto exchanges)
         logger.info("Initializing platform manager...")
         platform_manager = PlatformManager(config)
-        
+
         # Connect to all configured platforms
         logger.info("Connecting to trading platforms...")
         connection_results = await platform_manager.connect_all()
-        
-        connected_platforms = [name for name, success in connection_results.items() if success]
-        failed_platforms = [name for name, success in connection_results.items() if not success]
-        
+
+        connected_platforms = [
+            name for name, success in connection_results.items() if success
+        ]
+        failed_platforms = [
+            name for name, success in connection_results.items() if not success
+        ]
+
         if connected_platforms:
             logger.info(f"Connected to platforms: {', '.join(connected_platforms)}")
         if failed_platforms:
-            logger.warning(f"Failed to connect to platforms: {', '.join(failed_platforms)}")
-        
+            logger.warning(
+                f"Failed to connect to platforms: {', '.join(failed_platforms)}"
+            )
+
         if not connected_platforms:
             logger.warning("No platforms connected, continuing with mock mode")
 
@@ -154,9 +172,10 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing user and config managers...")
         user_manager = UserManager()
         config_manager = ConfigManager()
-        
+
         # Initialize trailing manager with proper TrailingConfig
         from .execution.trailing_manager import TrailingConfig
+
         trailing_config = TrailingConfig()
         trailing_manager = TrailingManager(platform_manager, trailing_config)
 
@@ -167,7 +186,7 @@ async def lifespan(app: FastAPI):
         # Initialize Telegram bot
         logger.info("Initializing Telegram bot...")
         telegram_bot = TradingBot(config.telegram)
-        
+
         # Setup Telegram bot (initialize application and handlers)
         logger.info("Setting up Telegram bot...")
         if not await telegram_bot.setup():
@@ -186,6 +205,7 @@ async def lifespan(app: FastAPI):
 
         # Set global instances for EA routes
         from src.api.routes.ea import set_ea_globals
+
         set_ea_globals(user_manager, config_manager, order_manager, telegram_bot)
 
         # Initialize multi-user service
@@ -201,7 +221,9 @@ async def lifespan(app: FastAPI):
         # Initialize auto trading services
         logger.info("Initializing auto trading services...")
         signal_generation_service = SignalGenerationService(config, telegram_bot)
-        auto_trading_service = AutoTradingService(config, platform_manager, telegram_bot)
+        auto_trading_service = AutoTradingService(
+            config, platform_manager, telegram_bot
+        )
 
         # Set order manager for auto trading service
         auto_trading_service.order_manager = order_manager
@@ -219,7 +241,7 @@ async def lifespan(app: FastAPI):
         # 2. Start Socket.IO bridge
         await socketio_bridge.connect()
         logger.info("Socket.IO bridge connected successfully")
-        
+
         # 2.5. Initialize MT5 Bridge Service
         logger.info("Initializing MT5 Bridge Service...")
         mt5_bridge_service = MT5BridgeService()
@@ -230,37 +252,47 @@ async def lifespan(app: FastAPI):
         logger.info("Starting trading managers...")
         position_task = asyncio.create_task(position_manager.start())
         trailing_task = asyncio.create_task(trailing_manager.start())
-        
+
         # 4. Start MT5 connection in background (non-blocking)
         async def connect_mt5_background():
             """Connect to MT5 in the background without blocking startup."""
             try:
                 logger.info("Connecting to MT5 in background...")
                 # Get MT5 executor from platform manager
-                mt5_executor = platform_manager.get_platform('mt5') if platform_manager else None
-                if mt5_executor and hasattr(mt5_executor, 'connect'):
+                mt5_executor = (
+                    platform_manager.get_platform("mt5") if platform_manager else None
+                )
+                if mt5_executor and hasattr(mt5_executor, "connect"):
                     if await mt5_executor.connect():
                         logger.info("MT5 connected successfully")
                     else:
-                        logger.warning("Failed to connect to MT5, continuing with mock mode")
-                        logger.debug("MT5 connection details: Login=%s, Server=%s", config.mt5.login, config.mt5.server)
+                        logger.warning(
+                            "Failed to connect to MT5, continuing with mock mode"
+                        )
+                        logger.debug(
+                            "MT5 connection details: Login=%s, Server=%s",
+                            config.mt5.login,
+                            config.mt5.server,
+                        )
                 else:
-                    logger.warning("MT5 executor not available, continuing with mock mode")
+                    logger.warning(
+                        "MT5 executor not available, continuing with mock mode"
+                    )
             except Exception as e:
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
                 logger.debug("MT5 connection exception details", exc_info=True)
-        
+
         # 4. Start multi-user service (includes Telegram bot)
         logger.info("Starting multi-user service...")
         await multi_user_service.start()
-        
+
         # 5. Start auto trading services if enabled
         if config.auto_trading.enabled:
             logger.info("Starting auto trading services...")
             if config.auto_trading.auto_signal_generation:
                 logger.info("Starting signal generation service...")
                 await signal_generation_service.start()
-        
+
             logger.info("Starting auto trading execution service...")
             await auto_trading_service.start()
         else:
@@ -282,7 +314,7 @@ async def lifespan(app: FastAPI):
                 "details": "Ready for EA connections",
             },
             "MT5 Bridge Service": {
-                "status": "running", 
+                "status": "running",
                 "details": "Unified MT5 integration active",
             },
             "Position Manager": {
@@ -305,8 +337,6 @@ async def lifespan(app: FastAPI):
     finally:
         # Enhanced shutdown sequence
         logger.info("Shutting down AI Trading Bot...")
-        
-
 
         try:
             # Stop health monitoring
@@ -366,7 +396,7 @@ async def lifespan(app: FastAPI):
                     telegram_bot.running = False
 
             # Disconnect Socket.IO bridge
-            if 'socketio_bridge' in locals():
+            if "socketio_bridge" in locals():
                 await socketio_bridge.disconnect()
 
             # Disconnect all trading platforms
@@ -381,7 +411,6 @@ async def lifespan(app: FastAPI):
             log_error_with_context(e, {"component": "shutdown", "action": "cleanup"})
 
 
-
 # Create FastAPI app
 app = FastAPI(
     title="AI Trading Bot",
@@ -393,7 +422,10 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],  # Restrict to localhost only
+    allow_origins=[
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ],  # Restrict to localhost only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -402,8 +434,6 @@ app.add_middleware(
 # Create Socket.IO server
 sio = AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 socketio_app = socketio.ASGIApp(sio, app)
-
-
 
 
 # Socket.IO event handlers
@@ -467,9 +497,12 @@ app.include_router(admin_router, tags=["admin-dashboard"])
 # Mount static files for admin dashboard
 from fastapi.staticfiles import StaticFiles
 import os
+
 admin_static_path = os.path.join(os.path.dirname(__file__), "admin_dashboard", "static")
 if os.path.exists(admin_static_path):
-    app.mount("/admin/static", StaticFiles(directory=admin_static_path), name="admin-static")
+    app.mount(
+        "/admin/static", StaticFiles(directory=admin_static_path), name="admin-static"
+    )
 
 
 # API info endpoint
@@ -484,7 +517,8 @@ async def api_info():
         "components": {
             "platform_manager": (
                 len(platform_manager.get_platform_status()["connected_platforms"]) > 0
-                if platform_manager else False
+                if platform_manager
+                else False
             ),
             "socketio_bridge": (
                 socketio_bridge.get_status()
@@ -498,8 +532,14 @@ async def api_info():
                 trailing_manager.is_running if trailing_manager else False
             ),
             "telegram_bot": telegram_bot.is_running if telegram_bot else False,
-            "auto_trading": auto_trading_service.is_running if auto_trading_service else False,
-            "signal_generation": signal_generation_service.is_running if signal_generation_service else False,
+            "auto_trading": (
+                auto_trading_service.is_running if auto_trading_service else False
+            ),
+            "signal_generation": (
+                signal_generation_service.is_running
+                if signal_generation_service
+                else False
+            ),
         },
     }
 
@@ -510,8 +550,12 @@ async def get_status():
     """Get detailed system status."""
     try:
         # Basic system info
-        uptime = datetime.now(timezone.utc) - start_time if 'start_time' in globals() else None
-        
+        uptime = (
+            datetime.now(timezone.utc) - start_time
+            if "start_time" in globals()
+            else None
+        )
+
         return {
             "status": "healthy",
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -520,19 +564,23 @@ async def get_status():
             "healthy": True,
             "components": {
                 "platform_manager": platform_manager is not None,
-                "position_manager": position_manager is not None and getattr(position_manager, 'is_running', False),
-                "trailing_manager": trailing_manager is not None and getattr(trailing_manager, 'is_running', False),
-                "telegram_bot": telegram_bot is not None and getattr(telegram_bot, 'is_running', False),
-                "socketio_bridge": socketio_bridge is not None
-            }
+                "position_manager": position_manager is not None
+                and getattr(position_manager, "is_running", False),
+                "trailing_manager": trailing_manager is not None
+                and getattr(trailing_manager, "is_running", False),
+                "telegram_bot": telegram_bot is not None
+                and getattr(telegram_bot, "is_running", False),
+                "socketio_bridge": socketio_bridge is not None,
+            },
         }
     except Exception as e:
         return {
             "status": "error",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "error": str(e),
-            "healthy": False
+            "healthy": False,
         }
+
 
 # Enhanced health check endpoint
 @app.get("/health")
@@ -541,13 +589,13 @@ async def health_check():
     try:
         # Get health monitor status
         health_summary = health_monitor.get_health_summary()
-        
+
         # Get performance metrics
         performance_summary = performance_monitor.get_performance_summary()
-        
+
         # Component-specific health checks
         components = {}
-        
+
         # Check platform connections
         if platform_manager:
             try:
@@ -557,7 +605,7 @@ async def health_check():
                     "total_platforms": platform_status["total_platforms"],
                     "primary_platform": platform_status["primary_platform"],
                     "healthy": platform_status["connected_platforms"] > 0,
-                    "details": platform_status["platforms"]
+                    "details": platform_status["platforms"],
                 }
             except Exception as e:
                 components["platforms"] = {
@@ -572,7 +620,7 @@ async def health_check():
             components["bridge"] = {
                 "status": "connected" if bridge_status["connected"] else "disconnected",
                 "healthy": bridge_status["connected"],
-                "fallback_enabled": bridge_status.get("fallback_enabled", False)
+                "fallback_enabled": bridge_status.get("fallback_enabled", False),
             }
 
         # Check Telegram bot
@@ -596,10 +644,14 @@ async def health_check():
             }
 
         # Calculate overall health
-        healthy_components = sum(1 for comp in components.values() if comp.get("healthy", False))
+        healthy_components = sum(
+            1 for comp in components.values() if comp.get("healthy", False)
+        )
         total_components = len(components)
-        health_percentage = (healthy_components / total_components * 100) if total_components > 0 else 0
-        
+        health_percentage = (
+            (healthy_components / total_components * 100) if total_components > 0 else 0
+        )
+
         overall_status = "healthy"
         if health_percentage < 50:
             overall_status = "critical"
@@ -614,15 +666,15 @@ async def health_check():
             "uptime_seconds": performance_summary.get("uptime_seconds", 0),
             "components": components,
             "system_health": health_summary,
-            "performance": performance_summary
+            "performance": performance_summary,
         }
-        
+
     except Exception as e:
         log_error_with_context(e, {"operation": "health_check"})
         return {
             "status": "error",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -632,7 +684,7 @@ async def dashboard():
     """Main dashboard showing system status."""
     try:
         status_data = await get_status()
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -732,11 +784,14 @@ async def dashboard():
         </body>
         </html>
         """
-        
+
         return HTMLResponse(content=html_content)
-        
+
     except Exception as e:
-        return HTMLResponse(content=f"<h1>Dashboard Error</h1><p>Error loading dashboard: {str(e)}</p>")
+        return HTMLResponse(
+            content=f"<h1>Dashboard Error</h1><p>Error loading dashboard: {str(e)}</p>"
+        )
+
 
 # Configuration endpoint
 @app.get("/config")

@@ -47,7 +47,7 @@ class AnalysisCommandHandler(BaseCommandHandler):
 
     async def risk_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /risk command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -76,18 +76,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
             )
 
             # Create an inline keyboard for risk actions
-            keyboard = create_keyboard([
-                [("Refresh", "refresh_risk"), ("Positions", "positions")],
-                [("Account", "account"), ("Performance", "performance")],
-                [("Status", "status"), ("Settings", "settings")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("Refresh", "refresh_risk"), ("Positions", "positions")],
+                    [("Account", "account"), ("Performance", "performance")],
+                    [("Status", "status"), ("Settings", "settings")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in risk command: {e}")
             error_message = (
@@ -95,18 +97,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
                 f"There was an issue loading risk data.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_risk"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_risk"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
 
-    async def performance_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def performance_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /performance command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -143,18 +147,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
             )
 
             # Create an inline keyboard for performance actions
-            keyboard = create_keyboard([
-                [("Refresh", "refresh_performance"), ("Risk", "risk")],
-                [("Journal", "journal"), ("Positions", "positions")],
-                [("Account", "account"), ("Status", "status")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("Refresh", "refresh_performance"), ("Risk", "risk")],
+                    [("Journal", "journal"), ("Positions", "positions")],
+                    [("Account", "account"), ("Status", "status")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in performance command: {e}")
             error_message = (
@@ -162,10 +168,10 @@ class AnalysisCommandHandler(BaseCommandHandler):
                 f"There was an issue loading performance data.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_performance"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_performance"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
@@ -173,14 +179,16 @@ class AnalysisCommandHandler(BaseCommandHandler):
 
     async def journal_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /journal command.
-        
+
         Args:
             update: The update object.
             context: The context object.
         """
         try:
             # Get real trading journal data
-            journal_entries = await self.performance_service.get_trading_journal(limit=10)
+            journal_entries = await self.performance_service.get_trading_journal(
+                limit=10
+            )
 
             if not journal_entries:
                 message = (
@@ -191,11 +199,11 @@ class AnalysisCommandHandler(BaseCommandHandler):
             else:
                 # Format the journal message
                 message = f"📖 **TRADING JOURNAL** 📖\n\n"
-                
+
                 for entry in journal_entries:
                     # Determine emoji based on profit
                     profit_emoji = "💰" if entry["profit"] > 0 else "📉"
-                    
+
                     message += (
                         f"{profit_emoji} **{entry['symbol']}** ({entry['type']})\n"
                         f"  Open: ${entry['open_price']:.5f} | Close: ${entry['close_price']:.5f}\n"
@@ -207,18 +215,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
                 message += f"**Total Entries**: {len(journal_entries)}\n**Last Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
             # Create an inline keyboard for journal actions
-            keyboard = create_keyboard([
-                [("Refresh", "refresh_journal"), ("Performance", "performance")],
-                [("Positions", "positions"), ("Signals", "signals")],
-                [("Account", "account"), ("Status", "status")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("Refresh", "refresh_journal"), ("Performance", "performance")],
+                    [("Positions", "positions"), ("Signals", "signals")],
+                    [("Account", "account"), ("Status", "status")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in journal command: {e}")
             error_message = (
@@ -226,18 +236,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
                 f"There was an issue loading journal data.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_journal"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_journal"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
 
-    async def market_analysis_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def market_analysis_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /analysis command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -262,18 +274,20 @@ class AnalysisCommandHandler(BaseCommandHandler):
             )
 
             # Create an inline keyboard for analysis actions
-            keyboard = create_keyboard([
-                [("Performance", "performance"), ("Risk", "risk")],
-                [("Journal", "journal"), ("Signals", "signals")],
-                [("Status", "status"), ("Help", "help")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("Performance", "performance"), ("Risk", "risk")],
+                    [("Journal", "journal"), ("Signals", "signals")],
+                    [("Status", "status"), ("Help", "help")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in market analysis command: {e}")
             error_message = (
@@ -281,10 +295,10 @@ class AnalysisCommandHandler(BaseCommandHandler):
                 f"There was an issue loading analysis data.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_analysis"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_analysis"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:

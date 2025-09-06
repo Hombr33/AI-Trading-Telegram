@@ -30,7 +30,7 @@ class SystemDataService:
     def _initialize_mt5(self):
         """Initialize MT5 executor if available."""
         try:
-            if hasattr(self.config, 'mt5'):
+            if hasattr(self.config, "mt5"):
                 self.mt5_executor = MT5Executor(self.config.mt5)
                 logger.info("MT5 executor initialized for system data service")
             else:
@@ -41,7 +41,7 @@ class SystemDataService:
 
     async def get_system_status(self) -> Dict[str, Any]:
         """Get real system status data.
-        
+
         Returns:
             System status dictionary
         """
@@ -49,22 +49,22 @@ class SystemDataService:
             # Get system metrics
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            
+            disk = psutil.disk_usage("/")
+
             # Get trading data
             positions = await self.trading_data_service.get_positions()
             orders = await self.trading_data_service.get_orders()
-            
+
             # Calculate uptime
             uptime = datetime.utcnow() - self._start_time
             uptime_str = self._format_uptime(uptime)
-            
+
             # Get MT5 connection status
             mt5_status = "Connected" if self._is_mt5_connected() else "Disconnected"
-            
+
             # Get daily drawdown
             daily_drawdown = await self._calculate_daily_drawdown()
-            
+
             return {
                 "status": "Online",
                 "bot_status": "Online",
@@ -86,14 +86,14 @@ class SystemDataService:
                 "pending_signals": await self._count_pending_signals(),
                 "active_strategies": 2,  # This should come from strategy manager
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
             return self._get_fallback_system_status()
 
     async def get_system_info(self) -> Dict[str, Any]:
         """Get detailed system information.
-        
+
         Returns:
             System information dictionary
         """
@@ -101,22 +101,22 @@ class SystemDataService:
             # Get system metrics
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            
+            disk = psutil.disk_usage("/")
+
             # Get network info
             network = psutil.net_io_counters()
-            
+
             # Get uptime
             uptime = datetime.utcnow() - self._start_time
             uptime_str = self._format_uptime(uptime)
-            
+
             # Get last backup info (simplified)
             last_backup = self._get_last_backup_info()
-            
+
             # Get error counts (simplified)
             errors_24h = await self._count_errors_24h()
             warnings_24h = await self._count_warnings_24h()
-            
+
             return {
                 "cpu_usage": cpu_usage,
                 "memory_usage": memory.percent,
@@ -131,28 +131,28 @@ class SystemDataService:
                     "python_version": platform.python_version(),
                     "architecture": platform.architecture()[0],
                     "processor": platform.processor(),
-                    "hostname": platform.node()
+                    "hostname": platform.node(),
                 },
                 "memory_details": {
                     "total": memory.total,
                     "available": memory.available,
                     "used": memory.used,
-                    "free": memory.free
+                    "free": memory.free,
                 },
                 "disk_details": {
                     "total": disk.total,
                     "used": disk.used,
-                    "free": disk.free
-                }
+                    "free": disk.free,
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting system info: {e}")
             return self._get_fallback_system_info()
 
     async def get_health_status(self) -> Dict[str, Any]:
         """Get comprehensive health status of all system components.
-        
+
         Returns:
             Health status dictionary
         """
@@ -161,47 +161,47 @@ class SystemDataService:
                 "overall_health": "Healthy",
                 "components": {},
                 "last_check": datetime.utcnow().isoformat(),
-                "recommendations": []
+                "recommendations": [],
             }
-            
+
             # Check MT5 connection
             mt5_health = await self._check_mt5_health()
             health_status["components"]["mt5"] = mt5_health
-            
+
             # Check database connection
             db_health = await self._check_database_health()
             health_status["components"]["database"] = db_health
-            
+
             # Check AI analyzer
             ai_health = await self._check_ai_analyzer_health()
             health_status["components"]["ai_analyzer"] = ai_health
-            
+
             # Check risk manager
             risk_health = await self._check_risk_manager_health()
             health_status["components"]["risk_manager"] = risk_health
-            
+
             # Check system resources
             resource_health = await self._check_resource_health()
             health_status["components"]["resources"] = resource_health
-            
+
             # Determine overall health
             overall_health = self._determine_overall_health(health_status["components"])
             health_status["overall_health"] = overall_health
-            
+
             # Generate recommendations
             health_status["recommendations"] = self._generate_health_recommendations(
                 health_status["components"]
             )
-            
+
             return health_status
-            
+
         except Exception as e:
             logger.error(f"Error getting health status: {e}")
             return {
                 "overall_health": "Unknown",
                 "components": {},
                 "last_check": datetime.utcnow().isoformat(),
-                "recommendations": ["System health check failed"]
+                "recommendations": ["System health check failed"],
             }
 
     def _is_mt5_connected(self) -> bool:
@@ -237,7 +237,7 @@ class SystemDataService:
             days = uptime.days
             hours, remainder = divmod(uptime.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            
+
             if days > 0:
                 return f"{days}d {hours}h {minutes}m"
             elif hours > 0:
@@ -295,16 +295,16 @@ class SystemDataService:
                 return {
                     "status": "Not Available",
                     "message": "MT5 executor not initialized",
-                    "severity": "warning"
+                    "severity": "warning",
                 }
-            
+
             if not self.mt5_executor.connected:
                 return {
                     "status": "Disconnected",
                     "message": "MT5 connection lost",
-                    "severity": "error"
+                    "severity": "error",
                 }
-            
+
             # Check if we can get basic info
             try:
                 account_info = await self.mt5_executor.get_account_info()
@@ -315,28 +315,28 @@ class SystemDataService:
                         "severity": "info",
                         "details": {
                             "server": account_info.server,
-                            "balance": account_info.balance
-                        }
+                            "balance": account_info.balance,
+                        },
                     }
                 else:
                     return {
                         "status": "Warning",
                         "message": "MT5 connected but no account info",
-                        "severity": "warning"
+                        "severity": "warning",
                     }
             except Exception as e:
                 return {
                     "status": "Error",
                     "message": f"MT5 connection test failed: {str(e)}",
-                    "severity": "error"
+                    "severity": "error",
                 }
-                
+
         except Exception as e:
             logger.error(f"Error checking MT5 health: {e}")
             return {
                 "status": "Unknown",
                 "message": f"Health check failed: {str(e)}",
-                "severity": "error"
+                "severity": "error",
             }
 
     async def _check_database_health(self) -> Dict[str, Any]:
@@ -347,14 +347,14 @@ class SystemDataService:
             return {
                 "status": "Connected",
                 "message": "Database connection healthy",
-                "severity": "info"
+                "severity": "info",
             }
         except Exception as e:
             logger.error(f"Error checking database health: {e}")
             return {
                 "status": "Error",
                 "message": f"Database health check failed: {str(e)}",
-                "severity": "error"
+                "severity": "error",
             }
 
     async def _check_ai_analyzer_health(self) -> Dict[str, Any]:
@@ -365,14 +365,14 @@ class SystemDataService:
             return {
                 "status": "Active",
                 "message": "AI analyzer operational",
-                "severity": "info"
+                "severity": "info",
             }
         except Exception as e:
             logger.error(f"Error checking AI analyzer health: {e}")
             return {
                 "status": "Error",
                 "message": f"AI analyzer health check failed: {str(e)}",
-                "severity": "error"
+                "severity": "error",
             }
 
     async def _check_risk_manager_health(self) -> Dict[str, Any]:
@@ -383,14 +383,14 @@ class SystemDataService:
             return {
                 "status": "Active",
                 "message": "Risk manager operational",
-                "severity": "info"
+                "severity": "info",
             }
         except Exception as e:
             logger.error(f"Error checking risk manager health: {e}")
             return {
                 "status": "Error",
                 "message": f"Risk manager health check failed: {str(e)}",
-                "severity": "error"
+                "severity": "error",
             }
 
     async def _check_resource_health(self) -> Dict[str, Any]:
@@ -398,13 +398,25 @@ class SystemDataService:
         try:
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            
+            disk = psutil.disk_usage("/")
+
             # Determine resource health
-            cpu_health = "Good" if cpu_usage < 70 else "Warning" if cpu_usage < 90 else "Critical"
-            memory_health = "Good" if memory.percent < 80 else "Warning" if memory.percent < 95 else "Critical"
-            disk_health = "Good" if disk.percent < 80 else "Warning" if disk.percent < 95 else "Critical"
-            
+            cpu_health = (
+                "Good"
+                if cpu_usage < 70
+                else "Warning" if cpu_usage < 90 else "Critical"
+            )
+            memory_health = (
+                "Good"
+                if memory.percent < 80
+                else "Warning" if memory.percent < 95 else "Critical"
+            )
+            disk_health = (
+                "Good"
+                if disk.percent < 80
+                else "Warning" if disk.percent < 95 else "Critical"
+            )
+
             return {
                 "status": "Monitoring",
                 "message": "Resource monitoring active",
@@ -412,16 +424,16 @@ class SystemDataService:
                 "details": {
                     "cpu": {"usage": cpu_usage, "health": cpu_health},
                     "memory": {"usage": memory.percent, "health": memory_health},
-                    "disk": {"usage": disk.percent, "health": disk_health}
-                }
+                    "disk": {"usage": disk.percent, "health": disk_health},
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error checking resource health: {e}")
             return {
                 "status": "Error",
                 "message": f"Resource health check failed: {str(e)}",
-                "severity": "error"
+                "severity": "error",
             }
 
     def _determine_overall_health(self, components: Dict[str, Any]) -> str:
@@ -429,20 +441,22 @@ class SystemDataService:
         try:
             if not components:
                 return "Unknown"
-            
+
             # Count different severity levels
-            critical_count = sum(1 for comp in components.values() 
-                               if comp.get("severity") == "error")
-            warning_count = sum(1 for comp in components.values() 
-                              if comp.get("severity") == "warning")
-            
+            critical_count = sum(
+                1 for comp in components.values() if comp.get("severity") == "error"
+            )
+            warning_count = sum(
+                1 for comp in components.values() if comp.get("severity") == "warning"
+            )
+
             if critical_count > 0:
                 return "Critical"
             elif warning_count > 0:
                 return "Warning"
             else:
                 return "Healthy"
-                
+
         except Exception as e:
             logger.error(f"Error determining overall health: {e}")
             return "Unknown"
@@ -451,19 +465,21 @@ class SystemDataService:
         """Generate health recommendations based on component statuses."""
         try:
             recommendations = []
-            
+
             for component_name, component in components.items():
                 if component.get("severity") == "error":
-                    recommendations.append(f"Immediate attention required for {component_name}")
+                    recommendations.append(
+                        f"Immediate attention required for {component_name}"
+                    )
                 elif component.get("severity") == "warning":
                     recommendations.append(f"Monitor {component_name} closely")
-            
+
             # Add general recommendations
             if not recommendations:
                 recommendations.append("All systems operating normally")
-            
+
             return recommendations
-            
+
         except Exception as e:
             logger.error(f"Error generating health recommendations: {e}")
             return ["Unable to generate recommendations"]
@@ -508,19 +524,10 @@ class SystemDataService:
                 "python_version": "Unknown",
                 "architecture": "Unknown",
                 "processor": "Unknown",
-                "hostname": "Unknown"
+                "hostname": "Unknown",
             },
-            "memory_details": {
-                "total": 0,
-                "available": 0,
-                "used": 0,
-                "free": 0
-            },
-            "disk_details": {
-                "total": 0,
-                "used": 0,
-                "free": 0
-            }
+            "memory_details": {"total": 0, "available": 0, "used": 0, "free": 0},
+            "disk_details": {"total": 0, "used": 0, "free": 0},
         }
 
     async def close(self):

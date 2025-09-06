@@ -21,8 +21,7 @@ from unittest.mock import Mock, patch, AsyncMock
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class EAIntegrationTester:
                 "profit": 45.67,
                 "swap": -0.23,
                 "commission": -2.50,
-                "time_open": datetime.now().isoformat()
+                "time_open": datetime.now().isoformat(),
             },
             {
                 "ticket": "1000002",
@@ -63,8 +62,8 @@ class EAIntegrationTester:
                 "profit": -15.23,
                 "swap": 0.0,
                 "commission": -1.25,
-                "time_open": datetime.now().isoformat()
-            }
+                "time_open": datetime.now().isoformat(),
+            },
         ]
 
         self.test_signals = [
@@ -77,8 +76,8 @@ class EAIntegrationTester:
                     "sma_20": 1.09550,
                     "sma_50": 1.09450,
                     "rsi": 65,
-                    "macd": "bullish"
-                }
+                    "macd": "bullish",
+                },
             },
             {
                 "signal_id": "SIG_002",
@@ -89,9 +88,9 @@ class EAIntegrationTester:
                     "sma_20": 1.26550,
                     "sma_50": 1.26650,
                     "rsi": 35,
-                    "macd": "bearish"
-                }
-            }
+                    "macd": "bearish",
+                },
+            },
         ]
 
     async def setup(self):
@@ -103,7 +102,9 @@ class EAIntegrationTester:
             try:
                 response = requests.get(f"{self.base_url}/health", timeout=5)
                 if response.status_code != 200:
-                    logger.warning(f"Python app health check failed: {response.status_code}")
+                    logger.warning(
+                        f"Python app health check failed: {response.status_code}"
+                    )
             except Exception as e:
                 logger.warning(f"Python app not accessible: {e}")
 
@@ -124,14 +125,16 @@ class EAIntegrationTester:
             logger.error(f"Failed to cleanup test environment: {e}")
             return False
 
-    def log_test_result(self, test_name: str, success: bool, message: str = "", error: str = ""):
+    def log_test_result(
+        self, test_name: str, success: bool, message: str = "", error: str = ""
+    ):
         """Log test result."""
         result = {
             "test": test_name,
             "success": success,
             "message": message,
             "error": error,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.test_results.append(result)
@@ -152,7 +155,7 @@ class EAIntegrationTester:
                 "terminal_id": self.test_terminal,
                 "platform": "MT5",
                 "account": self.test_account,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Send heartbeat
@@ -160,15 +163,21 @@ class EAIntegrationTester:
                 async with session.post(
                     f"{self.base_url}/bridge/heartbeat",
                     json=heartbeat_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Heartbeat failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Heartbeat failed with status {response.status}",
+                        )
                         return False
 
                     data = await response.json()
-                    if not data.get('ok'):
-                        self.log_test_result(test_name, False, "Heartbeat response not OK")
+                    if not data.get("ok"):
+                        self.log_test_result(
+                            test_name, False, "Heartbeat response not OK"
+                        )
                         return False
 
             # Test multiple heartbeats
@@ -178,10 +187,12 @@ class EAIntegrationTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=heartbeat_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         if response.status != 200:
-                            self.log_test_result(test_name, False, f"Heartbeat {i+1} failed")
+                            self.log_test_result(
+                                test_name, False, f"Heartbeat {i+1} failed"
+                            )
                             return False
                 await asyncio.sleep(0.1)
 
@@ -202,22 +213,30 @@ class EAIntegrationTester:
             # Send position snapshot
             snapshot_data = {
                 "positions": self.test_positions,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/bridge/position_snapshot",
                     json=snapshot_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Position snapshot failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Position snapshot failed with status {response.status}",
+                        )
                         return False
 
                     data = await response.json()
-                    if not data.get('success'):
-                        self.log_test_result(test_name, False, "Position snapshot response not successful")
+                    if not data.get("success"):
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            "Position snapshot response not successful",
+                        )
                         return False
 
             # Test position updates
@@ -232,24 +251,32 @@ class EAIntegrationTester:
                     "sl": position["sl"] * 1.001,  # Slightly modify SL
                     "tp": position["tp"],
                     "profit": position["profit"] + 10,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/position_update",
                         json=update_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         if response.status != 200:
-                            self.log_test_result(test_name, False, f"Position update failed for {position['ticket']}")
+                            self.log_test_result(
+                                test_name,
+                                False,
+                                f"Position update failed for {position['ticket']}",
+                            )
                             return False
 
-            self.log_test_result(test_name, True, "Position sync flow working correctly")
+            self.log_test_result(
+                test_name, True, "Position sync flow working correctly"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Position sync flow test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Position sync flow test failed", str(e)
+            )
             return False
 
     async def test_signal_flow(self) -> bool:
@@ -261,19 +288,24 @@ class EAIntegrationTester:
 
             # Send signals
             for signal in self.test_signals:
-                signal_data = {
-                    **signal,
-                    "timestamp": datetime.now().isoformat()
-                }
+                signal_data = {**signal, "timestamp": datetime.now().isoformat()}
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/signal",
                         json=signal_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
-                        if response.status not in [200, 201, 503]:  # 503 if signal service not available
-                            self.log_test_result(test_name, False, f"Signal send failed with status {response.status}")
+                        if response.status not in [
+                            200,
+                            201,
+                            503,
+                        ]:  # 503 if signal service not available
+                            self.log_test_result(
+                                test_name,
+                                False,
+                                f"Signal send failed with status {response.status}",
+                            )
                             return False
 
                 # Send acknowledgment
@@ -282,17 +314,21 @@ class EAIntegrationTester:
                     "symbol": signal["symbol"],
                     "bias": signal["bias"],
                     "status": "received",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/signal_ack",
                         json=ack_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         if response.status != 200:
-                            self.log_test_result(test_name, False, f"Signal acknowledgment failed for {signal['signal_id']}")
+                            self.log_test_result(
+                                test_name,
+                                False,
+                                f"Signal acknowledgment failed for {signal['signal_id']}",
+                            )
                             return False
 
             self.log_test_result(test_name, True, "Signal flow working correctly")
@@ -318,17 +354,25 @@ class EAIntegrationTester:
                 "price": 1.09567,
                 "sl": 1.09000,
                 "tp": 1.10567,
-                "type": "MARKET"
+                "type": "MARKET",
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/bridge/order",
                     json=order_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
-                    if response.status not in [200, 201, 503]:  # 503 if order manager not initialized
-                        self.log_test_result(test_name, False, f"Order request failed with status {response.status}")
+                    if response.status not in [
+                        200,
+                        201,
+                        503,
+                    ]:  # 503 if order manager not initialized
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Order request failed with status {response.status}",
+                        )
                         return False
 
             # Test order confirmation
@@ -341,27 +385,35 @@ class EAIntegrationTester:
                 "volume": 0.1,
                 "status": "EXECUTED",
                 "fill_price": 1.09567,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/bridge/order_confirmation",
                     json=confirmation_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Order confirmation failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Order confirmation failed with status {response.status}",
+                        )
                         return False
 
             # Test pending orders endpoint
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.base_url}/bridge/pending_orders",
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Pending orders failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Pending orders failed with status {response.status}",
+                        )
                         return False
 
             self.log_test_result(test_name, True, "Order flow working correctly")
@@ -388,23 +440,31 @@ class EAIntegrationTester:
                         "symbol": symbol,
                         "bid": 1.09567 + (i * 0.0001),
                         "ask": 1.09587 + (i * 0.0001),
-                        "time": datetime.now().isoformat()
+                        "time": datetime.now().isoformat(),
                     }
 
                     async with aiohttp.ClientSession() as session:
                         async with session.post(
                             f"{self.base_url}/bridge/tick_data",
                             json=tick_data,
-                            headers={'Authorization': f'Bearer {self.bridge_token}'}
+                            headers={"Authorization": f"Bearer {self.bridge_token}"},
                         ) as response:
                             if response.status != 200:
-                                self.log_test_result(test_name, False, f"Tick data failed for {symbol} at iteration {i}")
+                                self.log_test_result(
+                                    test_name,
+                                    False,
+                                    f"Tick data failed for {symbol} at iteration {i}",
+                                )
                                 return False
 
                     # Small delay to simulate realistic tick timing
                     await asyncio.sleep(0.01)
 
-            self.log_test_result(test_name, True, f"Tick data flow working correctly ({tick_count * len(symbols)} ticks sent)")
+            self.log_test_result(
+                test_name,
+                True,
+                f"Tick data flow working correctly ({tick_count * len(symbols)} ticks sent)",
+            )
             return True
 
         except Exception as e:
@@ -427,19 +487,23 @@ class EAIntegrationTester:
                     "max_loss": 50.0,
                     "percentage": 90.0,
                     "open_positions": 5,
-                    "total_exposure": 1.5
+                    "total_exposure": 1.5,
                 },
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/bridge/risk_alert",
                     json=alert_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Risk alert failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Risk alert failed with status {response.status}",
+                        )
                         return False
 
             # Test multiple risk scenarios
@@ -447,41 +511,50 @@ class EAIntegrationTester:
                 {
                     "alert_type": "margin_call",
                     "message": "Margin call warning",
-                    "data": {"margin_level": 95.0, "required_margin": 1000.0}
+                    "data": {"margin_level": 95.0, "required_margin": 1000.0},
                 },
                 {
                     "alert_type": "correlation_alert",
                     "message": "High correlation detected",
-                    "data": {"symbol1": "EURUSD", "symbol2": "GBPUSD", "correlation": 0.85}
+                    "data": {
+                        "symbol1": "EURUSD",
+                        "symbol2": "GBPUSD",
+                        "correlation": 0.85,
+                    },
                 },
                 {
                     "alert_type": "drawdown_alert",
                     "message": "Maximum drawdown exceeded",
-                    "data": {"current_drawdown": 6.5, "max_drawdown": 6.0}
-                }
+                    "data": {"current_drawdown": 6.5, "max_drawdown": 6.0},
+                },
             ]
 
             for scenario in risk_scenarios:
-                scenario_data = {
-                    **scenario,
-                    "timestamp": datetime.now().isoformat()
-                }
+                scenario_data = {**scenario, "timestamp": datetime.now().isoformat()}
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/risk_alert",
                         json=scenario_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         if response.status != 200:
-                            self.log_test_result(test_name, False, f"Risk scenario '{scenario['alert_type']}' failed")
+                            self.log_test_result(
+                                test_name,
+                                False,
+                                f"Risk scenario '{scenario['alert_type']}' failed",
+                            )
                             return False
 
-            self.log_test_result(test_name, True, "Risk management flow working correctly")
+            self.log_test_result(
+                test_name, True, "Risk management flow working correctly"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Risk management flow test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Risk management flow test failed", str(e)
+            )
             return False
 
     async def test_screenshot_analysis_flow(self) -> bool:
@@ -504,30 +577,42 @@ class EAIntegrationTester:
                     "volume": 1250.5,
                     "session": "London",
                     "account_balance": 10000.0,
-                    "account_equity": 9950.0
-                }
+                    "account_equity": 9950.0,
+                },
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/bridge/screenshot_analysis",
                     json=analysis_data,
-                    headers={'Authorization': f'Bearer {self.bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.bridge_token}"},
                 ) as response:
                     if response.status != 200:
-                        self.log_test_result(test_name, False, f"Screenshot analysis failed with status {response.status}")
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            f"Screenshot analysis failed with status {response.status}",
+                        )
                         return False
 
                     data = await response.json()
-                    if not data.get('success'):
-                        self.log_test_result(test_name, False, "Screenshot analysis response not successful")
+                    if not data.get("success"):
+                        self.log_test_result(
+                            test_name,
+                            False,
+                            "Screenshot analysis response not successful",
+                        )
                         return False
 
-            self.log_test_result(test_name, True, "Screenshot analysis flow working correctly")
+            self.log_test_result(
+                test_name, True, "Screenshot analysis flow working correctly"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Screenshot analysis flow test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Screenshot analysis flow test failed", str(e)
+            )
             return False
 
     async def test_concurrent_communication(self) -> bool:
@@ -543,14 +628,14 @@ class EAIntegrationTester:
                     "terminal_id": f"{self.test_terminal}_CONC_{iteration}",
                     "platform": "MT5",
                     "account": self.test_account,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=heartbeat_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         return response.status == 200
 
@@ -560,14 +645,14 @@ class EAIntegrationTester:
                     "symbol": symbol,
                     "bid": 1.09567 + (iteration * 0.0001),
                     "ask": 1.09587 + (iteration * 0.0001),
-                    "time": datetime.now().isoformat()
+                    "time": datetime.now().isoformat(),
                 }
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.base_url}/bridge/tick_data",
                         json=tick_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         return response.status == 200
 
@@ -598,14 +683,24 @@ class EAIntegrationTester:
                     logger.warning(f"Concurrent task {i} returned False")
 
             if success_count < len(tasks) * 0.8:  # 80% success rate
-                self.log_test_result(test_name, False, f"Concurrent communication failed: {success_count}/{len(tasks)} successful")
+                self.log_test_result(
+                    test_name,
+                    False,
+                    f"Concurrent communication failed: {success_count}/{len(tasks)} successful",
+                )
                 return False
 
-            self.log_test_result(test_name, True, f"Concurrent communication successful: {success_count}/{len(tasks)} tasks completed")
+            self.log_test_result(
+                test_name,
+                True,
+                f"Concurrent communication successful: {success_count}/{len(tasks)} tasks completed",
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Concurrent communication test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Concurrent communication test failed", str(e)
+            )
             return False
 
     async def test_error_recovery(self) -> bool:
@@ -619,7 +714,7 @@ class EAIntegrationTester:
                 "terminal_id": self.test_terminal,
                 "platform": "MT5",
                 "account": self.test_account,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Test with invalid endpoint
@@ -628,7 +723,7 @@ class EAIntegrationTester:
                     async with session.post(
                         f"{self.base_url}/bridge/invalid_endpoint",
                         json=test_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         logger.debug(f"Invalid endpoint response: {response.status}")
             except Exception as e:
@@ -641,9 +736,9 @@ class EAIntegrationTester:
                         f"{self.base_url}/bridge/heartbeat",
                         data="invalid json",
                         headers={
-                            'Authorization': f'Bearer {self.bridge_token}',
-                            'Content-Type': 'application/json'
-                        }
+                            "Authorization": f"Bearer {self.bridge_token}",
+                            "Content-Type": "application/json",
+                        },
                     ) as response:
                         logger.debug(f"Malformed data response: {response.status}")
             except Exception as e:
@@ -656,10 +751,14 @@ class EAIntegrationTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=test_data,
-                        headers={'Authorization': f'Bearer {self.bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.bridge_token}"},
                     ) as response:
                         if response.status != 200:
-                            self.log_test_result(test_name, False, f"Recovery test failed on attempt {i+1}")
+                            self.log_test_result(
+                                test_name,
+                                False,
+                                f"Recovery test failed on attempt {i+1}",
+                            )
                             return False
 
             self.log_test_result(test_name, True, "Error recovery working correctly")
@@ -717,14 +816,18 @@ class EAIntegrationTester:
                     "test_positions": len(self.test_positions),
                     "test_signals": len(self.test_signals),
                     "test_account": self.test_account,
-                    "test_terminal": self.test_terminal
-                }
+                    "test_terminal": self.test_terminal,
+                },
             }
 
             if summary["success"]:
-                logger.info(f"🔗 All integration tests passed! Success rate: {success_rate:.1f}%")
+                logger.info(
+                    f"🔗 All integration tests passed! Success rate: {success_rate:.1f}%"
+                )
             else:
-                logger.warning(f"⚠️ Some integration tests failed. Success rate: {success_rate:.1f}%")
+                logger.warning(
+                    f"⚠️ Some integration tests failed. Success rate: {success_rate:.1f}%"
+                )
             return summary
 
         finally:
@@ -734,9 +837,9 @@ class EAIntegrationTester:
 
 def print_integration_test_summary(summary: Dict[str, Any]):
     """Print integration test summary."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🔗 EA INTEGRATION TEST RESULTS")
-    print("="*70)
+    print("=" * 70)
 
     print(f"Overall Status: {'✅ PASS' if summary['success'] else '❌ FAIL'}")
     print(".1f")
@@ -744,7 +847,7 @@ def print_integration_test_summary(summary: Dict[str, Any]):
     print(f"Timestamp: {summary['timestamp']}")
 
     print("\n🔄 Integration Metrics:")
-    metrics = summary.get('integration_metrics', {})
+    metrics = summary.get("integration_metrics", {})
     print(f"   Test positions: {metrics.get('test_positions', 0)}")
     print(f"   Test signals: {metrics.get('test_signals', 0)}")
     print(f"   Test account: {metrics.get('test_account', 'N/A')}")
@@ -753,18 +856,18 @@ def print_integration_test_summary(summary: Dict[str, Any]):
     print("\n📋 DETAILED RESULTS:")
     print("-" * 50)
 
-    for result in summary['results']:
-        status = "✅ PASS" if result['success'] else "❌ FAIL"
+    for result in summary["results"]:
+        status = "✅ PASS" if result["success"] else "❌ FAIL"
         print(f"{status} {result['test']}")
-        if result['message']:
+        if result["message"]:
             print(f"   {result['message']}")
-        if result['error']:
+        if result["error"]:
             print(f"   Error: {result['error']}")
         print()
 
-    print("="*70)
+    print("=" * 70)
 
-    if summary['success']:
+    if summary["success"]:
         print("🔗 EA integration is production-ready!")
         print("📝 Integration capabilities verified:")
         print("   • Heartbeat communication ✓")
@@ -802,7 +905,7 @@ if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     # Run async main

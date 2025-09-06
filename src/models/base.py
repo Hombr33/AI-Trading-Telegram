@@ -11,6 +11,7 @@ from sqlalchemy.sql import func
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
     def to_dict(self) -> Dict[str, Any]:

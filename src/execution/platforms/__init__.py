@@ -10,12 +10,10 @@ __all__ = [
     # Crypto platforms (CCXT unified)
     "CCXTExecutor",
     "create_crypto_executor",
-    
     # Forex platforms (Windows only)
     "MT5Executor",
     "AioMQLExecutor",
-    
     # Simulation platforms
     "DemoExecutor",
-    "PaperExecutor"
+    "PaperExecutor",
 ]

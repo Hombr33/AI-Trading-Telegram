@@ -14,8 +14,7 @@ logger = get_logger(__name__)
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     await update.message.reply_text(
-        "🤖 Welcome to AI Trading Bot!\n\n"
-        "Use /help to see available commands."
+        "🤖 Welcome to AI Trading Bot!\n\n" "Use /help to see available commands."
     )
 
 
@@ -48,10 +47,12 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(status_text, parse_mode="Markdown")
 
 
-def setup_command_handlers(notification_manager: NotificationManager) -> Dict[str, Callable]:
+def setup_command_handlers(
+    notification_manager: NotificationManager,
+) -> Dict[str, Callable]:
     """Setup command handlers for the Telegram bot."""
     from ..commands.handler import CommandHandler
-    
+
     # Use the proper modular command handler
     command_handler = CommandHandler()
     return command_handler.get_command_handlers()

@@ -134,7 +134,7 @@ async def bridge_order(order_data: Dict[str, Any]):
         if missing_fields:
             raise HTTPException(
                 status_code=400,
-                detail=f"Missing required fields: {', '.join(missing_fields)}"
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
             )
 
         result = await order_manager.execute_signal(order_data, None)
@@ -157,18 +157,24 @@ async def bridge_signal(signal_data: Dict[str, Any]):
 
         # Validate required fields
         required_fields = ["symbol", "action"]
-        missing_fields = [field for field in required_fields if field not in signal_data]
+        missing_fields = [
+            field for field in required_fields if field not in signal_data
+        ]
         if missing_fields:
             raise HTTPException(
                 status_code=400,
-                detail=f"Missing required fields: {', '.join(missing_fields)}"
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
             )
 
         result = await order_manager.execute_signal(signal_data, None)
 
         # Send notification via Telegram (non-blocking)
         try:
-            if telegram_bot and hasattr(telegram_bot, 'notification_manager') and telegram_bot.notification_manager:
+            if (
+                telegram_bot
+                and hasattr(telegram_bot, "notification_manager")
+                and telegram_bot.notification_manager
+            ):
                 await telegram_bot.notification_manager.send_signal_notification(
                     signal_data
                 )
@@ -190,7 +196,11 @@ async def bridge_position_update(update_data: Dict[str, Any]):
     try:
         # Send notification via Telegram (non-blocking)
         try:
-            if telegram_bot and hasattr(telegram_bot, 'notification_manager') and telegram_bot.notification_manager:
+            if (
+                telegram_bot
+                and hasattr(telegram_bot, "notification_manager")
+                and telegram_bot.notification_manager
+            ):
                 action = update_data.get("action", "modified")
                 await telegram_bot.notification_manager.send_position_notification(
                     update_data, action
@@ -211,7 +221,11 @@ async def bridge_risk_alert(alert_data: Dict[str, Any]):
     try:
         # Send notification via Telegram (non-blocking)
         try:
-            if telegram_bot and hasattr(telegram_bot, 'notification_manager') and telegram_bot.notification_manager:
+            if (
+                telegram_bot
+                and hasattr(telegram_bot, "notification_manager")
+                and telegram_bot.notification_manager
+            ):
                 alert_type = alert_data.get("alert_type", "general")
                 message = alert_data.get("message", "Risk alert received")
                 data = alert_data.get("data", {})
@@ -232,12 +246,15 @@ async def bridge_risk_alert(alert_data: Dict[str, Any]):
 async def bridge_heartbeat(heartbeat_data: HeartbeatRequest):
     """Handle heartbeat from EA."""
     try:
-        logger.info(f"Heartbeat received from {heartbeat_data.platform} terminal {heartbeat_data.terminal_id}")
-        logger.debug(f"Global instances - order_manager: {order_manager is not None}, telegram_bot: {telegram_bot is not None}")
+        logger.info(
+            f"Heartbeat received from {heartbeat_data.platform} terminal {heartbeat_data.terminal_id}"
+        )
+        logger.debug(
+            f"Global instances - order_manager: {order_manager is not None}, telegram_bot: {telegram_bot is not None}"
+        )
 
         return HeartbeatResponse(
-            ok=True,
-            server_time=datetime.now(timezone.utc).isoformat()
+            ok=True, server_time=datetime.now(timezone.utc).isoformat()
         )
 
     except Exception as e:
@@ -249,7 +266,9 @@ async def bridge_heartbeat(heartbeat_data: HeartbeatRequest):
 async def bridge_tick_data(tick_data: TickRequest):
     """Handle tick data from EA."""
     try:
-        logger.debug(f"Tick data received for {tick_data.symbol}: {tick_data.bid}/{tick_data.ask}")
+        logger.debug(
+            f"Tick data received for {tick_data.symbol}: {tick_data.bid}/{tick_data.ask}"
+        )
 
         # Store tick data or process as needed
         # For now, just acknowledge receipt
@@ -265,11 +284,17 @@ async def bridge_tick_data(tick_data: TickRequest):
 async def bridge_position_snapshot(snapshot_data: PositionSnapshotRequest):
     """Handle position snapshot from EA."""
     try:
-        logger.info(f"Position snapshot received with {len(snapshot_data.positions)} positions")
+        logger.info(
+            f"Position snapshot received with {len(snapshot_data.positions)} positions"
+        )
 
         # Process position data - could update local database or send notifications
         try:
-            if telegram_bot and hasattr(telegram_bot, 'notification_manager') and telegram_bot.notification_manager:
+            if (
+                telegram_bot
+                and hasattr(telegram_bot, "notification_manager")
+                and telegram_bot.notification_manager
+            ):
                 for position in snapshot_data.positions:
                     await telegram_bot.notification_manager.send_position_notification(
                         position.dict(), "snapshot"
@@ -292,7 +317,11 @@ async def bridge_order_confirmation(confirmation_data: Dict[str, Any]):
 
         # Send notification via Telegram (non-blocking)
         try:
-            if telegram_bot and hasattr(telegram_bot, 'notification_manager') and telegram_bot.notification_manager:
+            if (
+                telegram_bot
+                and hasattr(telegram_bot, "notification_manager")
+                and telegram_bot.notification_manager
+            ):
                 await telegram_bot.notification_manager.send_order_notification(
                     confirmation_data
                 )
@@ -326,9 +355,11 @@ async def bridge_pending_orders_auth(auth_data: Dict[str, Any]):
         # Validate authentication (basic validation for now)
         if not auth_data.get("terminal_id") or not auth_data.get("platform"):
             raise HTTPException(status_code=400, detail="Missing authentication data")
-        
-        logger.debug(f"Pending orders request from {auth_data.get('platform')} terminal {auth_data.get('terminal_id')}")
-        
+
+        logger.debug(
+            f"Pending orders request from {auth_data.get('platform')} terminal {auth_data.get('terminal_id')}"
+        )
+
         # This would typically return orders queued for execution
         # For now, return empty list
         return {"orders": []}
@@ -355,42 +386,46 @@ async def bridge_pending_orders():
 async def bridge_screenshot_analysis(analysis_data: Dict[str, Any]):
     """Handle screenshot analysis request from EA."""
     try:
-        logger.info(f"Screenshot analysis request for {analysis_data.get('symbol', 'unknown')}")
-        
+        logger.info(
+            f"Screenshot analysis request for {analysis_data.get('symbol', 'unknown')}"
+        )
+
         # Validate required fields
         required_fields = ["symbol", "timeframe", "timestamp", "image_data"]
-        missing_fields = [field for field in required_fields if field not in analysis_data]
+        missing_fields = [
+            field for field in required_fields if field not in analysis_data
+        ]
         if missing_fields:
             raise HTTPException(
                 status_code=400,
-                detail=f"Missing required fields: {', '.join(missing_fields)}"
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
             )
-        
+
         # Extract data
         symbol = analysis_data.get("symbol")
         timeframe = analysis_data.get("timeframe")
         image_data = analysis_data.get("image_data")
         market_context = analysis_data.get("market_context", {})
-        
+
         # Process screenshot for AI analysis
         # For now, just acknowledge receipt and log
         logger.info(f"Processing screenshot for {symbol} on {timeframe} timeframe")
         logger.debug(f"Market context: {market_context}")
-        
+
         # In a full implementation, this would:
         # 1. Decode the image data (currently hex-encoded, needs proper base64)
         # 2. Send to AI analysis service
         # 3. Generate trading signals
         # 4. Return analysis results
-        
+
         return {
             "success": True,
             "message": "Screenshot received and queued for analysis",
             "symbol": symbol,
             "timeframe": timeframe,
-            "analysis_id": f"analysis_{symbol}_{int(time.time())}"
+            "analysis_id": f"analysis_{symbol}_{int(time.time())}",
         }
-        
+
     except Exception as e:
         logger.error(f"Error processing screenshot analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

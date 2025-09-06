@@ -12,7 +12,11 @@ import threading
 
 from ..core.logging import get_logger
 from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import PositionManagerError, UserIsolationError, TradingBotException
+from ..core.exceptions import (
+    PositionManagerError,
+    UserIsolationError,
+    TradingBotException,
+)
 from ..core.workflow import Component, ComponentStatus
 from ..core.config import TradingConfig
 from ..common.interfaces import IPositionManager
@@ -28,7 +32,9 @@ logger = get_logger(__name__)
 class MultiUserPositionManager(IPositionManager):
     """Enhanced position manager with user-specific tracking and isolation."""
 
-    def __init__(self, ea_bridge: EABridge, user_manager: UserManager, config: TradingConfig):
+    def __init__(
+        self, ea_bridge: EABridge, user_manager: UserManager, config: TradingConfig
+    ):
         self.ea_bridge = ea_bridge
         self.user_manager = user_manager
         self.config = config
@@ -49,7 +55,7 @@ class MultiUserPositionManager(IPositionManager):
             "total_users": 0,
             "active_users": 0,
             "total_positions": 0,
-            "last_update": None
+            "last_update": None,
         }
 
     @with_error_handling("multi_user_position_manager_start", notify_telegram=True)
@@ -94,12 +100,19 @@ class MultiUserPositionManager(IPositionManager):
 
                 # Update stats
                 async with self._global_lock:
-                    self._stats.update({
-                        "total_users": len(active_users),
-                        "active_users": len([u for u in active_users if u in self._user_positions]),
-                        "total_positions": sum(len(positions) for positions in self._user_positions.values()),
-                        "last_update": datetime.utcnow()
-                    })
+                    self._stats.update(
+                        {
+                            "total_users": len(active_users),
+                            "active_users": len(
+                                [u for u in active_users if u in self._user_positions]
+                            ),
+                            "total_positions": sum(
+                                len(positions)
+                                for positions in self._user_positions.values()
+                            ),
+                            "last_update": datetime.utcnow(),
+                        }
+                    )
 
                 # Clean up inactive users
                 await self._cleanup_inactive_users(active_users)
@@ -129,7 +142,9 @@ class MultiUserPositionManager(IPositionManager):
     async def _cleanup_inactive_users(self, active_users: List[int]):
         """Clean up data for inactive users."""
         try:
-            current_users = set(self._user_positions.keys()) | set(self._monitoring_tasks.keys())
+            current_users = set(self._user_positions.keys()) | set(
+                self._monitoring_tasks.keys()
+            )
             inactive_users = current_users - set(active_users)
 
             for telegram_id in inactive_users:
@@ -174,7 +189,9 @@ class MultiUserPositionManager(IPositionManager):
                 if telegram_id not in self._user_positions:
                     self._user_positions[telegram_id] = {}
                     self._user_position_history[telegram_id] = []
-                    self._user_risk_metrics[telegram_id] = self._get_default_risk_metrics()
+                    self._user_risk_metrics[telegram_id] = (
+                        self._get_default_risk_metrics()
+                    )
 
                 logger.info(f"Initialized position tracking for user {telegram_id}")
                 return True
@@ -232,7 +249,9 @@ class MultiUserPositionManager(IPositionManager):
                         await self._add_position(telegram_id, pos_data)
 
                 # Check for closed positions
-                closed_tickets = set(user_positions.keys()) - set(current_positions.keys())
+                closed_tickets = set(user_positions.keys()) - set(
+                    current_positions.keys()
+                )
                 for ticket in closed_tickets:
                     await self._remove_position(telegram_id, ticket)
 
@@ -258,11 +277,14 @@ class MultiUserPositionManager(IPositionManager):
                 direction=position_data.get("type", "BUY"),
                 volume=position_data.get("volume", 0),
                 open_price=position_data.get("price_open", 0),
-                current_price=position_data.get("price_current", position_data.get("price_open", 0)),
+                current_price=position_data.get(
+                    "price_current", position_data.get("price_open", 0)
+                ),
                 stop_loss=position_data.get("sl"),
                 take_profit=position_data.get("tp"),
                 open_time=datetime.fromtimestamp(
-                    position_data.get("time", datetime.utcnow().timestamp()), tz=datetime.utcnow().tzinfo
+                    position_data.get("time", datetime.utcnow().timestamp()),
+                    tz=datetime.utcnow().tzinfo,
                 ).isoformat(),
                 unrealized_pnl=position_data.get("profit", 0),
                 swap=position_data.get("swap", 0),
@@ -277,20 +299,28 @@ class MultiUserPositionManager(IPositionManager):
         except Exception as e:
             logger.error(f"Failed to add position for user {telegram_id}: {e}")
 
-    async def _update_position(self, telegram_id: int, ticket: int, position_data: Dict[str, Any]):
+    async def _update_position(
+        self, telegram_id: int, ticket: int, position_data: Dict[str, Any]
+    ):
         """Update existing position for user."""
         try:
             if ticket not in self._user_positions[telegram_id]:
                 return
 
             position = self._user_positions[telegram_id][ticket]
-            position.current_price = position_data.get("price_current", position.current_price)
-            position.unrealized_pnl = position_data.get("profit", position.unrealized_pnl)
+            position.current_price = position_data.get(
+                "price_current", position.current_price
+            )
+            position.unrealized_pnl = position_data.get(
+                "profit", position.unrealized_pnl
+            )
             position.stop_loss = position_data.get("sl", position.stop_loss)
             position.take_profit = position_data.get("tp", position.take_profit)
 
         except Exception as e:
-            logger.error(f"Failed to update position {ticket} for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to update position {ticket} for user {telegram_id}: {e}"
+            )
 
     async def _remove_position(self, telegram_id: int, ticket: int):
         """Remove closed position for user."""
@@ -303,10 +333,14 @@ class MultiUserPositionManager(IPositionManager):
                 self._user_position_history[telegram_id].append(position)
                 del self._user_positions[telegram_id][ticket]
 
-                logger.info(f"Position {ticket} closed and moved to history for user {telegram_id}")
+                logger.info(
+                    f"Position {ticket} closed and moved to history for user {telegram_id}"
+                )
 
         except Exception as e:
-            logger.error(f"Failed to remove position {ticket} for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to remove position {ticket} for user {telegram_id}: {e}"
+            )
 
     async def _update_user_risk_metrics(self, telegram_id: int):
         """Update risk metrics for specific user."""
@@ -323,7 +357,9 @@ class MultiUserPositionManager(IPositionManager):
             short_positions = 0
 
             for position in positions.values():
-                exposure = position.volume * (position.current_price or position.open_price)
+                exposure = position.volume * (
+                    position.current_price or position.open_price
+                )
                 total_exposure += exposure
                 total_pnl += position.unrealized_pnl or 0
 
@@ -344,7 +380,7 @@ class MultiUserPositionManager(IPositionManager):
                 "long_positions": long_positions,
                 "short_positions": short_positions,
                 "drawdown_pct": drawdown_pct,
-                "last_update": datetime.utcnow()
+                "last_update": datetime.utcnow(),
             }
 
         except Exception as e:
@@ -359,13 +395,15 @@ class MultiUserPositionManager(IPositionManager):
             "long_positions": 0,
             "short_positions": 0,
             "drawdown_pct": 0.0,
-            "last_update": datetime.utcnow()
+            "last_update": datetime.utcnow(),
         }
 
     async def _check_user_risk_limits(self, telegram_id: int):
         """Check risk limits for specific user."""
         try:
-            risk_metrics = self._user_risk_metrics.get(telegram_id, self._get_default_risk_metrics())
+            risk_metrics = self._user_risk_metrics.get(
+                telegram_id, self._get_default_risk_metrics()
+            )
 
             # Get user risk configuration
             user_config = await self.config_manager.get_user_config(telegram_id, "risk")
@@ -390,7 +428,9 @@ class MultiUserPositionManager(IPositionManager):
                 alerts.append(f"Maximum exposure ({max_exposure}) reached")
 
             if alerts:
-                logger.warning(f"Risk alerts for user {telegram_id}: {', '.join(alerts)}")
+                logger.warning(
+                    f"Risk alerts for user {telegram_id}: {', '.join(alerts)}"
+                )
                 # Here you could send notifications or trigger risk management actions
 
         except Exception as e:
@@ -407,7 +447,9 @@ class MultiUserPositionManager(IPositionManager):
             logger.error(f"Failed to get positions for user {telegram_id}: {e}")
             return []
 
-    async def get_user_position(self, telegram_id: int, ticket: int) -> Optional[Position]:
+    async def get_user_position(
+        self, telegram_id: int, ticket: int
+    ) -> Optional[Position]:
         """Get specific position for user."""
         try:
             async with self._user_locks[telegram_id]:
@@ -420,7 +462,9 @@ class MultiUserPositionManager(IPositionManager):
         """Get risk metrics for specific user."""
         try:
             async with self._user_locks[telegram_id]:
-                return self._user_risk_metrics.get(telegram_id, self._get_default_risk_metrics())
+                return self._user_risk_metrics.get(
+                    telegram_id, self._get_default_risk_metrics()
+                )
         except Exception as e:
             logger.error(f"Failed to get risk metrics for user {telegram_id}: {e}")
             return self._get_default_risk_metrics()
@@ -434,12 +478,19 @@ class MultiUserPositionManager(IPositionManager):
             logger.error(f"Failed to get position history for user {telegram_id}: {e}")
             return []
 
-    async def modify_user_position(self, telegram_id: int, ticket: int,
-                                 sl: Optional[float] = None, tp: Optional[float] = None) -> Dict[str, Any]:
+    async def modify_user_position(
+        self,
+        telegram_id: int,
+        ticket: int,
+        sl: Optional[float] = None,
+        tp: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """Modify position for specific user."""
         try:
             # First modify in EA
-            success = await self.ea_bridge.modify_position_in_ea(telegram_id, ticket, sl, tp)
+            success = await self.ea_bridge.modify_position_in_ea(
+                telegram_id, ticket, sl, tp
+            )
 
             if success:
                 # Update local position
@@ -456,14 +507,20 @@ class MultiUserPositionManager(IPositionManager):
                 return {"success": False, "error": "Failed to modify position in EA"}
 
         except Exception as e:
-            logger.error(f"Failed to modify position {ticket} for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to modify position {ticket} for user {telegram_id}: {e}"
+            )
             return {"success": False, "error": str(e)}
 
-    async def close_user_position(self, telegram_id: int, ticket: int, volume: Optional[float] = None) -> Dict[str, Any]:
+    async def close_user_position(
+        self, telegram_id: int, ticket: int, volume: Optional[float] = None
+    ) -> Dict[str, Any]:
         """Close position for specific user."""
         try:
             # First close in EA
-            success = await self.ea_bridge.close_position_in_ea(telegram_id, ticket, volume)
+            success = await self.ea_bridge.close_position_in_ea(
+                telegram_id, ticket, volume
+            )
 
             if success:
                 # Update local tracking
@@ -482,7 +539,9 @@ class MultiUserPositionManager(IPositionManager):
                 return {"success": False, "error": "Failed to close position in EA"}
 
         except Exception as e:
-            logger.error(f"Failed to close position {ticket} for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to close position {ticket} for user {telegram_id}: {e}"
+            )
             return {"success": False, "error": str(e)}
 
     async def get_all_users_positions(self) -> Dict[str, List[Position]]:
@@ -520,7 +579,7 @@ class MultiUserPositionManager(IPositionManager):
                 "active_users": self._stats["active_users"],
                 "total_positions": self._stats["total_positions"],
                 "active_monitoring_tasks": len(self._monitoring_tasks),
-                "last_update": self._stats["last_update"]
+                "last_update": self._stats["last_update"],
             }
         except Exception as e:
             logger.error(f"Failed to get manager stats: {e}")
@@ -532,7 +591,9 @@ class MultiUserPositionManager(IPositionManager):
             await self._update_user_positions(telegram_id)
             return True
         except Exception as e:
-            logger.error(f"Failed to force refresh positions for user {telegram_id}: {e}")
+            logger.error(
+                f"Failed to force refresh positions for user {telegram_id}: {e}"
+            )
             return False
 
     # Abstract Interface Implementation Methods
@@ -549,7 +610,9 @@ class MultiUserPositionManager(IPositionManager):
             logger.error(f"Failed to get all positions: {e}")
             return []
 
-    async def modify_position(self, ticket: int, sl: Optional[float] = None, tp: Optional[float] = None) -> Dict[str, Any]:
+    async def modify_position(
+        self, ticket: int, sl: Optional[float] = None, tp: Optional[float] = None
+    ) -> Dict[str, Any]:
         """Modify position by ticket (interface implementation)."""
         try:
             # Find which user owns this position
@@ -581,16 +644,22 @@ class MultiUserPositionManager(IPositionManager):
             for positions in self._user_positions.values():
                 for position in positions.values():
                     # Check if position has the symbol (this depends on your Position model)
-                    if hasattr(position, 'instrument') and position.instrument and position.instrument.symbol == symbol:
+                    if (
+                        hasattr(position, "instrument")
+                        and position.instrument
+                        and position.instrument.symbol == symbol
+                    ):
                         matching_positions.append(position)
-                    elif hasattr(position, 'symbol') and position.symbol == symbol:
+                    elif hasattr(position, "symbol") and position.symbol == symbol:
                         matching_positions.append(position)
             return matching_positions
         except Exception as e:
             logger.error(f"Failed to get positions by symbol {symbol}: {e}")
             return []
 
-    async def emergency_close_all_user_positions(self, telegram_id: int) -> Dict[str, Any]:
+    async def emergency_close_all_user_positions(
+        self, telegram_id: int
+    ) -> Dict[str, Any]:
         """Emergency close all positions for specific user."""
         try:
             async with self._user_locks[telegram_id]:
@@ -612,7 +681,7 @@ class MultiUserPositionManager(IPositionManager):
                     "success": failed_count == 0,
                     "closed": closed_count,
                     "failed": failed_count,
-                    "message": f"Emergency close completed: {closed_count} closed, {failed_count} failed"
+                    "message": f"Emergency close completed: {closed_count} closed, {failed_count} failed",
                 }
 
         except Exception as e:

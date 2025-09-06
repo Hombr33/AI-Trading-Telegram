@@ -54,27 +54,31 @@ class SystemCallbackHandler:
         """Handle callback queries."""
         query = update.callback_query
         callback_data = query.data
-        
+
         if callback_data in self.callbacks:
             await self.callbacks[callback_data](update, context)
         else:
             await query.answer("Unknown system callback")
             logger.warning(f"Unknown system callback data: {callback_data}")
 
-    async def _handle_start_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_start_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle start callback."""
         await self.system_handler.start_command(update, context)
 
-    async def _handle_monitor_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_monitor_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle monitor/health monitoring callback."""
         query = update.callback_query
         await query.answer("📊 System Monitor")
-        
+
         # Get system status
         try:
             status_text = "🖥️ **System Monitor**\n\n"
             status_text += "🟢 **Status**: Healthy\n"
-            status_text += "⏱️ **Uptime**: Running\n" 
+            status_text += "⏱️ **Uptime**: Running\n"
             status_text += "💾 **Memory**: Normal\n"
             status_text += "🔄 **CPU**: Normal\n\n"
             status_text += "**Components:**\n"
@@ -82,38 +86,44 @@ class SystemCallbackHandler:
             status_text += "• Trailing Manager: 🟢 Running\n"
             status_text += "• Telegram Bot: 🟢 Active\n"
             status_text += "• MT5 Connection: 🔄 Connecting\n"
-            
-            keyboard = create_keyboard([
-                [("🔄 Refresh", "monitor"), ("⚙️ Settings", "settings")],
-                [("📊 Status", "status"), ("🏠 Home", "start")]
-            ])
-            
+
+            keyboard = create_keyboard(
+                [
+                    [("🔄 Refresh", "monitor"), ("⚙️ Settings", "settings")],
+                    [("📊 Status", "status"), ("🏠 Home", "start")],
+                ]
+            )
+
             await query.edit_message_text(
-                status_text,
-                parse_mode="Markdown",
-                reply_markup=keyboard
+                status_text, parse_mode="Markdown", reply_markup=keyboard
             )
         except Exception as e:
             logger.error(f"Error in monitor callback: {e}")
             await query.edit_message_text("❌ Error loading system monitor")
 
-    async def _handle_help_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_help_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle help callback."""
         await self.system_handler.help_command(update, context)
 
-    async def _handle_status_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_status_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle status callback."""
         await self.system_handler.status_command(update, context)
 
-    async def _handle_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle settings callback."""
         query = update.callback_query
-        
+
         # Show loading effect
         await VisualEffects.send_typing_effect(
             context.bot, query.message.chat_id, "Loading settings"
         )
-        
+
         message = (
             "⚙️ **SETTINGS** ⚙️\n\n"
             "🔧 **Trading Settings**\n"
@@ -130,18 +140,27 @@ class SystemCallbackHandler:
             "• Sound: 🔇 Off"
         )
 
-        keyboard = create_keyboard([
-            [("🎚️ Risk Settings", "risk_settings"), ("🔔 Notifications", "notification_settings")],
-            [("🎨 Theme", "theme_settings"), ("🔊 Sound", "sound_settings")],
-            [("🏠 Main Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [
+                    ("🎚️ Risk Settings", "risk_settings"),
+                    ("🔔 Notifications", "notification_settings"),
+                ],
+                [("🎨 Theme", "theme_settings"), ("🔊 Sound", "sound_settings")],
+                [("🏠 Main Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_about_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_about_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle about callback."""
         query = update.callback_query
-        
+
         message = (
             "🤖 **AI TRADING BOT** 🤖\n\n"
             "🚀 **Version**: 2.0.0\n"
@@ -157,18 +176,24 @@ class SystemCallbackHandler:
             "• GitHub Repository"
         )
 
-        keyboard = create_keyboard([
-            [("📚 Documentation", "docs"), ("💬 Support", "support")],
-            [("⭐ Rate Bot", "rate"), ("🔄 Updates", "updates")],
-            [("🏠 Main Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("📚 Documentation", "docs"), ("💬 Support", "support")],
+                [("⭐ Rate Bot", "rate"), ("🔄 Updates", "updates")],
+                [("🏠 Main Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_quick_actions_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_quick_actions_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle quick actions callback."""
         query = update.callback_query
-        
+
         message = (
             "⚡ QUICK ACTIONS ⚡\n\n"
             "🚀 Instant Trading Tools\n\n"
@@ -180,19 +205,28 @@ class SystemCallbackHandler:
             "🔔 Notifications - Alert preferences"
         )
 
-        keyboard = create_keyboard([
-            [("🎯 AI Signal", "signals"), ("📊 Market Pulse", "symbols")],
-            [("⚡ Quick Trade", "positions"), ("⚠️ Risk Check", "account")],
-            [("📈 P&L Summary", "account_history"), ("🔔 Notifications", "settings")],
-            [("🏠 Main Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("🎯 AI Signal", "signals"), ("📊 Market Pulse", "symbols")],
+                [("⚡ Quick Trade", "positions"), ("⚠️ Risk Check", "account")],
+                [
+                    ("📈 P&L Summary", "account_history"),
+                    ("🔔 Notifications", "settings"),
+                ],
+                [("🏠 Main Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_docs_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_docs_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle documentation callback."""
         query = update.callback_query
-        
+
         message = (
             "📚 **DOCUMENTATION** 📚\n\n"
             "📖 **Available Resources**:\n\n"
@@ -203,18 +237,24 @@ class SystemCallbackHandler:
             "🔧 **API Integration** - MT5 setup instructions"
         )
 
-        keyboard = create_keyboard([
-            [("🎯 Trading Guide", "trading_guide"), ("🤖 Commands", "help")],
-            [("⚠️ Risk Guide", "risk_guide"), ("📊 TA Guide", "ta_guide")],
-            [("🔧 Setup Guide", "setup_guide"), ("🏠 Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("🎯 Trading Guide", "trading_guide"), ("🤖 Commands", "help")],
+                [("⚠️ Risk Guide", "risk_guide"), ("📊 TA Guide", "ta_guide")],
+                [("🔧 Setup Guide", "setup_guide"), ("🏠 Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_support_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_support_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle support callback."""
         query = update.callback_query
-        
+
         message = (
             "💬 **SUPPORT CENTER** 💬\n\n"
             "🆘 **Need Help?**\n\n"
@@ -226,18 +266,24 @@ class SystemCallbackHandler:
             "⚡ **Response Time**: Less than 2 hours"
         )
 
-        keyboard = create_keyboard([
-            [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
-            [("📚 Documentation", "docs"), ("❓ FAQ", "faq")],
-            [("🏠 Main Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
+                [("📚 Documentation", "docs"), ("❓ FAQ", "faq")],
+                [("🏠 Main Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_rate_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_rate_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle rate callback."""
         query = update.callback_query
-        
+
         message = (
             "⭐ **RATE OUR BOT** ⭐\n\n"
             "💝 **Enjoying the AI Trading Bot?**\n\n"
@@ -249,18 +295,24 @@ class SystemCallbackHandler:
             "💬 Share your experience and help other traders!"
         )
 
-        keyboard = create_keyboard([
-            [("⭐ Rate 5 Stars", "rate_5"), ("⭐ Rate 4 Stars", "rate_4")],
-            [("💬 Leave Review", "leave_review"), ("📧 Feedback", "feedback")],
-            [("🏠 Main Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("⭐ Rate 5 Stars", "rate_5"), ("⭐ Rate 4 Stars", "rate_4")],
+                [("💬 Leave Review", "leave_review"), ("📧 Feedback", "feedback")],
+                [("🏠 Main Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_updates_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_updates_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle updates callback."""
         query = update.callback_query
-        
+
         message = (
             "🔄 **UPDATES & CHANGELOG** 🔄\n\n"
             "📅 **Latest Version**: v2.0.0\n"
@@ -277,18 +329,27 @@ class SystemCallbackHandler:
             "• Better callback routing"
         )
 
-        keyboard = create_keyboard([
-            [("📋 Full Changelog", "changelog"), ("🔔 Update Alerts", "update_alerts")],
-            [("🚀 What's Next", "roadmap"), ("🏠 Menu", "start")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [
+                    ("📋 Full Changelog", "changelog"),
+                    ("🔔 Update Alerts", "update_alerts"),
+                ],
+                [("🚀 What's Next", "roadmap"), ("🏠 Menu", "start")],
+            ]
+        )
 
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
 
-    async def _handle_trading_guide_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def _handle_trading_guide_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle trading guide callback."""
         query = update.callback_query
         await query.answer("📈 Trading Guide")
-        
+
         message = (
             "📈 **TRADING GUIDE** 📈\n\n"
             "🎯 **Basic Trading Concepts:**\n"
@@ -304,19 +365,25 @@ class SystemCallbackHandler:
             "• Always use stop losses\n"
             "• Keep a trading journal"
         )
-        
-        keyboard = create_keyboard([
-            [("⚠️ Risk Guide", "risk_guide"), ("📊 TA Guide", "ta_guide")],
-            [("🔧 Setup Guide", "setup_guide"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_risk_guide_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("⚠️ Risk Guide", "risk_guide"), ("📊 TA Guide", "ta_guide")],
+                [("🔧 Setup Guide", "setup_guide"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_risk_guide_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle risk guide callback."""
         query = update.callback_query
         await query.answer("⚠️ Risk Guide")
-        
+
         message = (
             "⚠️ **RISK MANAGEMENT GUIDE** ⚠️\n\n"
             "🛡️ **Golden Rules:**\n"
@@ -332,19 +399,25 @@ class SystemCallbackHandler:
             "• Overleverage\n"
             "• Ignoring stop losses"
         )
-        
-        keyboard = create_keyboard([
-            [("📈 Trading Guide", "trading_guide"), ("📊 TA Guide", "ta_guide")],
-            [("⚙️ Risk Settings", "risk_settings"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_ta_guide_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📈 Trading Guide", "trading_guide"), ("📊 TA Guide", "ta_guide")],
+                [("⚙️ Risk Settings", "risk_settings"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_ta_guide_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle technical analysis guide callback."""
         query = update.callback_query
         await query.answer("📊 TA Guide")
-        
+
         message = (
             "📊 **TECHNICAL ANALYSIS GUIDE** 📊\n\n"
             "📈 **Key Indicators:**\n"
@@ -360,19 +433,25 @@ class SystemCallbackHandler:
             "• M15-H1: Day Trading\n"
             "• H4-D1: Swing Trading"
         )
-        
-        keyboard = create_keyboard([
-            [("📈 Trading Guide", "trading_guide"), ("⚠️ Risk Guide", "risk_guide")],
-            [("📊 Analysis", "analysis"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_setup_guide_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📈 Trading Guide", "trading_guide"), ("⚠️ Risk Guide", "risk_guide")],
+                [("📊 Analysis", "analysis"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_setup_guide_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle setup guide callback."""
         query = update.callback_query
         await query.answer("🔧 Setup Guide")
-        
+
         message = (
             "🔧 **SETUP GUIDE** 🔧\n\n"
             "📋 **Prerequisites:**\n"
@@ -389,19 +468,25 @@ class SystemCallbackHandler:
             "• OPENAI_API_KEY\n"
             "• MT5_LOGIN, MT5_PASSWORD"
         )
-        
-        keyboard = create_keyboard([
-            [("📚 Documentation", "docs"), ("💬 Support", "support")],
-            [("🖥️ MT5 Status", "mt5_status"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_email_support_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📚 Documentation", "docs"), ("💬 Support", "support")],
+                [("🖥️ MT5 Status", "mt5_status"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_email_support_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle email support callback."""
         query = update.callback_query
         await query.answer("📧 Email Support")
-        
+
         message = (
             "📧 **EMAIL SUPPORT** 📧\n\n"
             "💌 **Contact Information:**\n"
@@ -417,19 +502,25 @@ class SystemCallbackHandler:
             "• Steps to reproduce\n"
             "• Screenshots if applicable"
         )
-        
-        keyboard = create_keyboard([
-            [("💬 Live Chat", "live_chat"), ("❓ FAQ", "faq")],
-            [("📚 Documentation", "docs"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_live_chat_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("💬 Live Chat", "live_chat"), ("❓ FAQ", "faq")],
+                [("📚 Documentation", "docs"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_live_chat_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle live chat callback."""
         query = update.callback_query
         await query.answer("💬 Live Chat")
-        
+
         message = (
             "💬 **LIVE CHAT SUPPORT** 💬\n\n"
             "🟢 **Status**: Online\n"
@@ -444,19 +535,25 @@ class SystemCallbackHandler:
             "• Include error messages\n\n"
             "📱 **Contact**: @AITradingSupport"
         )
-        
-        keyboard = create_keyboard([
-            [("📧 Email Support", "email_support"), ("❓ FAQ", "faq")],
-            [("📚 Documentation", "docs"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_faq_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📧 Email Support", "email_support"), ("❓ FAQ", "faq")],
+                [("📚 Documentation", "docs"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_faq_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle FAQ callback."""
         query = update.callback_query
         await query.answer("❓ FAQ")
-        
+
         message = (
             "❓ **FREQUENTLY ASKED QUESTIONS** ❓\n\n"
             "🤔 **Q: Is the bot free to use?**\n"
@@ -470,19 +567,25 @@ class SystemCallbackHandler:
             "🤔 **Q: Is my data secure?**\n"
             "A: Yes, we use enterprise-grade encryption"
         )
-        
-        keyboard = create_keyboard([
-            [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
-            [("📚 Documentation", "docs"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_rate_5_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
+                [("📚 Documentation", "docs"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_rate_5_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle 5-star rating callback."""
         query = update.callback_query
         await query.answer("⭐ Thanks for 5 stars!")
-        
+
         message = (
             "⭐ **THANK YOU!** ⭐\n\n"
             "🎉 **5-Star Rating Received!**\n\n"
@@ -493,19 +596,25 @@ class SystemCallbackHandler:
             "• Get premium features\n\n"
             "🎁 **Bonus**: Use code RATE5 for 20% off premium!"
         )
-        
-        keyboard = create_keyboard([
-            [("💬 Leave Review", "leave_review"), ("📧 Feedback", "feedback")],
-            [("🚀 Premium", "premium"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_rate_4_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("💬 Leave Review", "leave_review"), ("📧 Feedback", "feedback")],
+                [("🚀 Premium", "premium"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_rate_4_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle 4-star rating callback."""
         query = update.callback_query
         await query.answer("⭐ Thanks for rating!")
-        
+
         message = (
             "⭐ **THANK YOU!** ⭐\n\n"
             "🎯 **4-Star Rating Received!**\n\n"
@@ -515,19 +624,28 @@ class SystemCallbackHandler:
             "📝 Your suggestions help us grow!\n\n"
             "💬 Share your thoughts with us."
         )
-        
-        keyboard = create_keyboard([
-            [("💬 Leave Feedback", "feedback"), ("📧 Suggestions", "email_support")],
-            [("💬 Leave Review", "leave_review"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_leave_review_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [
+                    ("💬 Leave Feedback", "feedback"),
+                    ("📧 Suggestions", "email_support"),
+                ],
+                [("💬 Leave Review", "leave_review"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_leave_review_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle leave review callback."""
         query = update.callback_query
         await query.answer("💬 Leave Review")
-        
+
         message = (
             "💬 **LEAVE A REVIEW** 💬\n\n"
             "🌟 **Share Your Experience!**\n\n"
@@ -541,19 +659,25 @@ class SystemCallbackHandler:
             "• Help others discover the bot\n\n"
             "🎁 **Reward**: Premium features discount for reviewers!"
         )
-        
-        keyboard = create_keyboard([
-            [("⭐ Rate 5 Stars", "rate_5"), ("📧 Feedback", "feedback")],
-            [("🎁 Premium", "premium"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_feedback_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("⭐ Rate 5 Stars", "rate_5"), ("📧 Feedback", "feedback")],
+                [("🎁 Premium", "premium"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_feedback_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle feedback callback."""
         query = update.callback_query
         await query.answer("📧 Send Feedback")
-        
+
         message = (
             "📧 **SEND FEEDBACK** 📧\n\n"
             "💭 **We Value Your Input!**\n\n"
@@ -565,19 +689,25 @@ class SystemCallbackHandler:
             "📨 **Send to**: feedback@ai-trading-bot.com\n\n"
             "🚀 **Your ideas help shape our roadmap!**"
         )
-        
-        keyboard = create_keyboard([
-            [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
-            [("🚀 Roadmap", "roadmap"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_changelog_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📧 Email Support", "email_support"), ("💬 Live Chat", "live_chat")],
+                [("🚀 Roadmap", "roadmap"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_changelog_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle changelog callback."""
         query = update.callback_query
         await query.answer("📋 Changelog")
-        
+
         message = (
             "📋 **CHANGELOG** 📋\n\n"
             "🆕 **Version 2.1.0** (Latest)\n"
@@ -592,19 +722,25 @@ class SystemCallbackHandler:
             "• Performance optimizations\n"
             "• Bug fixes and stability"
         )
-        
-        keyboard = create_keyboard([
-            [("🔔 Update Alerts", "update_alerts"), ("🚀 Roadmap", "roadmap")],
-            [("📚 Documentation", "docs"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_update_alerts_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("🔔 Update Alerts", "update_alerts"), ("🚀 Roadmap", "roadmap")],
+                [("📚 Documentation", "docs"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_update_alerts_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle update alerts callback."""
         query = update.callback_query
         await query.answer("🔔 Update Alerts")
-        
+
         message = (
             "🔔 **UPDATE ALERTS** 🔔\n\n"
             "📢 **Current Status**: Enabled\n\n"
@@ -617,19 +753,28 @@ class SystemCallbackHandler:
             "🔇 **Unsubscribe**: Use /settings\n\n"
             "💡 Stay informed about the latest improvements!"
         )
-        
-        keyboard = create_keyboard([
-            [("⚙️ Settings", "notification_settings"), ("📋 Changelog", "changelog")],
-            [("🚀 Roadmap", "roadmap"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_roadmap_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [
+                    ("⚙️ Settings", "notification_settings"),
+                    ("📋 Changelog", "changelog"),
+                ],
+                [("🚀 Roadmap", "roadmap"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_roadmap_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle roadmap callback."""
         query = update.callback_query
         await query.answer("🚀 Roadmap")
-        
+
         message = (
             "🚀 **DEVELOPMENT ROADMAP** 🚀\n\n"
             "🔜 **Coming Soon (Q1 2024):**\n"
@@ -645,19 +790,25 @@ class SystemCallbackHandler:
             "• Multi-asset support\n"
             "• Institutional features"
         )
-        
-        keyboard = create_keyboard([
-            [("📧 Feedback", "feedback"), ("📋 Changelog", "changelog")],
-            [("🔔 Updates", "update_alerts"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_risk_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("📧 Feedback", "feedback"), ("📋 Changelog", "changelog")],
+                [("🔔 Updates", "update_alerts"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_risk_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle risk settings callback."""
         query = update.callback_query
         await query.answer("⚙️ Risk Settings")
-        
+
         message = (
             "⚙️ **RISK SETTINGS** ⚙️\n\n"
             "🎚️ **Current Settings:**\n"
@@ -671,20 +822,29 @@ class SystemCallbackHandler:
             "🔴 Aggressive (3-5%)\n\n"
             "⚠️ **Warning**: Higher risk = higher potential loss"
         )
-        
-        keyboard = create_keyboard([
-            [("🟢 Conservative", "risk_conservative"), ("🟡 Moderate", "risk_moderate")],
-            [("🔴 Aggressive", "risk_aggressive"), ("⚙️ Settings", "settings")],
-            [("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_notification_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [
+                    ("🟢 Conservative", "risk_conservative"),
+                    ("🟡 Moderate", "risk_moderate"),
+                ],
+                [("🔴 Aggressive", "risk_aggressive"), ("⚙️ Settings", "settings")],
+                [("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_notification_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle notification settings callback."""
         query = update.callback_query
         await query.answer("🔔 Notification Settings")
-        
+
         message = (
             "🔔 **NOTIFICATION SETTINGS** 🔔\n\n"
             "📢 **Current Settings:**\n"
@@ -698,20 +858,26 @@ class SystemCallbackHandler:
             "• 📈 Performance: Daily/weekly reports\n"
             "• 🔔 General: Updates & news"
         )
-        
-        keyboard = create_keyboard([
-            [("🚨 Critical", "notif_critical"), ("📊 Trading", "notif_trading")],
-            [("📈 Reports", "notif_reports"), ("🔔 General", "notif_general")],
-            [("⚙️ Settings", "settings"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_theme_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("🚨 Critical", "notif_critical"), ("📊 Trading", "notif_trading")],
+                [("📈 Reports", "notif_reports"), ("🔔 General", "notif_general")],
+                [("⚙️ Settings", "settings"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_theme_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle theme settings callback."""
         query = update.callback_query
         await query.answer("🎨 Theme Settings")
-        
+
         message = (
             "🎨 **THEME SETTINGS** 🎨\n\n"
             "🌙 **Current Theme**: Dark\n\n"
@@ -726,20 +892,26 @@ class SystemCallbackHandler:
             "• Visual animations\n"
             "• Personalized layouts"
         )
-        
-        keyboard = create_keyboard([
-            [("🌙 Dark", "theme_dark"), ("☀️ Light", "theme_light")],
-            [("🌈 Colorful", "theme_colorful"), ("🤖 Minimal", "theme_minimal")],
-            [("⚙️ Settings", "settings"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
 
-    async def _handle_sound_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = create_keyboard(
+            [
+                [("🌙 Dark", "theme_dark"), ("☀️ Light", "theme_light")],
+                [("🌈 Colorful", "theme_colorful"), ("🤖 Minimal", "theme_minimal")],
+                [("⚙️ Settings", "settings"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_sound_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle sound settings callback."""
         query = update.callback_query
         await query.answer("🔊 Sound Settings")
-        
+
         message = (
             "🔊 **SOUND SETTINGS** 🔊\n\n"
             "🔇 **Current Status**: Disabled\n\n"
@@ -754,11 +926,15 @@ class SystemCallbackHandler:
             "• 🔊 Medium\n"
             "• 📢 High"
         )
-        
-        keyboard = create_keyboard([
-            [("🔇 Mute", "sound_mute"), ("🔉 Low", "sound_low")],
-            [("🔊 Medium", "sound_medium"), ("📢 High", "sound_high")],
-            [("⚙️ Settings", "settings"), ("🏠 Menu", "start")]
-        ])
-        
-        await query.edit_message_text(message, reply_markup=keyboard, parse_mode="Markdown")
+
+        keyboard = create_keyboard(
+            [
+                [("🔇 Mute", "sound_mute"), ("🔉 Low", "sound_low")],
+                [("🔊 Medium", "sound_medium"), ("📢 High", "sound_high")],
+                [("⚙️ Settings", "settings"), ("🏠 Menu", "start")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )

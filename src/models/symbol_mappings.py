@@ -6,9 +6,9 @@ from .base import Base
 
 class SymbolMapping(Base):
     """Model for storing symbol mappings between standard and broker symbols."""
-    
+
     __tablename__ = "symbol_mappings"
-    
+
     standard_symbol = Column(String, primary_key=True)
     broker_name = Column(String, primary_key=True)
     broker_symbol = Column(String, nullable=False)

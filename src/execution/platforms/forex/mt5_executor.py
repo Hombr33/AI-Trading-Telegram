@@ -15,7 +15,7 @@ from ....core.logging import (
     log_error_with_context,
     log_system_event,
     log_trade_event,
-    log_operation_timing
+    log_operation_timing,
 )
 from ....core.error_handler import with_error_handling, ErrorContext
 from ....core.exceptions import MT5ConnectionError, MT5ExecutionError
@@ -27,6 +27,7 @@ logger = get_logger(__name__)
 
 try:
     import MetaTrader5 as mt5
+
     _use_real_mt5 = True
     logger.info("Using real MetaTrader5 library")
 except ImportError:
@@ -180,9 +181,21 @@ except ImportError:
             """Get list of symbols (matches successful test pattern)."""
             # From successful test: USD symbols: 163, sample symbols included USDRUB, USDAED, etc.
             symbols = [
-                "USDRUB", "USDAED", "USDAMD", "USDARS", "USDAZN",  # From test
-                "EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "USDCAD",
-                "BTCUSD", "ETHUSD", "AUDUSD", "NZDUSD", "USDCHF"
+                "USDRUB",
+                "USDAED",
+                "USDAMD",
+                "USDARS",
+                "USDAZN",  # From test
+                "EURUSD",
+                "GBPUSD",
+                "USDJPY",
+                "XAUUSD",
+                "USDCAD",
+                "BTCUSD",
+                "ETHUSD",
+                "AUDUSD",
+                "NZDUSD",
+                "USDCHF",
             ]
             if group and "USD" in group:
                 return [s for s in symbols if "USD" in s]
@@ -192,14 +205,18 @@ except ImportError:
             """Get symbol information (matches successful test pattern)."""
             # Set realistic values based on symbol type
             if "RUB" in symbol:
-                bid, ask, digits = 94.8257, 105.0286, 4  # From test: huge spread for USDRUB
+                bid, ask, digits = (
+                    94.8257,
+                    105.0286,
+                    4,
+                )  # From test: huge spread for USDRUB
             elif "JPY" in symbol:
                 bid, ask, digits = 150.123, 150.125, 3
             elif "XAU" in symbol:
                 bid, ask, digits = 2045.50, 2045.52, 2
             else:
                 bid, ask, digits = 1.08450, 1.08452, 5
-                
+
             return type(
                 "MockSymbolInfo",
                 (),
@@ -211,7 +228,7 @@ except ImportError:
                     "volume": 1000,
                     "digits": digits,
                     "point": 10 ** (-digits),
-                    "spread": int((ask - bid) * (10 ** digits)),
+                    "spread": int((ask - bid) * (10**digits)),
                     "trade_mode": 4,
                     "trade_stops_level": 10,
                     "trade_freeze_level": 0,
@@ -393,11 +410,13 @@ class MT5Executor(BaseExecutor):
 
     def __init__(self, config: MT5Config):
         # Convert Pydantic config to dict for BaseExecutor
-        config_dict = config.model_dump() if hasattr(config, 'model_dump') else config.__dict__
+        config_dict = (
+            config.model_dump() if hasattr(config, "model_dump") else config.__dict__
+        )
         super().__init__(config_dict, PlatformType.MT5)
         self.config = config  # Keep original config object
         self.symbols_info = {}
-        
+
     @property
     def platform_name(self) -> str:
         return "MetaTrader 5"
@@ -405,7 +424,7 @@ class MT5Executor(BaseExecutor):
     def _get_mt5_paths_from_test(self) -> List[str]:
         """Get MT5 paths based on successful test patterns."""
         paths = []
-        
+
         # Prioritize paths that worked in the test
         if platform.system() == "Windows":
             # From successful test: "C:/Program Files/MetaTrader 5 EXNES - BotX 15/terminal64.exe"
@@ -419,32 +438,33 @@ class MT5Executor(BaseExecutor):
                 "C:/Program Files/MetaTrader 5/terminal64.exe",
                 "C:\\Program Files\\MetaTrader 5\\terminal64.exe",
                 "C:/Program Files (x86)/MetaTrader 5/terminal64.exe",
-                "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe"
+                "C:\\Program Files (x86)\\MetaTrader 5\\terminal64.exe",
             ]
-            
+
             # Add existing paths if they exist
             for path in test_paths:
                 if os.path.exists(path):
                     paths.append(path)
-                    
+
             # Fallback to dynamic discovery
             paths.extend(self._find_mt5_installations())
-            
+
         return list(dict.fromkeys(paths))  # Remove duplicates
-    
+
     def _find_mt5_installations(self) -> List[str]:
         """Scan for MT5 installations on the system."""
         installations = []
-        
+
         if platform.system() == "Windows":
             # Check Windows registry first
             try:
                 import winreg
+
                 registry_paths = [
                     r"SOFTWARE\MetaQuotes\MetaTrader 5",
-                    r"SOFTWARE\WOW6432Node\MetaQuotes\MetaTrader 5"
+                    r"SOFTWARE\WOW6432Node\MetaQuotes\MetaTrader 5",
                 ]
-                
+
                 for path in registry_paths:
                     try:
                         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
@@ -455,7 +475,9 @@ class MT5Executor(BaseExecutor):
                                     subkey_name = winreg.EnumKey(key, i)
                                     subkey = winreg.OpenKey(key, subkey_name)
                                     try:
-                                        install_path = winreg.QueryValueEx(subkey, "Path")[0]
+                                        install_path = winreg.QueryValueEx(
+                                            subkey, "Path"
+                                        )[0]
                                         if os.path.exists(install_path):
                                             installations.append(install_path)
                                     finally:
@@ -469,26 +491,35 @@ class MT5Executor(BaseExecutor):
                         pass
             except ImportError:
                 pass
-            
+
             # Check common installation paths
             common_paths = [
                 os.path.expandvars("%ProgramFiles%\\MetaTrader 5"),
                 os.path.expandvars("%ProgramFiles(x86)%\\MetaTrader 5"),
-                os.path.expandvars("%LOCALAPPDATA%\\Programs\\MetaTrader 5")
+                os.path.expandvars("%LOCALAPPDATA%\\Programs\\MetaTrader 5"),
             ]
-            
+
             for path in common_paths:
                 if os.path.exists(path):
                     installations.append(path)
-        
+
             # Check HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
             try:
                 reg_keys = [
-                    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
-                    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
-                    (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+                    (
+                        winreg.HKEY_LOCAL_MACHINE,
+                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                    ),
+                    (
+                        winreg.HKEY_LOCAL_MACHINE,
+                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+                    ),
+                    (
+                        winreg.HKEY_CURRENT_USER,
+                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                    ),
                 ]
-                
+
                 for root_key, sub_key in reg_keys:
                     try:
                         with winreg.OpenKey(root_key, sub_key) as key:
@@ -497,13 +528,21 @@ class MT5Executor(BaseExecutor):
                                     subkey_name = winreg.EnumKey(key, i)
                                     with winreg.OpenKey(key, subkey_name) as subkey:
                                         try:
-                                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                            display_name = winreg.QueryValueEx(
+                                                subkey, "DisplayName"
+                                            )[0]
                                             if "MetaTrader" in display_name:
-                                                install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
-                                                terminal_path = os.path.join(install_location, "terminal64.exe")
+                                                install_location = winreg.QueryValueEx(
+                                                    subkey, "InstallLocation"
+                                                )[0]
+                                                terminal_path = os.path.join(
+                                                    install_location, "terminal64.exe"
+                                                )
                                                 if os.path.exists(terminal_path):
                                                     installations.append(terminal_path)
-                                                    logger.info(f"Found MT5 in registry: {terminal_path}")
+                                                    logger.info(
+                                                        f"Found MT5 in registry: {terminal_path}"
+                                                    )
                                         except FileNotFoundError:
                                             continue
                                 except (OSError, FileNotFoundError):
@@ -514,50 +553,52 @@ class MT5Executor(BaseExecutor):
                 logger.debug("winreg not available for registry scanning")
             except Exception as e:
                 logger.debug(f"Registry scan failed: {e}")
-            
+
             # File system scan as backup
             search_paths = [
                 "C:\\Program Files\\MetaTrader*\\terminal64.exe",
                 "C:\\Program Files (x86)\\MetaTrader*\\terminal64.exe",
                 "C:\\Users\\*\\AppData\\Roaming\\MetaQuotes\\Terminal\\*\\terminal64.exe",
                 "D:\\Program Files\\MetaTrader*\\terminal64.exe",
-                "E:\\Program Files\\MetaTrader*\\terminal64.exe"
+                "E:\\Program Files\\MetaTrader*\\terminal64.exe",
             ]
-            
+
             for pattern in search_paths:
                 try:
                     found_paths = glob.glob(pattern, recursive=True)
                     installations.extend(found_paths)
                 except Exception as e:
                     logger.debug(f"Error scanning pattern {pattern}: {e}")
-        
+
         elif platform.system() == "Darwin":  # macOS
             # Wine or other compatibility layers
             search_paths = [
                 "/Applications/MetaTrader*.app/Contents/MacOS/terminal64",
-                "~/.wine/drive_c/Program Files/MetaTrader*/terminal64.exe"
+                "~/.wine/drive_c/Program Files/MetaTrader*/terminal64.exe",
             ]
             for pattern in search_paths:
                 installations.extend(glob.glob(os.path.expanduser(pattern)))
-        
+
         # Remove duplicates while preserving order
         installations = list(dict.fromkeys(installations))
-        
+
         logger.info(f"Found {len(installations)} MT5 installations: {installations}")
         return installations
 
     async def _connect_impl(self) -> bool:
         """Platform-specific connection implementation."""
         return await self._connect_internal()
-    
+
     async def _connect_internal(self) -> bool:
         """Internal connection logic matching successful test patterns."""
         try:
             # Check platform compatibility first
             if platform.system() != "Windows":
-                logger.warning(f"Platform {platform.system()} detected. MT5 requires Windows or Wine.")
+                logger.warning(
+                    f"Platform {platform.system()} detected. MT5 requires Windows or Wine."
+                )
                 # Continue anyway as we might be using mock implementation
-            
+
             # Clean shutdown any existing connection
             try:
                 if mt5.terminal_info() is not None:
@@ -566,9 +607,9 @@ class MT5Executor(BaseExecutor):
                     time.sleep(1)
             except:
                 pass
-                
+
             logger.info("Initializing MT5 connection...")
-            
+
             # Try default initialization first (matches successful test pattern)
             if mt5.initialize():
                 logger.info("MT5 initialized successfully with default settings")
@@ -576,16 +617,18 @@ class MT5Executor(BaseExecutor):
             else:
                 error_code = mt5.last_error()
                 logger.warning(f"Default MT5 initialization failed: {error_code}")
-                
+
                 # Try with custom paths (matches test pattern)
                 paths_to_try = self._get_mt5_paths_from_test()
-                
+
                 initialized = False
                 for path in paths_to_try:
                     logger.info(f"Trying MT5 path: {path}")
                     try:
                         if mt5.initialize(path=path):
-                            logger.info(f"MT5 initialized successfully with path: {path}")
+                            logger.info(
+                                f"MT5 initialized successfully with path: {path}"
+                            )
                             initialized = True
                             break
                         else:
@@ -594,25 +637,29 @@ class MT5Executor(BaseExecutor):
                     except Exception as e:
                         logger.error(f"Error initializing {path}: {e}")
                         continue
-                
+
                 if not initialized:
                     logger.error("Failed to initialize MT5 with any known path")
                     return False
-            
+
             # Verify MT5 version and terminal info (matches test pattern)
             try:
                 version = mt5.version()
                 logger.info(f"MT5 Version: {version}")
-                
+
                 terminal_info = mt5.terminal_info()
                 if terminal_info:
-                    logger.info(f"Terminal: {terminal_info.name} Build: {terminal_info.build}")
-                    logger.info(f"Connected: {terminal_info.connected}, Trade Allowed: {terminal_info.trade_allowed}")
+                    logger.info(
+                        f"Terminal: {terminal_info.name} Build: {terminal_info.build}"
+                    )
+                    logger.info(
+                        f"Connected: {terminal_info.connected}, Trade Allowed: {terminal_info.trade_allowed}"
+                    )
                 else:
                     logger.warning("Could not get terminal info")
             except Exception as e:
                 logger.error(f"Error getting MT5 info: {e}")
-            
+
             # Handle login based on configuration (matches test pattern)
             if not self.config.is_configured:
                 missing_fields = []
@@ -622,7 +669,7 @@ class MT5Executor(BaseExecutor):
                     missing_fields.append("password")
                 if not self.config.server:
                     missing_fields.append("server")
-                
+
                 logger.warning(
                     f"MT5 credentials not configured (missing: {', '.join(missing_fields)}). "
                     f"Using mock/demo mode. Update config/settings.yaml for live trading."
@@ -631,25 +678,25 @@ class MT5Executor(BaseExecutor):
                 self.connected = True
                 self.account_info = mt5.account_info()
                 return True
-            
+
             # Attempt login if credentials are provided (matches test pattern)
             if self.config.is_configured:
                 logger.info(f"Attempting login with account: {self.config.login}")
-                
+
                 try:
                     success = mt5.login(
                         login=int(self.config.login),
                         password=self.config.password,
-                        server=self.config.server
+                        server=self.config.server,
                     )
-                    
+
                     if success:
                         logger.info("MT5 login successful")
                     else:
                         error_code = mt5.last_error()
                         logger.error(f"MT5 login failed: {error_code}")
                         # Don't fail completely - might be demo/mock mode
-                        
+
                 except Exception as e:
                     logger.error(f"MT5 login error: {e}")
                     # Continue anyway for mock/demo mode
@@ -659,20 +706,26 @@ class MT5Executor(BaseExecutor):
                 logger.error("MT5 connection verification failed")
                 mt5.shutdown()
                 return False
-                
+
             # Connection verified
             self.connected = True
             self.account_info = mt5.account_info()
-            
+
             if self.account_info:
-                logger.info(f"Successfully connected to MT5. Account: {self.account_info.login}")
-                logger.info(f"Balance: {self.account_info.balance}, Equity: {self.account_info.equity}")
-                logger.info(f"Leverage: {self.account_info.leverage}, "
-                          f"Margin Free: {self.account_info.margin_free}, "
-                          f"Margin Level: {self.account_info.margin_level}%")
-                
+                logger.info(
+                    f"Successfully connected to MT5. Account: {self.account_info.login}"
+                )
+                logger.info(
+                    f"Balance: {self.account_info.balance}, Equity: {self.account_info.equity}"
+                )
+                logger.info(
+                    f"Leverage: {self.account_info.leverage}, "
+                    f"Margin Free: {self.account_info.margin_free}, "
+                    f"Margin Level: {self.account_info.margin_level}%"
+                )
+
             return True
-            
+
         except Exception as e:
             logger.error(f"MT5 connection error: {e}")
             # Ensure clean shutdown on any error
@@ -690,31 +743,39 @@ class MT5Executor(BaseExecutor):
             if not terminal_info:
                 logger.error("Could not get terminal info")
                 return False
-            
-            logger.info(f"Terminal: {terminal_info.name if hasattr(terminal_info, 'name') else 'Unknown'}")
-            logger.info(f"Connected: {terminal_info.connected if hasattr(terminal_info, 'connected') else 'Unknown'}")
-                
+
+            logger.info(
+                f"Terminal: {terminal_info.name if hasattr(terminal_info, 'name') else 'Unknown'}"
+            )
+            logger.info(
+                f"Connected: {terminal_info.connected if hasattr(terminal_info, 'connected') else 'Unknown'}"
+            )
+
             # 2. Check account info (matches test pattern)
             account_info = mt5.account_info()
             if not account_info:
                 logger.error("Could not get account info")
                 return False
-            
-            logger.info(f"Account: {account_info.login if hasattr(account_info, 'login') else 'Unknown'}")
-            logger.info(f"Balance: {account_info.balance if hasattr(account_info, 'balance') else 'Unknown'}")
-                
+
+            logger.info(
+                f"Account: {account_info.login if hasattr(account_info, 'login') else 'Unknown'}"
+            )
+            logger.info(
+                f"Balance: {account_info.balance if hasattr(account_info, 'balance') else 'Unknown'}"
+            )
+
             # 3. Test symbols info (matches test pattern)
             symbols_total = mt5.symbols_total()
             if symbols_total is None:
                 logger.error("Could not get symbols total")
                 return False
             logger.info(f"Total symbols: {symbols_total}")
-            
+
             # 4. Test symbol availability (matches test pattern)
             symbols_available = mt5.symbols_total()
             if symbols_available is not None:
                 logger.info(f"Available symbols: {symbols_available}")
-            
+
             # 5. Test specific symbol info (use USDRUB from test)
             test_symbol = "USDRUB"  # From successful test
             symbol_info = mt5.symbol_info(test_symbol)
@@ -727,24 +788,30 @@ class MT5Executor(BaseExecutor):
                 if not symbol_info:
                     logger.error("Could not get any symbol info")
                     return False
-                
+
             # 6. Check positions and orders (matches test pattern)
             positions = mt5.positions_total()
             orders = mt5.orders_total()
-            logger.info(f"Open positions: {positions if positions is not None else 'Unknown'}")
-            logger.info(f"Pending orders: {orders if orders is not None else 'Unknown'}")
-            
+            logger.info(
+                f"Open positions: {positions if positions is not None else 'Unknown'}"
+            )
+            logger.info(
+                f"Pending orders: {orders if orders is not None else 'Unknown'}"
+            )
+
             # 7. Check trading permissions (matches test pattern)
-            if hasattr(terminal_info, 'trade_allowed'):
+            if hasattr(terminal_info, "trade_allowed"):
                 if not terminal_info.trade_allowed:
-                    logger.warning("AutoTrading is disabled in MT5 - enable for live trading")
+                    logger.warning(
+                        "AutoTrading is disabled in MT5 - enable for live trading"
+                    )
                     # Don't fail here as it's common in demo/test environments
                 else:
                     logger.info("AutoTrading is enabled")
-                
+
             logger.info("MT5 connection verification successful")
             return True
-            
+
         except Exception as e:
             logger.error(f"Connection verification failed: {e}")
             return False
@@ -752,7 +819,7 @@ class MT5Executor(BaseExecutor):
     async def connect(self) -> bool:
         """Connect to MT5 terminal using patterns from successful test."""
         return await self._connect_internal()
-    
+
     async def disconnect(self) -> bool:
         """Disconnect from MT5 terminal."""
         try:
@@ -778,10 +845,14 @@ class MT5Executor(BaseExecutor):
                 "action": mt5.TRADE_ACTION_DEAL,
                 "symbol": request.symbol,
                 "volume": request.amount,
-                "type": mt5.ORDER_TYPE_BUY if request.side.upper() == "BUY" else mt5.ORDER_TYPE_SELL,
+                "type": (
+                    mt5.ORDER_TYPE_BUY
+                    if request.side.upper() == "BUY"
+                    else mt5.ORDER_TYPE_SELL
+                ),
                 "price": request.price or 0,
-                "sl": getattr(request, 'stop_loss', 0) or 0,
-                "tp": getattr(request, 'take_profit', 0) or 0,
+                "sl": getattr(request, "stop_loss", 0) or 0,
+                "tp": getattr(request, "take_profit", 0) or 0,
                 "deviation": 10,
                 "magic": 1001,
                 "comment": f"AI_SIGNAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -815,20 +886,28 @@ class MT5Executor(BaseExecutor):
         except Exception as e:
             logger.error(f"Order placement error: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def place_order(self, order) -> Dict:
         """Place a new order in MT5 (legacy method)."""
         # Convert to request format and use new implementation
-        request = type('OrderRequest', (), {
-            'symbol': order.instrument.symbol if hasattr(order, 'instrument') else getattr(order, 'symbol', 'EURUSD'),
-            'side': order.order_type if hasattr(order, 'order_type') else 'BUY',
-            'type': 'market',
-            'amount': order.volume if hasattr(order, 'volume') else 0.01,
-            'price': getattr(order, 'price', None),
-            'stop_loss': getattr(order, 'stop_loss', None),
-            'take_profit': getattr(order, 'take_profit', None)
-        })()
-        
+        request = type(
+            "OrderRequest",
+            (),
+            {
+                "symbol": (
+                    order.instrument.symbol
+                    if hasattr(order, "instrument")
+                    else getattr(order, "symbol", "EURUSD")
+                ),
+                "side": order.order_type if hasattr(order, "order_type") else "BUY",
+                "type": "market",
+                "amount": order.volume if hasattr(order, "volume") else 0.01,
+                "price": getattr(order, "price", None),
+                "stop_loss": getattr(order, "stop_loss", None),
+                "take_profit": getattr(order, "take_profit", None),
+            },
+        )()
+
         return await self._place_order_impl(request)
 
     async def modify_order(
@@ -940,7 +1019,9 @@ class MT5Executor(BaseExecutor):
                     "current_price": pos.price_current,
                     "unrealized_pnl": pos.profit,
                     "realized_pnl": 0.0,  # MT5 doesn't track this separately
-                    "timestamp": datetime.fromtimestamp(pos.time, timezone.utc).isoformat(),
+                    "timestamp": datetime.fromtimestamp(
+                        pos.time, timezone.utc
+                    ).isoformat(),
                     "platform": self.platform_type.value,
                     # Legacy fields for backward compatibility
                     "type": "BUY" if pos.type == 0 else "SELL",
@@ -1094,7 +1175,9 @@ class MT5Executor(BaseExecutor):
                     "balance": account.balance,
                     "equity": account.equity,
                     "margin": account.margin,
-                    "free_margin": getattr(account, 'margin_free', getattr(account, 'free_margin', 0.0)),
+                    "free_margin": getattr(
+                        account, "margin_free", getattr(account, "free_margin", 0.0)
+                    ),
                     "leverage": account.leverage,
                     "currency": account.currency,
                     "company": account.company,
@@ -1114,7 +1197,7 @@ class MT5Executor(BaseExecutor):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.disconnect()
-    
+
     # Implement abstract methods from BaseExecutor
     async def test_connection(self) -> bool:
         """Test MT5 connection."""
@@ -1126,17 +1209,17 @@ class MT5Executor(BaseExecutor):
             return terminal_info is not None
         except:
             return False
-    
+
     async def get_balance(self, asset: str = "USD") -> float:
         """Get account balance."""
         try:
             account_info = await self.get_account_info()
             if account_info:
-                return float(account_info.get('balance', 0))
+                return float(account_info.get("balance", 0))
             return 0.0
         except:
             return 0.0
-    
+
     async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """Cancel an order."""
         try:
@@ -1144,19 +1227,19 @@ class MT5Executor(BaseExecutor):
                 "action": mt5.TRADE_ACTION_REMOVE,
                 "order": int(order_id),
             }
-            
+
             result = mt5.order_send(request)
             if result is None:
                 error_code = mt5.last_error()
                 return {"success": False, "error": f"MT5 error: {error_code}"}
-            
+
             if result.retcode != mt5.TRADE_RETCODE_DONE:
                 return {"success": False, "error": f"Cancel failed: {result.retcode}"}
-            
+
             return {"success": True, "order_id": order_id}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     async def modify_order(self, order_id: str, **kwargs) -> Dict[str, Any]:
         """Modify an order."""
         try:
@@ -1164,7 +1247,7 @@ class MT5Executor(BaseExecutor):
                 "action": mt5.TRADE_ACTION_MODIFY,
                 "order": int(order_id),
             }
-            
+
             # Add modifiable fields
             if "price" in kwargs:
                 request["price"] = float(kwargs["price"])
@@ -1172,42 +1255,46 @@ class MT5Executor(BaseExecutor):
                 request["sl"] = float(kwargs["sl"])
             if "tp" in kwargs:
                 request["tp"] = float(kwargs["tp"])
-            
+
             result = mt5.order_send(request)
             if result is None:
                 error_code = mt5.last_error()
                 return {"success": False, "error": f"MT5 error: {error_code}"}
-            
+
             if result.retcode != mt5.TRADE_RETCODE_DONE:
                 return {"success": False, "error": f"Modify failed: {result.retcode}"}
-            
+
             return {"success": True, "order_id": order_id}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """Get order details."""
         try:
             orders = mt5.orders_get(ticket=int(order_id))
             if orders and len(orders) > 0:
                 order = orders[0]
-                return self.format_order_data({
-                    "id": str(order.ticket),
-                    "symbol": order.symbol,
-                    "side": "BUY" if order.type % 2 == 0 else "SELL",
-                    "type": "LIMIT" if order.type in [2, 3, 4, 5] else "MARKET",
-                    "amount": order.volume_initial,
-                    "price": order.price_open,
-                    "filled": order.volume_initial - order.volume_current,
-                    "remaining": order.volume_current,
-                    "status": "OPEN",
-                    "timestamp": datetime.fromtimestamp(order.time_setup, timezone.utc).isoformat()
-                })
+                return self.format_order_data(
+                    {
+                        "id": str(order.ticket),
+                        "symbol": order.symbol,
+                        "side": "BUY" if order.type % 2 == 0 else "SELL",
+                        "type": "LIMIT" if order.type in [2, 3, 4, 5] else "MARKET",
+                        "amount": order.volume_initial,
+                        "price": order.price_open,
+                        "filled": order.volume_initial - order.volume_current,
+                        "remaining": order.volume_current,
+                        "status": "OPEN",
+                        "timestamp": datetime.fromtimestamp(
+                            order.time_setup, timezone.utc
+                        ).isoformat(),
+                    }
+                )
             return None
         except Exception as e:
             log_error_with_context(e, {"operation": "get_order", "order_id": order_id})
             return None
-    
+
     async def get_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all orders."""
         try:
@@ -1215,10 +1302,10 @@ class MT5Executor(BaseExecutor):
                 orders = mt5.orders_get(symbol=symbol)
             else:
                 orders = mt5.orders_get()
-            
+
             if orders is None:
                 return []
-            
+
             result = []
             for order in orders:
                 order_data = {
@@ -1231,26 +1318,30 @@ class MT5Executor(BaseExecutor):
                     "filled": order.volume_initial - order.volume_current,
                     "remaining": order.volume_current,
                     "status": "OPEN",
-                    "timestamp": datetime.fromtimestamp(order.time_setup, timezone.utc).isoformat()
+                    "timestamp": datetime.fromtimestamp(
+                        order.time_setup, timezone.utc
+                    ).isoformat(),
                 }
                 result.append(self.format_order_data(order_data))
-            
+
             return result
         except Exception as e:
             log_error_with_context(e, {"operation": "get_orders", "symbol": symbol})
             return []
-    
-    async def close_position(self, position_id: str, volume: Optional[float] = None) -> Dict[str, Any]:
+
+    async def close_position(
+        self, position_id: str, volume: Optional[float] = None
+    ) -> Dict[str, Any]:
         """Close position."""
         return await self.close_position_by_ticket(int(position_id))
-    
+
     async def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol information."""
         try:
             symbol_info = mt5.symbol_info(symbol)
             if symbol_info is None:
                 return None
-            
+
             return {
                 "symbol": symbol,
                 "base_asset": symbol[:3],  # Approximation for forex pairs
@@ -1261,19 +1352,21 @@ class MT5Executor(BaseExecutor):
                 "step_size": symbol_info.volume_step,
                 "min_price": symbol_info.point,
                 "tick_size": symbol_info.point,
-                "platform": self.platform_type.value
+                "platform": self.platform_type.value,
             }
         except Exception as e:
-            log_error_with_context(e, {"operation": "get_symbol_info", "symbol": symbol})
+            log_error_with_context(
+                e, {"operation": "get_symbol_info", "symbol": symbol}
+            )
             return None
-    
+
     async def get_ticker(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get current ticker data."""
         try:
             tick = mt5.symbol_info_tick(symbol)
             if tick is None:
                 return None
-            
+
             return {
                 "symbol": symbol,
                 "price": tick.last,
@@ -1283,13 +1376,15 @@ class MT5Executor(BaseExecutor):
                 "change_24h": 0.0,  # Not available in MT5
                 "change_percent_24h": 0.0,  # Not available in MT5
                 "timestamp": int(tick.time * 1000),
-                "platform": self.platform_type.value
+                "platform": self.platform_type.value,
             }
         except Exception as e:
             log_error_with_context(e, {"operation": "get_ticker", "symbol": symbol})
             return None
-    
-    async def get_klines(self, symbol: str, timeframe: str, limit: int = 100) -> List[Dict[str, Any]]:
+
+    async def get_klines(
+        self, symbol: str, timeframe: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         """Get historical kline data."""
         try:
             # Map timeframe string to MT5 timeframe
@@ -1300,26 +1395,28 @@ class MT5Executor(BaseExecutor):
                 "30m": mt5.TIMEFRAME_M30,
                 "1h": mt5.TIMEFRAME_H1,
                 "4h": mt5.TIMEFRAME_H4,
-                "1d": mt5.TIMEFRAME_D1
+                "1d": mt5.TIMEFRAME_D1,
             }
-            
+
             mt5_timeframe = tf_map.get(timeframe, mt5.TIMEFRAME_H1)
             rates = mt5.copy_rates_from_pos(symbol, mt5_timeframe, 0, limit)
-            
+
             if rates is None:
                 return []
-            
+
             result = []
             for rate in rates:
-                result.append({
-                    "timestamp": int(rate["time"] * 1000),
-                    "open": float(rate["open"]),
-                    "high": float(rate["high"]),
-                    "low": float(rate["low"]),
-                    "close": float(rate["close"]),
-                    "volume": float(rate["tick_volume"])
-                })
-            
+                result.append(
+                    {
+                        "timestamp": int(rate["time"] * 1000),
+                        "open": float(rate["open"]),
+                        "high": float(rate["high"]),
+                        "low": float(rate["low"]),
+                        "close": float(rate["close"]),
+                        "volume": float(rate["tick_volume"]),
+                    }
+                )
+
             return result
         except Exception as e:
             log_error_with_context(e, {"operation": "get_klines", "symbol": symbol})

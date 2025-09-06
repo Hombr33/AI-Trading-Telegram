@@ -20,9 +20,14 @@ from .audits import Audit
 
 from .symbol_mappings import SymbolMapping
 from .telegram_users import (
-    TelegramUser, UserConfiguration, PlatformConnection, 
-    SignalSubscription, ServerConfiguration, UserRole, 
-    SubscriptionStatus, PlatformType
+    TelegramUser,
+    UserConfiguration,
+    PlatformConnection,
+    SignalSubscription,
+    ServerConfiguration,
+    UserRole,
+    SubscriptionStatus,
+    PlatformType,
 )
 
 __all__ = [

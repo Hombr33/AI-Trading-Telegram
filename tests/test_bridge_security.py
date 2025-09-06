@@ -21,8 +21,7 @@ import base64
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -42,26 +41,42 @@ class BridgeSecurityTester:
             "token123",
             "password123",
             "admin123",
-            "test123"
+            "test123",
         ]
 
         # Generate cryptographically secure tokens for testing
         self.secure_tokens = {
-            'high_entropy': secrets.token_urlsafe(32),
-            'jwt_format': self.generate_jwt_token(),
-            'api_key_format': self.generate_api_key(),
-            'bearer_format': f"Bearer {secrets.token_urlsafe(32)}"
+            "high_entropy": secrets.token_urlsafe(32),
+            "jwt_format": self.generate_jwt_token(),
+            "api_key_format": self.generate_api_key(),
+            "bearer_format": f"Bearer {secrets.token_urlsafe(32)}",
         }
 
     def generate_jwt_token(self) -> str:
         """Generate a JWT-like token for testing."""
-        header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip('=')
-        payload = base64.urlsafe_b64encode(json.dumps({
-            "sub": "test_user",
-            "iat": int(datetime.now().timestamp()),
-            "exp": int((datetime.now() + timedelta(hours=1)).timestamp())
-        }).encode()).decode().rstrip('=')
-        signature = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('=')
+        header = (
+            base64.urlsafe_b64encode(
+                json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
+        payload = (
+            base64.urlsafe_b64encode(
+                json.dumps(
+                    {
+                        "sub": "test_user",
+                        "iat": int(datetime.now().timestamp()),
+                        "exp": int((datetime.now() + timedelta(hours=1)).timestamp()),
+                    }
+                ).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
+        signature = (
+            base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip("=")
+        )
         return f"{header}.{payload}.{signature}"
 
     def generate_api_key(self) -> str:
@@ -76,7 +91,7 @@ class BridgeSecurityTester:
 
             # Generate additional test tokens
             for i in range(5):
-                self.secure_tokens[f'random_{i}'] = secrets.token_urlsafe(32)
+                self.secure_tokens[f"random_{i}"] = secrets.token_urlsafe(32)
 
             logger.info("Bridge security test environment setup complete")
             return True
@@ -95,14 +110,16 @@ class BridgeSecurityTester:
             logger.error(f"Failed to cleanup test environment: {e}")
             return False
 
-    def log_test_result(self, test_name: str, success: bool, message: str = "", error: str = ""):
+    def log_test_result(
+        self, test_name: str, success: bool, message: str = "", error: str = ""
+    ):
         """Log test result."""
         result = {
             "test": test_name,
             "success": success,
             "message": message,
             "error": error,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.test_results.append(result)
@@ -134,21 +151,23 @@ class BridgeSecurityTester:
     def check_token_strength(self, token: str) -> Dict[str, Any]:
         """Check token strength properties."""
         return {
-            'length': len(token),
-            'entropy': self.calculate_token_entropy(token),
-            'has_uppercase': any(c.isupper() for c in token),
-            'has_lowercase': any(c.islower() for c in token),
-            'has_digits': any(c.isdigit() for c in token),
-            'has_special': any(not c.isalnum() for c in token),
-            'is_base64': self.is_base64_like(token),
-            'is_hex': all(c in '0123456789abcdefABCDEF' for c in token.replace('-', '')),
-            'common_patterns': self.check_common_patterns(token)
+            "length": len(token),
+            "entropy": self.calculate_token_entropy(token),
+            "has_uppercase": any(c.isupper() for c in token),
+            "has_lowercase": any(c.islower() for c in token),
+            "has_digits": any(c.isdigit() for c in token),
+            "has_special": any(not c.isalnum() for c in token),
+            "is_base64": self.is_base64_like(token),
+            "is_hex": all(
+                c in "0123456789abcdefABCDEF" for c in token.replace("-", "")
+            ),
+            "common_patterns": self.check_common_patterns(token),
         }
 
     def is_base64_like(self, token: str) -> bool:
         """Check if token looks like base64."""
         try:
-            base64.b64decode(token + '=' * (4 - len(token) % 4))
+            base64.b64decode(token + "=" * (4 - len(token) % 4))
             return True
         except:
             return False
@@ -156,8 +175,18 @@ class BridgeSecurityTester:
     def check_common_patterns(self, token: str) -> List[str]:
         """Check for common weak patterns."""
         weak_patterns = [
-            'password', '123456', 'token', 'test', 'admin', 'user',
-            'key', 'secret', 'api', 'auth', 'bearer', 'jwt'
+            "password",
+            "123456",
+            "token",
+            "test",
+            "admin",
+            "user",
+            "key",
+            "secret",
+            "api",
+            "auth",
+            "bearer",
+            "jwt",
         ]
 
         found_patterns = []
@@ -190,31 +219,47 @@ class BridgeSecurityTester:
                 logger.info(f"  Common patterns: {strength['common_patterns']}")
 
                 # Validate strength requirements
-                if strength['length'] < 32:
-                    self.log_test_result(test_name, False, f"Token '{token_name}' too short")
+                if strength["length"] < 32:
+                    self.log_test_result(
+                        test_name, False, f"Token '{token_name}' too short"
+                    )
                     return False
 
-                if strength['entropy'] < 4.0:  # Minimum entropy threshold
-                    self.log_test_result(test_name, False, f"Token '{token_name}' has low entropy")
+                if strength["entropy"] < 4.0:  # Minimum entropy threshold
+                    self.log_test_result(
+                        test_name, False, f"Token '{token_name}' has low entropy"
+                    )
                     return False
 
-                if strength['common_patterns']:
-                    self.log_test_result(test_name, False, f"Token '{token_name}' contains weak patterns: {strength['common_patterns']}")
+                if strength["common_patterns"]:
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"Token '{token_name}' contains weak patterns: {strength['common_patterns']}",
+                    )
                     return False
 
             # Test invalid tokens
             for invalid_token in self.invalid_tokens:
                 strength = self.check_token_strength(invalid_token)
 
-                if strength['length'] >= 32 and strength['entropy'] >= 4.0:
-                    self.log_test_result(test_name, False, f"Weak token '{invalid_token}' passed strength check")
+                if strength["length"] >= 32 and strength["entropy"] >= 4.0:
+                    self.log_test_result(
+                        test_name,
+                        False,
+                        f"Weak token '{invalid_token}' passed strength check",
+                    )
                     return False
 
-            self.log_test_result(test_name, True, "Token strength validation working correctly")
+            self.log_test_result(
+                test_name, True, "Token strength validation working correctly"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Token strength validation test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Token strength validation test failed", str(e)
+            )
             return False
 
     async def test_authentication_headers(self) -> bool:
@@ -228,7 +273,7 @@ class BridgeSecurityTester:
                 "terminal_id": "TEST_SECURITY_001",
                 "platform": "MT5",
                 "account": "12345678",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Test valid Bearer token
@@ -237,9 +282,13 @@ class BridgeSecurityTester:
                 async with session.post(
                     f"{self.base_url}/bridge/heartbeat",
                     json=test_data,
-                    headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                    headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                 ) as response:
-                    if response.status not in [200, 401, 403]:  # 401/403 expected if token invalid
+                    if response.status not in [
+                        200,
+                        401,
+                        403,
+                    ]:  # 401/403 expected if token invalid
                         logger.debug(f"Valid Bearer token response: {response.status}")
 
             # Test different authorization formats
@@ -247,7 +296,7 @@ class BridgeSecurityTester:
                 f"Bearer {self.secure_tokens['high_entropy']}",
                 f"Token {self.secure_tokens['high_entropy']}",
                 f"API-Key {self.secure_tokens['api_key_format']}",
-                self.secure_tokens['jwt_format']
+                self.secure_tokens["jwt_format"],
             ]
 
             for auth_header in auth_formats:
@@ -256,9 +305,11 @@ class BridgeSecurityTester:
                         async with session.post(
                             f"{self.base_url}/bridge/heartbeat",
                             json=test_data,
-                            headers={'Authorization': auth_header}
+                            headers={"Authorization": auth_header},
                         ) as response:
-                            logger.debug(f"Auth format '{auth_header[:20]}...' response: {response.status}")
+                            logger.debug(
+                                f"Auth format '{auth_header[:20]}...' response: {response.status}"
+                            )
                 except Exception as e:
                     logger.debug(f"Auth format test error: {e}")
 
@@ -266,17 +317,20 @@ class BridgeSecurityTester:
             logger.info("Testing missing authorization header...")
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.base_url}/bridge/heartbeat",
-                    json=test_data
+                    f"{self.base_url}/bridge/heartbeat", json=test_data
                 ) as response:
                     if response.status == 200:
                         logger.warning("Request without authorization was accepted")
 
-            self.log_test_result(test_name, True, "Authentication header validation working")
+            self.log_test_result(
+                test_name, True, "Authentication header validation working"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Authentication headers test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Authentication headers test failed", str(e)
+            )
             return False
 
     async def test_rate_limiting(self) -> bool:
@@ -290,7 +344,7 @@ class BridgeSecurityTester:
                 "terminal_id": "TEST_RATE_LIMIT_001",
                 "platform": "MT5",
                 "account": "12345678",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Send multiple requests rapidly
@@ -303,11 +357,16 @@ class BridgeSecurityTester:
                         async with session.post(
                             f"{self.base_url}/bridge/heartbeat",
                             json=test_data,
-                            headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                            headers={
+                                "Authorization": f"Bearer {self.valid_bridge_token}"
+                            },
                         ) as response:
                             if response.status == 200:
                                 success_count += 1
-                            elif response.status in [429, 503]:  # Rate limited or service unavailable
+                            elif response.status in [
+                                429,
+                                503,
+                            ]:  # Rate limited or service unavailable
                                 rate_limited_count += 1
                             else:
                                 logger.debug(f"Request {i+1} status: {response.status}")
@@ -317,14 +376,24 @@ class BridgeSecurityTester:
                 # Small delay to avoid overwhelming
                 await asyncio.sleep(0.1)
 
-            logger.info(f"Rate limit test results: {success_count} success, {rate_limited_count} rate limited")
+            logger.info(
+                f"Rate limit test results: {success_count} success, {rate_limited_count} rate limited"
+            )
 
             # If we got rate limited, that's a good sign
             if rate_limited_count > 0:
-                self.log_test_result(test_name, True, f"Rate limiting detected ({rate_limited_count} requests blocked)")
+                self.log_test_result(
+                    test_name,
+                    True,
+                    f"Rate limiting detected ({rate_limited_count} requests blocked)",
+                )
                 return True
             else:
-                self.log_test_result(test_name, True, "No rate limiting detected (may be acceptable for test environment)")
+                self.log_test_result(
+                    test_name,
+                    True,
+                    "No rate limiting detected (may be acceptable for test environment)",
+                )
                 return True
 
         except Exception as e:
@@ -345,9 +414,9 @@ class BridgeSecurityTester:
                         f"{self.base_url}/bridge/heartbeat",
                         data="invalid json content",
                         headers={
-                            'Authorization': f'Bearer {self.valid_bridge_token}',
-                            'Content-Type': 'application/json'
-                        }
+                            "Authorization": f"Bearer {self.valid_bridge_token}",
+                            "Content-Type": "application/json",
+                        },
                     ) as response:
                         logger.debug(f"Malformed JSON response: {response.status}")
             except Exception as e:
@@ -359,7 +428,7 @@ class BridgeSecurityTester:
                 "platform": "MT5",
                 "account": "12345678",
                 "large_field": "x" * 1000000,  # 1MB of data
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             try:
@@ -367,7 +436,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=large_data,
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"Large payload response: {response.status}")
             except Exception as e:
@@ -378,7 +447,7 @@ class BridgeSecurityTester:
                 "terminal_id": "TEST_INJECTION'; DROP TABLE users; --",
                 "platform": "MT5",
                 "account": "12345678",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             try:
@@ -386,7 +455,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=sql_injection_data,
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"SQL injection test response: {response.status}")
             except Exception as e:
@@ -397,7 +466,7 @@ class BridgeSecurityTester:
                 "terminal_id": "TEST_XSS<script>alert('xss')</script>",
                 "platform": "MT5",
                 "account": "12345678",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             try:
@@ -405,7 +474,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=xss_data,
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"XSS test response: {response.status}")
             except Exception as e:
@@ -415,7 +484,9 @@ class BridgeSecurityTester:
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Input validation test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Input validation test failed", str(e)
+            )
             return False
 
     async def test_session_management(self) -> bool:
@@ -429,7 +500,7 @@ class BridgeSecurityTester:
                 "terminal_id": "TEST_SESSION_001",
                 "platform": "MT5",
                 "account": "12345678",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # Test session persistence
@@ -440,7 +511,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=test_data,
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"Session request {i+1} status: {response.status}")
                 except Exception as e:
@@ -455,7 +526,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=test_data,
-                        headers={'Authorization': f'Bearer {expired_token}'}
+                        headers={"Authorization": f"Bearer {expired_token}"},
                     ) as response:
                         logger.debug(f"Expired token response: {response.status}")
             except Exception as e:
@@ -465,7 +536,9 @@ class BridgeSecurityTester:
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Session management test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Session management test failed", str(e)
+            )
             return False
 
     def generate_expired_token(self) -> str:
@@ -486,7 +559,7 @@ class BridgeSecurityTester:
                     async with session.post(
                         "http://127.0.0.1:8000/bridge/heartbeat",  # HTTP instead of HTTPS
                         json={"test": True},
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"HTTP request response: {response.status}")
             except Exception as e:
@@ -499,7 +572,7 @@ class BridgeSecurityTester:
                 "account": "12345678",
                 "api_key": "sk-1234567890abcdef",  # Fake API key
                 "secret": "super_secret_password",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             try:
@@ -507,17 +580,21 @@ class BridgeSecurityTester:
                     async with session.post(
                         f"{self.base_url}/bridge/heartbeat",
                         json=sensitive_data,
-                        headers={'Authorization': f'Bearer {self.valid_bridge_token}'}
+                        headers={"Authorization": f"Bearer {self.valid_bridge_token}"},
                     ) as response:
                         logger.debug(f"Sensitive data response: {response.status}")
             except Exception as e:
                 logger.debug(f"Sensitive data test error: {e}")
 
-            self.log_test_result(test_name, True, "Encryption compliance tests completed")
+            self.log_test_result(
+                test_name, True, "Encryption compliance tests completed"
+            )
             return True
 
         except Exception as e:
-            self.log_test_result(test_name, False, "Encryption compliance test failed", str(e))
+            self.log_test_result(
+                test_name, False, "Encryption compliance test failed", str(e)
+            )
             return False
 
     async def run_all_tests(self) -> Dict[str, Any]:
@@ -565,14 +642,18 @@ class BridgeSecurityTester:
                     "secure_tokens_generated": len(self.secure_tokens),
                     "invalid_tokens_tested": len(self.invalid_tokens),
                     "entropy_threshold": 4.0,
-                    "min_token_length": 32
-                }
+                    "min_token_length": 32,
+                },
             }
 
             if summary["success"]:
-                logger.info(f"🔒 All security tests passed! Success rate: {success_rate:.1f}%")
+                logger.info(
+                    f"🔒 All security tests passed! Success rate: {success_rate:.1f}%"
+                )
             else:
-                logger.warning(f"⚠️ Some security tests failed. Success rate: {success_rate:.1f}%")
+                logger.warning(
+                    f"⚠️ Some security tests failed. Success rate: {success_rate:.1f}%"
+                )
             return summary
 
         finally:
@@ -582,9 +663,9 @@ class BridgeSecurityTester:
 
 def print_security_test_summary(summary: Dict[str, Any]):
     """Print security test summary."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🔒 BRIDGE SECURITY TEST RESULTS")
-    print("="*70)
+    print("=" * 70)
 
     print(f"Overall Status: {'✅ PASS' if summary['success'] else '❌ FAIL'}")
     print(".1f")
@@ -592,7 +673,7 @@ def print_security_test_summary(summary: Dict[str, Any]):
     print(f"Timestamp: {summary['timestamp']}")
 
     print("\n🛡️ Security Metrics:")
-    metrics = summary.get('security_metrics', {})
+    metrics = summary.get("security_metrics", {})
     print(f"   Secure tokens generated: {metrics.get('secure_tokens_generated', 0)}")
     print(f"   Invalid tokens tested: {metrics.get('invalid_tokens_tested', 0)}")
     print(f"   Entropy threshold: {metrics.get('entropy_threshold', 0)}")
@@ -601,18 +682,18 @@ def print_security_test_summary(summary: Dict[str, Any]):
     print("\n📋 DETAILED RESULTS:")
     print("-" * 50)
 
-    for result in summary['results']:
-        status = "✅ PASS" if result['success'] else "❌ FAIL"
+    for result in summary["results"]:
+        status = "✅ PASS" if result["success"] else "❌ FAIL"
         print(f"{status} {result['test']}")
-        if result['message']:
+        if result["message"]:
             print(f"   {result['message']}")
-        if result['error']:
+        if result["error"]:
             print(f"   Error: {result['error']}")
         print()
 
-    print("="*70)
+    print("=" * 70)
 
-    if summary['success']:
+    if summary["success"]:
         print("🔒 Bridge security is production-ready!")
         print("📝 Security recommendations:")
         print("   • Use cryptographically secure random tokens")
@@ -634,7 +715,9 @@ def print_security_test_summary(summary: Dict[str, Any]):
 async def main():
     """Main test execution function."""
     print("🔐 Starting Bridge Security Tests...")
-    print("Note: This test suite focuses on security, authentication, and access control")
+    print(
+        "Note: This test suite focuses on security, authentication, and access control"
+    )
     print("Ensure the Python app is running for full test coverage\n")
 
     # Run tests
@@ -647,7 +730,7 @@ if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     # Run async main

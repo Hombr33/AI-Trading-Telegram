@@ -8,10 +8,10 @@ from .signal_validator import SignalValidator, TradingSignal, TradingSetup
 from .openai_client_wrapper import OpenAIClientWrapper
 
 __all__ = [
-    'PromptManager',
-    'RealMarketDataProvider', 
-    'SignalValidator',
-    'OpenAIClientWrapper',
-    'TradingSignal',
-    'TradingSetup'
+    "PromptManager",
+    "RealMarketDataProvider",
+    "SignalValidator",
+    "OpenAIClientWrapper",
+    "TradingSignal",
+    "TradingSetup",
 ]

@@ -13,6 +13,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+
 async def test_complete_trading_workflow():
     """Test the complete trading workflow from signal generation to execution."""
     try:
@@ -62,8 +63,10 @@ async def test_complete_trading_workflow():
         print(f"   Generating signal for {test_symbol}...")
 
         signal = await signal_service._analyze_symbol(test_symbol)
-        if signal and signal.get('action') != 'hold':
-            print(f"   ✅ Signal generated: {signal['action']} @ {signal.get('entry_price', 'N/A')}")
+        if signal and signal.get("action") != "hold":
+            print(
+                f"   ✅ Signal generated: {signal['action']} @ {signal.get('entry_price', 'N/A')}"
+            )
             print(f"      Confidence: {signal.get('confidence', 'N/A')}%")
             print(f"      Risk Level: {signal.get('risk_level', 'N/A')}")
         else:
@@ -77,9 +80,11 @@ async def test_complete_trading_workflow():
                 "take_profit": 1.1250,  # 300 pips take profit (3:1 RR ratio)
                 "confidence": 75,
                 "risk_level": "medium",
-                "analysis": "Test signal for workflow verification with proper risk-reward ratio"
+                "analysis": "Test signal for workflow verification with proper risk-reward ratio",
             }
-            print(f"   📝 Using test signal: {signal['action']} @ {signal['entry_price']}")
+            print(
+                f"   📝 Using test signal: {signal['action']} @ {signal['entry_price']}"
+            )
 
         # Step 3: Test signal execution
         print("\n3. Testing Signal Execution...")
@@ -95,7 +100,7 @@ async def test_complete_trading_workflow():
             "entry_price": signal["entry_price"],
             "stop_loss": signal.get("stop_loss"),
             "take_profit": signal.get("take_profit"),
-            "confidence": signal.get("confidence", 75)
+            "confidence": signal.get("confidence", 75),
         }
 
         # Add signal to auto trading service
@@ -118,10 +123,12 @@ async def test_complete_trading_workflow():
         print("\n4. Testing Position Monitoring...")
 
         # Check if any positions were opened
-        if status.get('active_trades', 0) > 0:
+        if status.get("active_trades", 0) > 0:
             print(f"   ✅ Position opened for {test_symbol}")
         else:
-            print("   ℹ️ No positions opened (this is normal for paper trading without real market data)")
+            print(
+                "   ℹ️ No positions opened (this is normal for paper trading without real market data)"
+            )
 
         # Step 5: Test notification system
         print("\n5. Testing Notification System...")
@@ -130,11 +137,15 @@ async def test_complete_trading_workflow():
         test_message = f"🤖 Test notification: Signal processed for {test_symbol}"
         try:
             # Note: This will only work if Telegram credentials are valid
-            success = await telegram_bot.send_message(config.telegram.chat_id, test_message)
+            success = await telegram_bot.send_message(
+                config.telegram.chat_id, test_message
+            )
             if success:
                 print("   ✅ Test notification sent successfully")
             else:
-                print("   ⚠️ Test notification failed (may be due to invalid Telegram credentials)")
+                print(
+                    "   ⚠️ Test notification failed (may be due to invalid Telegram credentials)"
+                )
         except Exception as e:
             print(f"   ⚠️ Test notification error: {e}")
 
@@ -162,8 +173,10 @@ async def test_complete_trading_workflow():
     except Exception as e:
         print(f"❌ End-to-end workflow error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 async def test_risk_management():
     """Test risk management functionality."""
@@ -188,21 +201,27 @@ async def test_risk_management():
             "action": "buy",
             "entry_price": 1.1000,
             "stop_loss": 1.0850,  # 150 pips stop loss
-            "take_profit": 1.1300  # 300 pips take profit (2:1 RR ratio)
+            "take_profit": 1.1300,  # 300 pips take profit (2:1 RR ratio)
         }
 
         position_size = await auto_trading._calculate_position_size(test_signal)
         if position_size:
             print(f"   ✅ Position size calculated: {position_size}")
-            print(f"      Risk per trade: {config.auto_trading.risk_per_trade_percent}%")
-            print(f"      Risk amount per unit: {abs(test_signal['entry_price'] - test_signal['stop_loss'])}")
+            print(
+                f"      Risk per trade: {config.auto_trading.risk_per_trade_percent}%"
+            )
+            print(
+                f"      Risk amount per unit: {abs(test_signal['entry_price'] - test_signal['stop_loss'])}"
+            )
         else:
             print("   ⚠️ Position size calculation failed")
             return False
 
         # Test daily trade limits
         status = auto_trading.get_status()
-        print(f"   ✅ Daily trade tracking: {status['trades_today']}/{status['max_trades_per_day']}")
+        print(
+            f"   ✅ Daily trade tracking: {status['trades_today']}/{status['max_trades_per_day']}"
+        )
 
         await platform_manager.disconnect_all()
         return True
@@ -210,8 +229,10 @@ async def test_risk_management():
     except Exception as e:
         print(f"❌ Risk management test error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 async def main():
     """Run all end-to-end trading tests."""
@@ -238,6 +259,7 @@ async def main():
         except Exception as e:
             print(f"❌ {test_name} FAILED with exception: {e}")
             import traceback
+
             traceback.print_exc()
 
     print(f"\n📊 Final Results: {passed}/{total} tests passed")
@@ -257,6 +279,7 @@ async def main():
     else:
         print("\n⚠️ Some tests failed. Please review the errors above.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))

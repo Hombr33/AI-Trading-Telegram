@@ -15,15 +15,17 @@ class RiskNotifications:
 
     def __init__(self, notification_manager: NotificationManager):
         """Initialize risk notifications.
-        
+
         Args:
             notification_manager: The notification manager to use.
         """
         self.notification_manager = notification_manager
 
-    async def send_risk_alert(self, alert_type: str, message: str, data: Dict[str, Any] = None):
+    async def send_risk_alert(
+        self, alert_type: str, message: str, data: Dict[str, Any] = None
+    ):
         """Send risk alert notification.
-        
+
         Args:
             alert_type: The type of risk alert.
             message: The alert message.
@@ -47,8 +49,7 @@ class RiskNotifications:
                 title = "RISK ALERT"
 
             alert_message = (
-                f"{emoji} **{title}** {emoji}\n\n"
-                f"📝 **Message**: {message}\n\n"
+                f"{emoji} **{title}** {emoji}\n\n" f"📝 **Message**: {message}\n\n"
             )
 
             if data:
@@ -66,10 +67,10 @@ class RiskNotifications:
                 priority = NotificationPriority.MEDIUM
 
             await self.notification_manager.send_notification(
-                alert_message, 
-                notification_type="risk", 
-                priority=priority, 
-                parse_mode="Markdown"
+                alert_message,
+                notification_type="risk",
+                priority=priority,
+                parse_mode="Markdown",
             )
 
         except Exception as e:
@@ -77,7 +78,7 @@ class RiskNotifications:
 
     async def send_drawdown_alert(self, current_drawdown: float, max_allowed: float):
         """Send drawdown alert notification.
-        
+
         Args:
             current_drawdown: The current drawdown percentage.
             max_allowed: The maximum allowed drawdown percentage.
@@ -86,13 +87,13 @@ class RiskNotifications:
         data = {
             "current_drawdown": f"{current_drawdown:.2f}%",
             "max_allowed": f"{max_allowed:.2f}%",
-            "status": "WARNING" if current_drawdown < max_allowed else "CRITICAL"
+            "status": "WARNING" if current_drawdown < max_allowed else "CRITICAL",
         }
         await self.send_risk_alert("drawdown", message, data)
 
     async def send_exposure_alert(self, current_exposure: float, max_allowed: float):
         """Send exposure alert notification.
-        
+
         Args:
             current_exposure: The current exposure percentage.
             max_allowed: The maximum allowed exposure percentage.
@@ -101,13 +102,13 @@ class RiskNotifications:
         data = {
             "current_exposure": f"{current_exposure:.2f}%",
             "max_allowed": f"{max_allowed:.2f}%",
-            "status": "WARNING" if current_exposure < max_allowed else "CRITICAL"
+            "status": "WARNING" if current_exposure < max_allowed else "CRITICAL",
         }
         await self.send_risk_alert("exposure", message, data)
 
     async def send_correlation_alert(self, correlation_level: float, symbols: str):
         """Send correlation alert notification.
-        
+
         Args:
             correlation_level: The correlation level between positions.
             symbols: The symbols that are correlated.
@@ -116,13 +117,13 @@ class RiskNotifications:
         data = {
             "correlation_level": f"{correlation_level:.2f}",
             "symbols": symbols,
-            "status": "WARNING"
+            "status": "WARNING",
         }
         await self.send_risk_alert("correlation", message, data)
 
     async def send_emergency_stop_alert(self, reason: str):
         """Send emergency stop alert notification.
-        
+
         Args:
             reason: The reason for the emergency stop.
         """
@@ -130,6 +131,6 @@ class RiskNotifications:
         data = {
             "reason": reason,
             "action": "All positions closed and trading stopped",
-            "status": "CRITICAL"
+            "status": "CRITICAL",
         }
         await self.send_risk_alert("emergency", message, data)

@@ -61,7 +61,7 @@ def sample_user():
         "is_active": True,
         "created_at": "2024-01-01T00:00:00",
         "last_activity": "2024-01-01T12:00:00",
-        "subscription_expires_at": None
+        "subscription_expires_at": None,
     }
 
 
@@ -73,7 +73,7 @@ def sample_configuration():
         "max_daily_drawdown_pct": 6.0,
         "max_daily_loss_usd": 25.0,
         "max_open_positions": 10,
-        "max_daily_trades": 50
+        "max_daily_trades": 50,
     }
 
 
@@ -98,7 +98,9 @@ class TestUserManagement:
         mock_user.last_activity = datetime.fromisoformat(sample_user["last_activity"])
         mock_user.subscription_expires_at = None
 
-        mock_multi_user_service.user_manager.get_user = AsyncMock(return_value=mock_user)
+        mock_multi_user_service.user_manager.get_user = AsyncMock(
+            return_value=mock_user
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -109,7 +111,7 @@ class TestUserManagement:
             "username": "test_user",
             "first_name": "Test",
             "last_name": "User",
-            "role": "user"
+            "role": "user",
         }
 
         # Make request
@@ -136,7 +138,7 @@ class TestUserManagement:
             "username": "test_user",
             "first_name": "Test",
             "last_name": "User",
-            "role": "user"
+            "role": "user",
         }
 
         # Make request
@@ -146,10 +148,14 @@ class TestUserManagement:
         assert response.status_code == 400
         assert "Failed to create user" in response.json()["detail"]
 
-    def test_get_all_users_admin_success(self, client, mock_multi_user_service, sample_user):
+    def test_get_all_users_admin_success(
+        self, client, mock_multi_user_service, sample_user
+    ):
         """Test getting all users as admin."""
         # Setup mock
-        mock_multi_user_service.user_manager.get_all_users = AsyncMock(return_value=[sample_user])
+        mock_multi_user_service.user_manager.get_all_users = AsyncMock(
+            return_value=[sample_user]
+        )
         mock_multi_user_service.user_manager.is_admin = AsyncMock(return_value=True)
 
         # Set service
@@ -168,7 +174,9 @@ class TestUserManagement:
     def test_get_all_users_unauthorized(self, client, mock_multi_user_service):
         """Test getting all users without admin privileges."""
         # Setup mock
-        mock_multi_user_service.user_manager.get_all_users = AsyncMock(return_value=None)
+        mock_multi_user_service.user_manager.get_all_users = AsyncMock(
+            return_value=None
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -195,7 +203,9 @@ class TestUserManagement:
         mock_user.last_activity = datetime.fromisoformat(sample_user["last_activity"])
         mock_user.subscription_expires_at = None
 
-        mock_multi_user_service.user_manager.get_user = AsyncMock(return_value=mock_user)
+        mock_multi_user_service.user_manager.get_user = AsyncMock(
+            return_value=mock_user
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -231,7 +241,9 @@ class TestSubscriptionManagement:
     def test_set_user_subscription_success(self, client, mock_multi_user_service):
         """Test setting user subscription successfully."""
         # Setup mock
-        mock_multi_user_service.user_manager.set_subscription = AsyncMock(return_value=True)
+        mock_multi_user_service.user_manager.set_subscription = AsyncMock(
+            return_value=True
+        )
         mock_multi_user_service.user_manager.is_admin = AsyncMock(return_value=True)
 
         # Mock get_user for response
@@ -240,7 +252,9 @@ class TestSubscriptionManagement:
         mock_user.subscription_status.value = "active"
         mock_user.subscription_expires_at = None
 
-        mock_multi_user_service.user_manager.get_user = AsyncMock(return_value=mock_user)
+        mock_multi_user_service.user_manager.get_user = AsyncMock(
+            return_value=mock_user
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -251,13 +265,13 @@ class TestSubscriptionManagement:
             "status": "active",
             "expires_at": "2024-12-31T23:59:59",
             "plan_type": "premium",
-            "auto_renew": True
+            "auto_renew": True,
         }
 
         # Make request
         response = client.post(
             "/multi-user/users/subscription?admin_telegram_id=123456789",
-            json=subscription_data
+            json=subscription_data,
         )
 
         # Assert response
@@ -269,21 +283,20 @@ class TestSubscriptionManagement:
     def test_set_user_subscription_unauthorized(self, client, mock_multi_user_service):
         """Test setting user subscription without admin privileges."""
         # Setup mock
-        mock_multi_user_service.user_manager.set_subscription = AsyncMock(return_value=False)
+        mock_multi_user_service.user_manager.set_subscription = AsyncMock(
+            return_value=False
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
 
         # Test data
-        subscription_data = {
-            "telegram_id": 123456789,
-            "status": "active"
-        }
+        subscription_data = {"telegram_id": 123456789, "status": "active"}
 
         # Make request
         response = client.post(
             "/multi-user/users/subscription?admin_telegram_id=123456789",
-            json=subscription_data
+            json=subscription_data,
         )
 
         # Assert response
@@ -293,10 +306,14 @@ class TestSubscriptionManagement:
 class TestPlatformConnectionManagement:
     """Test platform connection management endpoints."""
 
-    def test_register_platform_connection_success(self, client, mock_multi_user_service):
+    def test_register_platform_connection_success(
+        self, client, mock_multi_user_service
+    ):
         """Test registering platform connection successfully."""
         # Setup mock
-        mock_multi_user_service.user_manager.register_platform_connection = AsyncMock(return_value=True)
+        mock_multi_user_service.user_manager.register_platform_connection = AsyncMock(
+            return_value=True
+        )
 
         # Mock get_user_platform_connections for response
         connection_data = {
@@ -306,7 +323,7 @@ class TestPlatformConnectionManagement:
             "api_key": "test_key_123",
             "server_endpoint": "mt5.server.com",
             "last_connected": "2024-01-01T12:00:00",
-            "created_at": "2024-01-01T10:00:00"
+            "created_at": "2024-01-01T10:00:00",
         }
 
         mock_multi_user_service.user_manager.get_user_platform_connections = AsyncMock(
@@ -324,11 +341,13 @@ class TestPlatformConnectionManagement:
             "api_key": "test_key_123",
             "api_secret": "test_secret_123",
             "server_endpoint": "mt5.server.com",
-            "test_connection": True
+            "test_connection": True,
         }
 
         # Make request
-        response = client.post("/multi-user/users/platform-connection", json=connection_request)
+        response = client.post(
+            "/multi-user/users/platform-connection", json=connection_request
+        )
 
         # Assert response
         assert response.status_code == 200
@@ -348,7 +367,7 @@ class TestPlatformConnectionManagement:
                 "api_key": "test_key_123",
                 "server_endpoint": "mt5.server.com",
                 "last_connected": "2024-01-01T12:00:00",
-                "created_at": "2024-01-01T10:00:00"
+                "created_at": "2024-01-01T10:00:00",
             }
         ]
 
@@ -373,12 +392,20 @@ class TestPlatformConnectionManagement:
 class TestConfigurationManagement:
     """Test configuration management endpoints."""
 
-    def test_set_user_configuration_success(self, client, mock_multi_user_service, sample_configuration):
+    def test_set_user_configuration_success(
+        self, client, mock_multi_user_service, sample_configuration
+    ):
         """Test setting user configuration successfully."""
         # Setup mock
-        mock_multi_user_service.config_manager.validate_config = AsyncMock(return_value=(True, "Valid"))
-        mock_multi_user_service.config_manager.set_user_config = AsyncMock(return_value=True)
-        mock_multi_user_service.config_manager.get_user_config = AsyncMock(return_value=sample_configuration)
+        mock_multi_user_service.config_manager.validate_config = AsyncMock(
+            return_value=(True, "Valid")
+        )
+        mock_multi_user_service.config_manager.set_user_config = AsyncMock(
+            return_value=True
+        )
+        mock_multi_user_service.config_manager.get_user_config = AsyncMock(
+            return_value=sample_configuration
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -388,7 +415,7 @@ class TestConfigurationManagement:
             "telegram_id": 123456789,
             "config_type": "risk",
             "config_data": sample_configuration,
-            "validate": True
+            "validate": True,
         }
 
         # Make request
@@ -398,18 +425,27 @@ class TestConfigurationManagement:
         assert response.status_code == 200
         data = response.json()
         assert data["config_type"] == config_data["config_type"]
-        assert data["config_data"]["risk_per_trade_pct"] == sample_configuration["risk_per_trade_pct"]
+        assert (
+            data["config_data"]["risk_per_trade_pct"]
+            == sample_configuration["risk_per_trade_pct"]
+        )
 
-    def test_get_user_configuration_success(self, client, mock_multi_user_service, sample_configuration):
+    def test_get_user_configuration_success(
+        self, client, mock_multi_user_service, sample_configuration
+    ):
         """Test getting user configuration."""
         # Setup mock
-        mock_multi_user_service.config_manager.get_user_config = AsyncMock(return_value=sample_configuration)
+        mock_multi_user_service.config_manager.get_user_config = AsyncMock(
+            return_value=sample_configuration
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
 
         # Make request
-        response = client.get("/multi-user/users/123456789/configuration?config_type=risk")
+        response = client.get(
+            "/multi-user/users/123456789/configuration?config_type=risk"
+        )
 
         # Assert response
         assert response.status_code == 200
@@ -417,7 +453,10 @@ class TestConfigurationManagement:
         assert "configurations" in data
         assert "risk" in data["configurations"]
         assert data["configurations"]["risk"]["config_type"] == "risk"
-        assert data["configurations"]["risk"]["config_data"]["risk_per_trade_pct"] == sample_configuration["risk_per_trade_pct"]
+        assert (
+            data["configurations"]["risk"]["config_data"]["risk_per_trade_pct"]
+            == sample_configuration["risk_per_trade_pct"]
+        )
 
 
 class TestSignalManagement:
@@ -435,8 +474,8 @@ class TestSignalManagement:
                 "total_users": 1,
                 "immediate": [123456789],
                 "delayed": [],
-                "batch": []
-            }
+                "batch": [],
+            },
         }
 
         mock_multi_user_service.process_signal = AsyncMock(return_value=signal_result)
@@ -454,10 +493,10 @@ class TestSignalManagement:
                     "entry_zone": [1950.00, 1960.00],
                     "sl": 1940.00,
                     "tp": [1970.00, 1980.00],
-                    "confidence": 75
+                    "confidence": 75,
                 }
             ],
-            "confidence": 75
+            "confidence": 75,
         }
 
         # Make request
@@ -473,7 +512,9 @@ class TestSignalManagement:
     def test_subscribe_to_symbol_success(self, client, mock_multi_user_service):
         """Test subscribing to symbol successfully."""
         # Setup mock
-        mock_multi_user_service.user_manager.subscribe_to_symbol = AsyncMock(return_value=True)
+        mock_multi_user_service.user_manager.subscribe_to_symbol = AsyncMock(
+            return_value=True
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -482,11 +523,13 @@ class TestSignalManagement:
         subscription_data = {
             "telegram_id": 123456789,
             "symbol": "EURUSD",
-            "min_confidence": 70
+            "min_confidence": 70,
         }
 
         # Make request
-        response = client.post("/multi-user/users/123456789/signal-subscription", json=subscription_data)
+        response = client.post(
+            "/multi-user/users/123456789/signal-subscription", json=subscription_data
+        )
 
         # Assert response
         assert response.status_code == 200
@@ -505,7 +548,7 @@ class TestTradingManagement:
         order_result = {
             "success": True,
             "order_id": "order_123",
-            "details": {"status": "submitted"}
+            "details": {"status": "submitted"},
         }
 
         mock_multi_user_service.submit_user_order = AsyncMock(return_value=order_result)
@@ -522,7 +565,7 @@ class TestTradingManagement:
             "price": 1950.00,
             "sl": 1940.00,
             "tp": 1970.00,
-            "platform": "mt5"
+            "platform": "mt5",
         }
 
         # Make request
@@ -550,20 +593,22 @@ class TestTradingManagement:
                     "stop_loss": 1940.00,
                     "take_profit": 1970.00,
                     "pnl": 50.00,
-                    "open_time": "2024-01-01T10:00:00"
+                    "open_time": "2024-01-01T10:00:00",
                 }
             ],
             "pending_orders": [],
             "risk_metrics": {
                 "total_risk": 20.00,
                 "daily_pnl": 50.00,
-                "open_positions": 1
+                "open_positions": 1,
             },
             "platform_connections": ["mt5"],
-            "timestamp": "2024-01-01T12:00:00"
+            "timestamp": "2024-01-01T12:00:00",
         }
 
-        mock_multi_user_service.get_user_trading_status = AsyncMock(return_value=trading_status)
+        mock_multi_user_service.get_user_trading_status = AsyncMock(
+            return_value=trading_status
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -582,21 +627,24 @@ class TestTradingManagement:
 class TestAdminOperations:
     """Test admin operation endpoints."""
 
-    def test_get_admin_stats_success(self, client, mock_multi_user_service, sample_user):
+    def test_get_admin_stats_success(
+        self, client, mock_multi_user_service, sample_user
+    ):
         """Test getting admin statistics successfully."""
         # Setup mock
-        mock_multi_user_service.user_manager.get_all_users = AsyncMock(return_value=[sample_user])
+        mock_multi_user_service.user_manager.get_all_users = AsyncMock(
+            return_value=[sample_user]
+        )
         mock_multi_user_service.user_manager.is_admin = AsyncMock(return_value=True)
 
         service_stats = {
             "system_health": {"status": "running", "uptime": 123456},
-            "signal_stats": {
-                "total_processed": 100,
-                "auto_trades_executed": 50
-            }
+            "signal_stats": {"total_processed": 100, "auto_trades_executed": 50},
         }
 
-        mock_multi_user_service.get_enhanced_service_stats = AsyncMock(return_value=service_stats)
+        mock_multi_user_service.get_enhanced_service_stats = AsyncMock(
+            return_value=service_stats
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -621,7 +669,9 @@ class TestAdminOperations:
         set_multi_user_service(mock_multi_user_service)
 
         # Make request
-        response = client.post("/multi-user/admin/users/123456789/promote?admin_telegram_id=123456789")
+        response = client.post(
+            "/multi-user/admin/users/123456789/promote?admin_telegram_id=123456789"
+        )
 
         # Assert response
         assert response.status_code == 200
@@ -638,16 +688,13 @@ class TestMonitoring:
         stats = {
             "service_status": "running",
             "bot_stats": {"active_users": 10},
-            "signal_stats": {
-                "total_processed": 100,
-                "auto_trades_executed": 50
-            },
+            "signal_stats": {"total_processed": 100, "auto_trades_executed": 50},
             "queue_stats": {
                 "immediate_queue_size": 0,
                 "delayed_queue_size": 0,
-                "batch_queue_size": 0
+                "batch_queue_size": 0,
             },
-            "active_tasks": 5
+            "active_tasks": 5,
         }
 
         mock_multi_user_service.get_service_stats = AsyncMock(return_value=stats)
@@ -670,7 +717,7 @@ class TestMonitoring:
         stats = {
             "service_status": "running",
             "bot_stats": {"status": "active"},
-            "uptime": "2 days, 3 hours"
+            "uptime": "2 days, 3 hours",
         }
 
         mock_multi_user_service.get_service_stats = AsyncMock(return_value=stats)
@@ -691,7 +738,9 @@ class TestMonitoring:
 class TestSecurity:
     """Test security endpoints."""
 
-    def test_check_authentication_success(self, client, mock_multi_user_service, sample_user):
+    def test_check_authentication_success(
+        self, client, mock_multi_user_service, sample_user
+    ):
         """Test authentication check successfully."""
         # Setup mock
         mock_user = Mock()
@@ -706,16 +755,15 @@ class TestSecurity:
         mock_user.last_activity = datetime.fromisoformat(sample_user["last_activity"])
         mock_user.subscription_expires_at = None
 
-        mock_multi_user_service.user_manager.get_user = AsyncMock(return_value=mock_user)
+        mock_multi_user_service.user_manager.get_user = AsyncMock(
+            return_value=mock_user
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
 
         # Test data
-        auth_data = {
-            "telegram_id": 123456789,
-            "token": "test_token"
-        }
+        auth_data = {"telegram_id": 123456789, "token": "test_token"}
 
         # Make request
         response = client.post("/multi-user/auth/check", json=auth_data)
@@ -726,7 +774,9 @@ class TestSecurity:
         assert data["authenticated"] == True
         assert data["user"]["telegram_id"] == sample_user["telegram_id"]
 
-    def test_check_permissions_success(self, client, mock_multi_user_service, sample_user):
+    def test_check_permissions_success(
+        self, client, mock_multi_user_service, sample_user
+    ):
         """Test permission check successfully."""
         # Setup mock
         mock_user = Mock()
@@ -734,8 +784,12 @@ class TestSecurity:
         mock_user.is_active = sample_user["is_active"]
         mock_user.is_admin = False
 
-        mock_multi_user_service.user_manager.get_user = AsyncMock(return_value=mock_user)
-        mock_multi_user_service.user_manager.is_subscribed = AsyncMock(return_value=True)
+        mock_multi_user_service.user_manager.get_user = AsyncMock(
+            return_value=mock_user
+        )
+        mock_multi_user_service.user_manager.is_subscribed = AsyncMock(
+            return_value=True
+        )
 
         # Set service
         set_multi_user_service(mock_multi_user_service)
@@ -744,7 +798,7 @@ class TestSecurity:
         permission_data = {
             "telegram_id": 123456789,
             "resource": "trading",
-            "action": "execute"
+            "action": "execute",
         }
 
         # Make request

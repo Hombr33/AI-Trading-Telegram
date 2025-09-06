@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class TradingSetup(BaseModel):
     """Trading setup schema matching app-code-prompt.json signal_schema"""
+
     type: str = Field(description="SELL or BUY")
     entry_zone: List[float] = Field(description="[float_low, float_high] entry zone")
     entry_style: str = Field(description="limit, market, or stop")
@@ -20,78 +21,85 @@ class TradingSetup(BaseModel):
     tp: List[float] = Field(description="Take profit levels [tp1, tp2_optional]")
     confidence: int = Field(description="Confidence level 0-100", ge=0, le=100)
     notes: str = Field(description="Short trading notes")
-    
+
     class Config:
         extra = "forbid"
 
 
 class TradingSignal(BaseModel):
     """Complete trading signal schema matching app-code-prompt.json"""
+
     id: str = Field(description="Unique signal ID")
     symbol: str = Field(description="Trading symbol")
     bias: str = Field(description="BULLISH, BEARISH, or NEUTRAL")
     setups: List[TradingSetup] = Field(description="List of trading setups")
-    risk_per_trade_pct: float = Field(description="Risk percentage per trade", gt=0, le=10)
+    risk_per_trade_pct: float = Field(
+        description="Risk percentage per trade", gt=0, le=10
+    )
     move_to_BE_at_R1: bool = Field(description="Move to breakeven at R1")
     tp1_close_pct: float = Field(description="Percentage to close at TP1", gt=0, le=1)
-    
+
     class Config:
         extra = "forbid"
 
 
 class SignalValidator:
     """Validates trading signals against schema and business rules."""
-    
+
     def __init__(self, prompt_config: Optional[Dict[str, Any]] = None):
         """Initialize signal validator.
-        
+
         Args:
             prompt_config: Configuration from app-code-prompt.json
         """
         self.prompt_config = prompt_config or {}
         self.validation_rules = self._load_validation_rules()
-        
+
     def _load_validation_rules(self) -> Dict[str, Any]:
         """Load validation rules from prompt config."""
-        trading_sop = self.prompt_config.get('trading_SOP', {})
-        
+        trading_sop = self.prompt_config.get("trading_SOP", {})
+
         return {
-            'min_confidence': 60,
-            'max_confidence': 100,
-            'min_rr_ratio': trading_sop.get('entry_rules', {}).get('rr_min', 1.5),
-            'max_risk_per_trade': trading_sop.get('risk', {}).get('risk_per_trade_pct', 2.0),
-            'valid_biases': ['BULLISH', 'BEARISH', 'NEUTRAL'],
-            'valid_setup_types': ['BUY', 'SELL'],
-            'valid_entry_styles': ['limit', 'market', 'stop'],
-            'max_entry_zone_spread_pips': 50,  # Maximum spread between entry zone levels (forex majors)
-            'max_entry_zone_spread_pips_exotic': 200,  # Maximum spread for exotic pairs
-            'min_sl_distance_pips': 10,       # Minimum SL distance from entry
-            'max_sl_distance_pips': 500,      # Maximum SL distance from entry
-            'max_sl_distance_pips_exotic': 1000,  # Maximum SL distance for exotic pairs
+            "min_confidence": 60,
+            "max_confidence": 100,
+            "min_rr_ratio": trading_sop.get("entry_rules", {}).get("rr_min", 1.5),
+            "max_risk_per_trade": trading_sop.get("risk", {}).get(
+                "risk_per_trade_pct", 2.0
+            ),
+            "valid_biases": ["BULLISH", "BEARISH", "NEUTRAL"],
+            "valid_setup_types": ["BUY", "SELL"],
+            "valid_entry_styles": ["limit", "market", "stop"],
+            "max_entry_zone_spread_pips": 50,  # Maximum spread between entry zone levels (forex majors)
+            "max_entry_zone_spread_pips_exotic": 200,  # Maximum spread for exotic pairs
+            "min_sl_distance_pips": 10,  # Minimum SL distance from entry
+            "max_sl_distance_pips": 500,  # Maximum SL distance from entry
+            "max_sl_distance_pips_exotic": 1000,  # Maximum SL distance for exotic pairs
         }
-    
-    def validate_signal(self, signal_data: Union[Dict[str, Any], str]) -> tuple[Optional[TradingSignal], List[str]]:
+
+    def validate_signal(
+        self, signal_data: Union[Dict[str, Any], str]
+    ) -> tuple[Optional[TradingSignal], List[str]]:
         """Validate a trading signal.
-        
+
         Args:
             signal_data: Signal data as dict or JSON string
-            
+
         Returns:
             Tuple of (validated_signal, validation_errors)
         """
         # Store symbol for symbol-specific validation
         if isinstance(signal_data, dict):
-            self._current_symbol = signal_data.get('symbol', 'UNKNOWN')
+            self._current_symbol = signal_data.get("symbol", "UNKNOWN")
         elif isinstance(signal_data, str):
             try:
                 temp_data = json.loads(signal_data)
-                self._current_symbol = temp_data.get('symbol', 'UNKNOWN')
+                self._current_symbol = temp_data.get("symbol", "UNKNOWN")
             except:
-                self._current_symbol = 'UNKNOWN'
+                self._current_symbol = "UNKNOWN"
         else:
-            self._current_symbol = 'UNKNOWN'
+            self._current_symbol = "UNKNOWN"
         errors = []
-        
+
         # Parse JSON if string
         if isinstance(signal_data, str):
             try:
@@ -99,85 +107,99 @@ class SignalValidator:
             except json.JSONDecodeError as e:
                 errors.append(f"Invalid JSON format: {e}")
                 return None, errors
-        
+
         # Basic schema validation
         try:
             validated_signal = TradingSignal(**signal_data)
         except ValidationError as e:
             for error in e.errors():
-                field = " -> ".join(str(x) for x in error['loc'])
+                field = " -> ".join(str(x) for x in error["loc"])
                 errors.append(f"Schema error in {field}: {error['msg']}")
             return None, errors
-        
+
         # Business rule validation
         business_errors = self._validate_business_rules(validated_signal)
         errors.extend(business_errors)
-        
+
         if errors:
             return None, errors
-        
+
         logger.info(f"Signal validation successful for {validated_signal.symbol}")
         return validated_signal, []
-    
+
     def _validate_business_rules(self, signal: TradingSignal) -> List[str]:
         """Validate business rules for a signal.
-        
+
         Args:
             signal: Validated signal object
-            
+
         Returns:
             List of business rule validation errors
         """
         errors = []
-        
+
         # Validate bias
-        if signal.bias not in self.validation_rules['valid_biases']:
-            errors.append(f"Invalid bias: {signal.bias}. Must be one of {self.validation_rules['valid_biases']}")
-        
+        if signal.bias not in self.validation_rules["valid_biases"]:
+            errors.append(
+                f"Invalid bias: {signal.bias}. Must be one of {self.validation_rules['valid_biases']}"
+            )
+
         # Validate risk per trade
-        if signal.risk_per_trade_pct > self.validation_rules['max_risk_per_trade']:
-            errors.append(f"Risk per trade {signal.risk_per_trade_pct}% exceeds maximum {self.validation_rules['max_risk_per_trade']}%")
-        
+        if signal.risk_per_trade_pct > self.validation_rules["max_risk_per_trade"]:
+            errors.append(
+                f"Risk per trade {signal.risk_per_trade_pct}% exceeds maximum {self.validation_rules['max_risk_per_trade']}%"
+            )
+
         # Validate TP1 close percentage
         if not (0 < signal.tp1_close_pct <= 1):
-            errors.append(f"TP1 close percentage must be between 0 and 1, got {signal.tp1_close_pct}")
-        
+            errors.append(
+                f"TP1 close percentage must be between 0 and 1, got {signal.tp1_close_pct}"
+            )
+
         # Validate each setup
         for i, setup in enumerate(signal.setups):
             setup_errors = self._validate_setup(setup, i)
             errors.extend(setup_errors)
-        
+
         # Validate signal consistency
         consistency_errors = self._validate_signal_consistency(signal)
         errors.extend(consistency_errors)
-        
+
         return errors
-    
+
     def _validate_setup(self, setup: TradingSetup, setup_index: int) -> List[str]:
         """Validate a single trading setup.
-        
+
         Args:
             setup: Trading setup to validate
             setup_index: Index of setup in signal
-            
+
         Returns:
             List of validation errors for this setup
         """
         errors = []
         prefix = f"Setup {setup_index + 1}: "
-        
+
         # Validate setup type
-        if setup.type not in self.validation_rules['valid_setup_types']:
-            errors.append(f"{prefix}Invalid type: {setup.type}. Must be one of {self.validation_rules['valid_setup_types']}")
-        
+        if setup.type not in self.validation_rules["valid_setup_types"]:
+            errors.append(
+                f"{prefix}Invalid type: {setup.type}. Must be one of {self.validation_rules['valid_setup_types']}"
+            )
+
         # Validate entry style
-        if setup.entry_style not in self.validation_rules['valid_entry_styles']:
+        if setup.entry_style not in self.validation_rules["valid_entry_styles"]:
             errors.append(f"{prefix}Invalid entry style: {setup.entry_style}")
-        
+
         # Validate confidence
-        if not (self.validation_rules['min_confidence'] <= setup.confidence <= self.validation_rules['max_confidence']):
-            errors.append(f"{prefix}Confidence {setup.confidence}% outside valid range {self.validation_rules['min_confidence']}-{self.validation_rules['max_confidence']}%")
-        
+        if not (
+            self.validation_rules["min_confidence"]
+            <= setup.confidence
+            <= self.validation_rules["max_confidence"]
+        ):
+            errors.append(
+                f"{prefix}Confidence {setup.confidence}% outside valid range {self.validation_rules['min_confidence']}-{self.validation_rules['max_confidence']}%"
+            )
+
         # Validate entry zone
         if len(setup.entry_zone) != 2:
             errors.append(f"{prefix}Entry zone must have exactly 2 values [low, high]")
@@ -188,7 +210,7 @@ class SignalValidator:
             entry_spread = self._calculate_entry_spread(setup.entry_zone)
             if entry_spread is not None:
                 errors.append(entry_spread)
-        
+
         # Validate stop loss
         if setup.sl <= 0:
             errors.append(f"{prefix}Stop loss must be positive")
@@ -197,7 +219,7 @@ class SignalValidator:
             sl_distance_error = self._validate_sl_distance(setup)
             if sl_distance_error:
                 errors.append(sl_distance_error)
-        
+
         # Validate take profit
         if not setup.tp or len(setup.tp) < 1:
             errors.append(f"{prefix}Take profit must have at least one level")
@@ -205,21 +227,23 @@ class SignalValidator:
             for tp_level in setup.tp:
                 if tp_level <= 0:
                     errors.append(f"{prefix}Take profit level must be positive")
-        
+
         # Validate risk-reward ratio
         rr_ratio = self._calculate_risk_reward_ratio(setup)
-        if rr_ratio and rr_ratio < self.validation_rules['min_rr_ratio']:
-            errors.append(f"{prefix}Risk-reward ratio {rr_ratio:.2f} below minimum {self.validation_rules['min_rr_ratio']}")
-        
+        if rr_ratio and rr_ratio < self.validation_rules["min_rr_ratio"]:
+            errors.append(
+                f"{prefix}Risk-reward ratio {rr_ratio:.2f} below minimum {self.validation_rules['min_rr_ratio']}"
+            )
+
         return errors
-    
+
     def _calculate_entry_spread(self, entry_zone: List[float]) -> Optional[str]:
         """Calculate and validate entry zone spread based on symbol type."""
         if not entry_zone or len(entry_zone) != 2:
             return None
-        
+
         spread = abs(entry_zone[1] - entry_zone[0])
-        
+
         # Check if this is a crypto symbol
         if self._is_crypto_symbol():
             # For crypto, use points (1 point = $1 for BTCUSDT)
@@ -231,30 +255,30 @@ class SignalValidator:
             is_exotic = self._is_exotic_forex()
             if is_exotic:
                 entry_spread_pips = spread * 1000  # 3-decimal for exotics
-                max_spread = self.validation_rules['max_entry_zone_spread_pips_exotic']
+                max_spread = self.validation_rules["max_entry_zone_spread_pips_exotic"]
             else:
                 entry_spread_pips = spread * 10000  # 4-decimal for majors
-                max_spread = self.validation_rules['max_entry_zone_spread_pips']
-            
+                max_spread = self.validation_rules["max_entry_zone_spread_pips"]
+
             if entry_spread_pips > max_spread:
                 return f"Entry zone spread {entry_spread_pips:.1f} pips exceeds maximum {max_spread} pips for {'exotic' if is_exotic else 'major'} pair"
-        
+
         return None
-    
+
     def _validate_sl_distance(self, setup: TradingSetup) -> Optional[str]:
         """Validate stop loss distance based on symbol type."""
         if not setup.entry_zone or len(setup.entry_zone) != 2:
             return None
-        
+
         entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
         sl_distance = abs(setup.sl - entry_mid)
-        
+
         # Check if this is a crypto symbol
         if self._is_crypto_symbol():
             # For crypto, use points (1 point = $1 for BTCUSDT)
-            min_sl_points = 100   # $100 min SL distance for crypto
+            min_sl_points = 100  # $100 min SL distance for crypto
             max_sl_points = 5000  # $5000 max SL distance for crypto
-            
+
             if sl_distance < min_sl_points:
                 return f"SL distance {sl_distance:.1f} points below minimum {min_sl_points} points for crypto"
             elif sl_distance > max_sl_points:
@@ -264,74 +288,90 @@ class SignalValidator:
             is_exotic = self._is_exotic_forex()
             if is_exotic:
                 sl_distance_pips = sl_distance * 1000  # 3-decimal for exotics
-                max_sl_distance = self.validation_rules['max_sl_distance_pips_exotic']
+                max_sl_distance = self.validation_rules["max_sl_distance_pips_exotic"]
             else:
                 sl_distance_pips = sl_distance * 10000  # 4-decimal for majors
-                max_sl_distance = self.validation_rules['max_sl_distance_pips']
-            
-            if sl_distance_pips < self.validation_rules['min_sl_distance_pips']:
+                max_sl_distance = self.validation_rules["max_sl_distance_pips"]
+
+            if sl_distance_pips < self.validation_rules["min_sl_distance_pips"]:
                 return f"SL distance {sl_distance_pips:.1f} pips below minimum {self.validation_rules['min_sl_distance_pips']} pips"
             elif sl_distance_pips > max_sl_distance:
                 return f"SL distance {sl_distance_pips:.1f} pips exceeds maximum {max_sl_distance} pips for {'exotic' if is_exotic else 'major'} pair"
-        
+
         return None
-    
+
     def _is_crypto_symbol(self) -> bool:
         """Check if the current symbol is a cryptocurrency."""
-        if not hasattr(self, '_current_symbol'):
+        if not hasattr(self, "_current_symbol"):
             return False
-        
-        crypto_indicators = ['BTC', 'ETH', 'ADA', 'DOT', 'LINK', 'LTC', 'BCH', 'XRP', 'USDT', 'USDC']
+
+        crypto_indicators = [
+            "BTC",
+            "ETH",
+            "ADA",
+            "DOT",
+            "LINK",
+            "LTC",
+            "BCH",
+            "XRP",
+            "USDT",
+            "USDC",
+        ]
         return any(indicator in self._current_symbol for indicator in crypto_indicators)
-    
+
     def _is_exotic_forex(self) -> bool:
         """Check if the current symbol is an exotic forex pair."""
-        if not hasattr(self, '_current_symbol'):
+        if not hasattr(self, "_current_symbol"):
             return False
-        
+
         # Exotic pairs typically involve emerging market currencies
-        exotic_indicators = ['TRY', 'ZAR', 'MXN', 'BRL', 'RUB', 'INR', 'CNY']
+        exotic_indicators = ["TRY", "ZAR", "MXN", "BRL", "RUB", "INR", "CNY"]
         return any(indicator in self._current_symbol for indicator in exotic_indicators)
-    
+
     def _calculate_risk_reward_ratio(self, setup: TradingSetup) -> Optional[float]:
         """Calculate and validate risk-reward ratio."""
-        if not setup.entry_zone or len(setup.entry_zone) != 2 or not setup.tp or len(setup.tp) < 1:
+        if (
+            not setup.entry_zone
+            or len(setup.entry_zone) != 2
+            or not setup.tp
+            or len(setup.tp) < 1
+        ):
             return None
-        
+
         entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
         sl_distance = abs(setup.sl - entry_mid)
         tp1_distance = abs(setup.tp[0] - entry_mid)
-        
+
         if sl_distance > 0:
             rr_ratio = tp1_distance / sl_distance
             return rr_ratio
-        
+
         return None
-    
+
     def _validate_signal_consistency(self, signal: TradingSignal) -> List[str]:
         """Validate signal consistency across setups.
-        
+
         Args:
             signal: Complete trading signal
-            
+
         Returns:
             List of consistency validation errors
         """
         errors = []
-        
+
         if not signal.setups:
             errors.append("Signal must have at least one setup")
             return errors
-        
+
         # Check bias consistency with setup types
         bullish_setups = sum(1 for setup in signal.setups if setup.type == "BUY")
         bearish_setups = sum(1 for setup in signal.setups if setup.type == "SELL")
-        
+
         if signal.bias == "BULLISH" and bearish_setups > bullish_setups:
             errors.append("BULLISH bias inconsistent with majority SELL setups")
         elif signal.bias == "BEARISH" and bullish_setups > bearish_setups:
             errors.append("BEARISH bias inconsistent with majority BUY setups")
-        
+
         # Check for duplicate setups
         setup_signatures = []
         for i, setup in enumerate(signal.setups):
@@ -339,15 +379,17 @@ class SignalValidator:
             if signature in setup_signatures:
                 errors.append(f"Setup {i+1} appears to be duplicate of previous setup")
             setup_signatures.append(signature)
-        
+
         return errors
-    
-    def validate_signal_json(self, json_string: str) -> tuple[Optional[TradingSignal], List[str]]:
+
+    def validate_signal_json(
+        self, json_string: str
+    ) -> tuple[Optional[TradingSignal], List[str]]:
         """Validate signal from JSON string.
-        
+
         Args:
             json_string: JSON string containing signal data
-            
+
         Returns:
             Tuple of (validated_signal, validation_errors)
         """
@@ -356,36 +398,40 @@ class SignalValidator:
             return self.validate_signal(signal_data)
         except json.JSONDecodeError as e:
             return None, [f"Invalid JSON: {e}"]
-    
+
     def get_validation_summary(self, signal: TradingSignal) -> Dict[str, Any]:
         """Get validation summary for a signal.
-        
+
         Args:
             signal: Validated trading signal
-            
+
         Returns:
             Validation summary dictionary
         """
         summary = {
-            'signal_id': signal.id,
-            'symbol': signal.symbol,
-            'bias': signal.bias,
-            'setup_count': len(signal.setups),
-            'avg_confidence': sum(setup.confidence for setup in signal.setups) / len(signal.setups) if signal.setups else 0,
-            'risk_per_trade_pct': signal.risk_per_trade_pct,
-            'has_multiple_tp': any(len(setup.tp) > 1 for setup in signal.setups),
-            'risk_reward_ratios': []
+            "signal_id": signal.id,
+            "symbol": signal.symbol,
+            "bias": signal.bias,
+            "setup_count": len(signal.setups),
+            "avg_confidence": (
+                sum(setup.confidence for setup in signal.setups) / len(signal.setups)
+                if signal.setups
+                else 0
+            ),
+            "risk_per_trade_pct": signal.risk_per_trade_pct,
+            "has_multiple_tp": any(len(setup.tp) > 1 for setup in signal.setups),
+            "risk_reward_ratios": [],
         }
-        
+
         # Calculate RR ratios for each setup
         for setup in signal.setups:
             if len(setup.entry_zone) == 2 and setup.tp:
                 entry_mid = (setup.entry_zone[0] + setup.entry_zone[1]) / 2
                 sl_distance = abs(setup.sl - entry_mid)
                 tp1_distance = abs(setup.tp[0] - entry_mid)
-                
+
                 if sl_distance > 0:
                     rr_ratio = tp1_distance / sl_distance
-                    summary['risk_reward_ratios'].append(round(rr_ratio, 2))
-        
+                    summary["risk_reward_ratios"].append(round(rr_ratio, 2))
+
         return summary

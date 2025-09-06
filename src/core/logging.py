@@ -2,7 +2,6 @@
 Logging configuration using loguru and rich for better output formatting.
 """
 
-
 import sys
 import os
 from pathlib import Path
@@ -18,9 +17,11 @@ from rich.text import Text
 # Colorama for Windows color support detection
 try:
     import colorama
+
     colorama.init()
 except ImportError:
     colorama = None
+
 
 def terminal_supports_color() -> bool:
     """Check if the terminal supports color output."""
@@ -29,6 +30,7 @@ def terminal_supports_color() -> bool:
         return colorama is not None and sys.stdout.isatty()
     # Other: check if stdout is a tty
     return sys.stdout.isatty()
+
 
 # Install rich traceback handler
 install_rich_traceback()
@@ -130,7 +132,9 @@ def setup_logging(
             existing_levels = logger._core.min_levels
             if level_config["name"] not in existing_levels:
                 logger.level(
-                    level_config["name"], level_config["no"], color=level_config["color"]
+                    level_config["name"],
+                    level_config["no"],
+                    color=level_config["color"],
                 )
         except (ValueError, AttributeError):
             # Level already exists or logger not properly initialized, skip

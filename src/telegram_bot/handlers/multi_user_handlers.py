@@ -30,7 +30,9 @@ class MultiUserHandlers:
         self.ea_bridge = EABridge()
         self.signal_distributor = SignalDistributor()
 
-    async def search_users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def search_users_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle /search_users command - search for users by various criteria."""
         telegram_id = update.effective_user.id
 
@@ -47,12 +49,14 @@ class MultiUserHandlers:
             "• First name\n"
             "• Email (if available)\n\n"
             "Example: @username or 123456789",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_USER_SEARCH
 
-    async def handle_user_search(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_user_search(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle user search input."""
         admin_telegram_id = update.effective_user.id
         search_query = update.message.text.strip()
@@ -70,27 +74,29 @@ class MultiUserHandlers:
 
         for user in users:
             # Search by telegram ID
-            if search_query.isdigit() and str(user['telegram_id']) == search_query:
+            if search_query.isdigit() and str(user["telegram_id"]) == search_query:
                 found_users.append(user)
                 continue
 
             # Search by username
-            if user['username'] and search_lower in user['username'].lower():
+            if user["username"] and search_lower in user["username"].lower():
                 found_users.append(user)
                 continue
 
             # Search by first name
-            if user['first_name'] and search_lower in user['first_name'].lower():
+            if user["first_name"] and search_lower in user["first_name"].lower():
                 found_users.append(user)
                 continue
 
             # Search by last name
-            if user['last_name'] and search_lower in user['last_name'].lower():
+            if user["last_name"] and search_lower in user["last_name"].lower():
                 found_users.append(user)
                 continue
 
         if not found_users:
-            await update.message.reply_text(f"❌ No users found matching: {search_query}")
+            await update.message.reply_text(
+                f"❌ No users found matching: {search_query}"
+            )
             return ConversationHandler.END
 
         # Display found users
@@ -98,16 +104,16 @@ class MultiUserHandlers:
         message += f"Found {len(found_users)} user(s):\n\n"
 
         for i, user in enumerate(found_users[:10], 1):  # Limit to 10 results
-            status_emoji = {
-                "active": "🟢",
-                "expired": "🔴",
-                "suspended": "🟡"
-            }.get(user['subscription_status'], "⚪")
+            status_emoji = {"active": "🟢", "expired": "🔴", "suspended": "🟡"}.get(
+                user["subscription_status"], "⚪"
+            )
 
-            role_emoji = "👑" if user['role'] == "admin" else "👤"
+            role_emoji = "👑" if user["role"] == "admin" else "👤"
 
             message += f"{i}. {role_emoji} {user['first_name'] or 'N/A'} {user['last_name'] or ''}\n"
-            message += f"   @{user['username'] or 'N/A'} (ID: `{user['telegram_id']}`)\n"
+            message += (
+                f"   @{user['username'] or 'N/A'} (ID: `{user['telegram_id']}`)\n"
+            )
             message += f"   {status_emoji} {user['subscription_status'].title()}\n"
             message += f"   📅 {user['created_at'].strftime('%Y-%m-%d')}\n\n"
 
@@ -117,21 +123,35 @@ class MultiUserHandlers:
         # Add action buttons for found users
         keyboard = []
         if len(found_users) == 1:
-            user_id = found_users[0]['telegram_id']
+            user_id = found_users[0]["telegram_id"]
             keyboard = [
-                [InlineKeyboardButton("👤 View Details", callback_data=f"user_details_{user_id}")],
-                [InlineKeyboardButton("⚙️ Manage User", callback_data=f"manage_user_{user_id}")],
-                [InlineKeyboardButton("🔄 New Search", callback_data="new_search")]
+                [
+                    InlineKeyboardButton(
+                        "👤 View Details", callback_data=f"user_details_{user_id}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "⚙️ Manage User", callback_data=f"manage_user_{user_id}"
+                    )
+                ],
+                [InlineKeyboardButton("🔄 New Search", callback_data="new_search")],
             ]
         else:
-            keyboard = [[InlineKeyboardButton("🔄 New Search", callback_data="new_search")]]
+            keyboard = [
+                [InlineKeyboardButton("🔄 New Search", callback_data="new_search")]
+            ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
         return ConversationHandler.END
 
-    async def bulk_operations_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def bulk_operations_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /bulk_ops command - perform bulk operations on users."""
         telegram_id = update.effective_user.id
 
@@ -140,11 +160,19 @@ class MultiUserHandlers:
             return
 
         keyboard = [
-            [InlineKeyboardButton("📧 Bulk Notifications", callback_data="bulk_notify")],
-            [InlineKeyboardButton("💎 Bulk Subscriptions", callback_data="bulk_subscribe")],
+            [
+                InlineKeyboardButton(
+                    "📧 Bulk Notifications", callback_data="bulk_notify"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "💎 Bulk Subscriptions", callback_data="bulk_subscribe"
+                )
+            ],
             [InlineKeyboardButton("📊 Export User Data", callback_data="bulk_export")],
             [InlineKeyboardButton("🧹 Bulk Cleanup", callback_data="bulk_cleanup")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="bulk_cancel")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="bulk_cancel")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -152,10 +180,12 @@ class MultiUserHandlers:
             "📦 **Bulk Operations**\n\n"
             "Select the type of bulk operation you want to perform:",
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
-    async def user_isolation_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def user_isolation_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /isolate_user command - isolate a user for security."""
         telegram_id = update.effective_user.id
 
@@ -171,13 +201,15 @@ class MultiUserHandlers:
             "• Disable all platform connections\n"
             "• Block trading operations\n"
             "• Preserve user data for investigation",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
-        context.user_data['isolation_mode'] = True
+        context.user_data["isolation_mode"] = True
         return WAITING_USER_SEARCH
 
-    async def user_details_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def user_details_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /user_details command - show detailed user information."""
         telegram_id = update.effective_user.id
 
@@ -186,7 +218,9 @@ class MultiUserHandlers:
             return
 
         if not context.args:
-            await update.message.reply_text("❌ Please provide a Telegram user ID.\n\nUsage: /user_details <telegram_id>")
+            await update.message.reply_text(
+                "❌ Please provide a Telegram user ID.\n\nUsage: /user_details <telegram_id>"
+            )
             return
 
         try:
@@ -202,9 +236,15 @@ class MultiUserHandlers:
             return
 
         # Get additional user data
-        connections = await self.user_manager.get_user_platform_connections(target_telegram_id)
-        subscriptions = await self.user_manager.get_user_subscriptions(target_telegram_id)
-        user_configs = await self.config_manager.get_all_user_configs(target_telegram_id)
+        connections = await self.user_manager.get_user_platform_connections(
+            target_telegram_id
+        )
+        subscriptions = await self.user_manager.get_user_subscriptions(
+            target_telegram_id
+        )
+        user_configs = await self.config_manager.get_all_user_configs(
+            target_telegram_id
+        )
 
         message = f"👤 **Detailed User Information**\n\n"
         message += f"**Basic Info:**\n"
@@ -226,9 +266,11 @@ class MultiUserHandlers:
         if connections:
             message += f"**Platform Connections ({len(connections)}):**\n"
             for conn in connections:
-                platform_emoji = "📊" if conn['platform_type'] == 'mt5' else "🏦"
-                status_emoji = "🟢" if conn['last_connected'] else "🔴"
-                message += f"• {platform_emoji} {conn['connection_name']} ({status_emoji})\n"
+                platform_emoji = "📊" if conn["platform_type"] == "mt5" else "🏦"
+                status_emoji = "🟢" if conn["last_connected"] else "🔴"
+                message += (
+                    f"• {platform_emoji} {conn['connection_name']} ({status_emoji})\n"
+                )
             message += "\n"
 
         if subscriptions:
@@ -244,16 +286,38 @@ class MultiUserHandlers:
 
         # Add action buttons
         keyboard = [
-            [InlineKeyboardButton("⚙️ Edit User", callback_data=f"edit_user_{target_telegram_id}")],
-            [InlineKeyboardButton("📊 View Performance", callback_data=f"user_performance_{target_telegram_id}")],
-            [InlineKeyboardButton("🚫 Isolate User", callback_data=f"isolate_user_{target_telegram_id}")],
-            [InlineKeyboardButton("🔄 Refresh", callback_data=f"refresh_user_{target_telegram_id}")]
+            [
+                InlineKeyboardButton(
+                    "⚙️ Edit User", callback_data=f"edit_user_{target_telegram_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📊 View Performance",
+                    callback_data=f"user_performance_{target_telegram_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🚫 Isolate User",
+                    callback_data=f"isolate_user_{target_telegram_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔄 Refresh", callback_data=f"refresh_user_{target_telegram_id}"
+                )
+            ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
-    async def system_monitor_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def system_monitor_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /system_monitor command - show system-wide monitoring."""
         telegram_id = update.effective_user.id
 
@@ -270,14 +334,20 @@ class MultiUserHandlers:
 
         # Calculate statistics
         total_users = len(users)
-        active_users = sum(1 for u in users if u['subscription_status'] == 'active')
-        admin_users = sum(1 for u in users if u['role'] == 'admin')
-        expired_users = sum(1 for u in users if u['subscription_status'] == 'expired')
-        suspended_users = sum(1 for u in users if u['subscription_status'] == 'suspended')
+        active_users = sum(1 for u in users if u["subscription_status"] == "active")
+        admin_users = sum(1 for u in users if u["role"] == "admin")
+        expired_users = sum(1 for u in users if u["subscription_status"] == "expired")
+        suspended_users = sum(
+            1 for u in users if u["subscription_status"] == "suspended"
+        )
 
         # Recent activity (last 24 hours)
-        recent_activity = sum(1 for u in users if u['last_activity'] and
-                            (datetime.utcnow() - u['last_activity']) < timedelta(hours=24))
+        recent_activity = sum(
+            1
+            for u in users
+            if u["last_activity"]
+            and (datetime.utcnow() - u["last_activity"]) < timedelta(hours=24)
+        )
 
         message = "📊 **System Monitor**\n\n"
         message += f"**User Statistics:**\n"
@@ -301,12 +371,18 @@ class MultiUserHandlers:
         message += f"• System logs: /logs"
 
         # Add refresh button
-        keyboard = [[InlineKeyboardButton("🔄 Refresh", callback_data="refresh_monitor")]]
+        keyboard = [
+            [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_monitor")]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
-    async def handle_multi_user_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def handle_multi_user_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle multi-user callback queries."""
         query = update.callback_query
         await query.answer()
@@ -338,7 +414,7 @@ class MultiUserHandlers:
                 f"• Add admin: /add_admin {user_id}\n"
                 f"• View details: /user_details {user_id}\n"
                 f"• Isolate user: /isolate_user {user_id}",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "bulk_notify":
@@ -351,7 +427,7 @@ class MultiUserHandlers:
                 "• Send to specific user groups\n"
                 "• Send maintenance notifications\n"
                 "• Send feature update notifications",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "bulk_subscribe":
@@ -364,7 +440,7 @@ class MultiUserHandlers:
                 "• Extend subscription periods\n"
                 "• Apply promotional subscriptions\n"
                 "• Bulk subscription expiry",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "bulk_export":
@@ -377,7 +453,7 @@ class MultiUserHandlers:
                 "• Subscription analytics\n"
                 "• Platform connection data\n"
                 "• Performance metrics",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "bulk_cleanup":
@@ -390,7 +466,7 @@ class MultiUserHandlers:
                 "• Clean expired subscriptions\n"
                 "• Remove orphaned connections\n"
                 "• Archive old data",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data == "bulk_cancel":
@@ -410,7 +486,7 @@ class MultiUserHandlers:
                 "• Update user info: Contact support\n"
                 "• Manage connections: View user details\n\n"
                 "Use the specific commands to make changes.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data.startswith("user_performance_"):
@@ -424,7 +500,7 @@ class MultiUserHandlers:
                 "• Risk metrics\n"
                 "• Performance charts\n"
                 "• Historical data",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data.startswith("isolate_user_"):
@@ -438,7 +514,7 @@ class MultiUserHandlers:
                 "• Block trading operations\n"
                 "• Preserve data for investigation\n\n"
                 "Use /set_subscription to suspend the user instead.",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
         elif data.startswith("refresh_user_"):
@@ -447,7 +523,9 @@ class MultiUserHandlers:
             context.args = [str(user_id)]
             await self.user_details_command(update, context)
 
-    async def cancel_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def cancel_conversation(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Cancel current conversation."""
         await update.message.reply_text("❌ Operation cancelled.")
         return ConversationHandler.END

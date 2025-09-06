@@ -22,13 +22,13 @@ logger = get_logger(__name__)
 
 class TradingBot(BaseTelegramBot):
     """Trading bot implementation for Telegram."""
-    
-    _instance: Optional['TradingBot'] = None
+
+    _instance: Optional["TradingBot"] = None
     _initialized: bool = False
 
     def __init__(self, config: TelegramConfig):
         """Initialize the trading bot.
-        
+
         Args:
             config: Telegram bot configuration.
         """
@@ -36,26 +36,26 @@ class TradingBot(BaseTelegramBot):
         self.notification_manager: Optional[NotificationManager] = None
         self.command_handlers = {}
         self.callback_handlers = {}
-        
+
         # Set as singleton instance
         TradingBot._instance = self
-    
+
     @classmethod
-    def get_instance(cls) -> Optional['TradingBot']:
+    def get_instance(cls) -> Optional["TradingBot"]:
         """Get the singleton instance of TradingBot.
-        
+
         Returns:
             The TradingBot instance if it exists, None otherwise.
         """
         return cls._instance
-    
+
     @classmethod
-    def create_instance(cls, config: TelegramConfig) -> 'TradingBot':
+    def create_instance(cls, config: TelegramConfig) -> "TradingBot":
         """Create or get the singleton instance of TradingBot.
-        
+
         Args:
             config: Telegram bot configuration.
-            
+
         Returns:
             The TradingBot instance.
         """
@@ -71,34 +71,35 @@ class TradingBot(BaseTelegramBot):
 
         # Setup notification manager
         self.notification_manager = NotificationManager(self.config)
-        
+
         # Import handlers here to avoid circular imports
         from ..handlers.command_handler import setup_command_handlers
         from ..handlers.callback_handler import setup_callback_handler
         from ..handlers.message_handler import setup_message_handler
         from ..handlers.error_handler import setup_error_handler
-        
+
         # Register command handlers
         command_handlers = setup_command_handlers(self.notification_manager)
         for command, handler in command_handlers.items():
             self.application.add_handler(TGCommandHandler(command, handler))
             self.command_handlers[command] = handler
-        
+
         # Register callback query handler
         callback_handler = setup_callback_handler(self.notification_manager)
         self.application.add_handler(CallbackQueryHandler(callback_handler))
-        
+
         # Register message handler
         message_handler = setup_message_handler(self.notification_manager)
         from telegram.ext import MessageHandler
+
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler)
         )
-        
+
         # Register error handler
         error_handler = setup_error_handler()
         self.application.add_error_handler(error_handler)
-        
+
         logger.info("Trading bot setup completed")
         return True
 
@@ -112,11 +113,11 @@ class TradingBot(BaseTelegramBot):
 
     async def send_notification(self, message: str, notification_type: str = "info"):
         """Send a notification to all users.
-        
+
         Args:
             message: The message to send.
             notification_type: The type of notification.
-            
+
         Returns:
             bool: True if the notification was sent successfully, False otherwise.
         """

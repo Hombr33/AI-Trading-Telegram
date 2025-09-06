@@ -14,11 +14,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         message_text = update.message.text
         logger.info(f"Message received: {message_text}")
-        
+
         # Import command handlers
         from ..commands.handler import CommandHandler
+
         command_handler = CommandHandler()
-        
+
         # Map reply keyboard buttons to commands
         button_map = {
             "📊 Status": command_handler.system_handler.status_command,
@@ -41,9 +42,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📊 System Status": command_handler.system_handler.status_command,
             "🖥️ Resource Monitor": command_handler.system_handler.monitor_command,
             "⚙️ Bot Settings": command_handler.system_handler.settings_command,
-            "🔙 Main Menu": command_handler.system_handler.start_command
+            "🔙 Main Menu": command_handler.system_handler.start_command,
         }
-        
+
         # Execute mapped command if button press detected
         if message_text in button_map:
             await button_map[message_text](update, context)
@@ -54,9 +55,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"You said: *{message_text}*\n\n"
                 "🎮 Use the keyboard buttons below for quick actions,\n"
                 "or type /help to see all commands!",
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
-        
+
     except Exception as e:
         logger.error(f"Error handling message: {e}")
 

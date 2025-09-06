@@ -12,13 +12,14 @@ from ..core.logging import (
     log_error_with_context,
     log_system_event,
     log_trade_event,
-    log_operation_timing
+    log_operation_timing,
 )
 from ..core.error_handler import with_error_handling, ErrorContext
 from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.workflow import Component, ComponentStatus
 from ..core.config import TradingConfig
 from ..common.interfaces import IPositionManager
+
 # MT5Executor will be injected via platform manager
 from ..models.positions import Position
 from ..models.trades import Trade
@@ -28,14 +29,18 @@ logger = get_logger(__name__)
 
 class PositionManager(IPositionManager):
     """Manages position monitoring and management.
-    
+
     Implements the IPositionManager interface to provide standardized position management
     functionality across different trading platforms.
     """
 
     def __init__(self, platform_manager, config: TradingConfig):
         # Get MT5 executor from platform manager
-        self.mt5_executor = platform_manager.platforms.get('mt5') if hasattr(platform_manager, 'platforms') else None
+        self.mt5_executor = (
+            platform_manager.platforms.get("mt5")
+            if hasattr(platform_manager, "platforms")
+            else None
+        )
         self.config = config
         self.active_positions: Dict[int, Position] = {}
         self.position_history: List[Position] = []
@@ -51,49 +56,61 @@ class PositionManager(IPositionManager):
 
         # Start monitoring loop as a background task
         self.monitoring_task = asyncio.create_task(self._monitoring_loop())
-        
-        log_system_event("position_manager", "started", "Position manager started successfully")
+
+        log_system_event(
+            "position_manager", "started", "Position manager started successfully"
+        )
 
     async def _monitoring_loop(self):
         """Enhanced monitoring loop with error recovery."""
         while self.running:
             try:
                 start_time = time.time()
-                
+
                 # Update positions with timeout
-                async with ErrorContext("position_update", {"sync_failures": self.sync_failures}) as ctx:
+                async with ErrorContext(
+                    "position_update", {"sync_failures": self.sync_failures}
+                ) as ctx:
                     await asyncio.wait_for(self._update_positions(), timeout=30.0)
                     self.sync_failures = 0  # Reset on success
                     self.last_sync_time = time.time()
-                
+
                 # Check risk limits
                 async with ErrorContext("risk_check") as ctx:
                     await self._check_risk_limits()
-                
+
                 # Log performance
                 loop_time = time.time() - start_time
                 log_operation_timing("position_manager_loop", start_time, time.time())
-                
+
                 await asyncio.sleep(5)  # Check every 5 seconds
-                
+
             except asyncio.TimeoutError:
                 self.sync_failures += 1
-                logger.warning(f"Position sync timeout (failures: {self.sync_failures})")
-                
+                logger.warning(
+                    f"Position sync timeout (failures: {self.sync_failures})"
+                )
+
                 if self.sync_failures >= self.max_sync_failures:
-                    log_system_event("position_manager", "sync_failure_limit",
-                                   "Maximum sync failures reached, restarting MT5 connection")
+                    log_system_event(
+                        "position_manager",
+                        "sync_failure_limit",
+                        "Maximum sync failures reached, restarting MT5 connection",
+                    )
                     # Could trigger MT5 reconnection here
                     self.sync_failures = 0
-                
+
                 await asyncio.sleep(10)  # Wait longer on timeout
-                
+
             except Exception as e:
-                log_error_with_context(e, {
-                    "component": "position_manager",
-                    "operation": "monitoring_loop",
-                    "sync_failures": self.sync_failures
-                })
+                log_error_with_context(
+                    e,
+                    {
+                        "component": "position_manager",
+                        "operation": "monitoring_loop",
+                        "sync_failures": self.sync_failures,
+                    },
+                )
                 await asyncio.sleep(10)  # Wait longer on error
 
     async def stop(self):
@@ -105,13 +122,16 @@ class PositionManager(IPositionManager):
         """Update position information from MT5."""
         try:
             # Check if MT5 executor is available and connected
-            if not self.mt5_executor or not hasattr(self.mt5_executor, 'get_positions'):
+            if not self.mt5_executor or not hasattr(self.mt5_executor, "get_positions"):
                 return  # Silently skip if executor not available
-                
+
             # Additional safety check for connection
-            if hasattr(self.mt5_executor, 'connected') and not self.mt5_executor.connected:
+            if (
+                hasattr(self.mt5_executor, "connected")
+                and not self.mt5_executor.connected
+            ):
                 return  # Skip if not connected
-                
+
             positions = await self.mt5_executor.get_positions()
 
             # Update existing positions

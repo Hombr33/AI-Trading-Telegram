@@ -57,7 +57,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /start command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -66,10 +66,10 @@ class SystemCommandHandler(BaseCommandHandler):
             # Get user info
             user = update.effective_user
             first_name = user.first_name or "Trader"
-            
+
             # Get system status for welcome message
             system_status = await self.system_service.get_system_status()
-            
+
             welcome_message = (
                 f"🚀 **Welcome to AI Trading Bot, {first_name}!** 🚀\n\n"
                 f"🤖 **Bot Status**: {system_status['bot_status']}\n"
@@ -92,15 +92,17 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create welcome keyboard
-            keyboard = create_keyboard([
-                [("📊 Status", "status"), ("📈 Positions", "positions")],
-                [("💰 Account", "account"), ("📋 Orders", "orders")],
-                [("📊 Performance", "performance"), ("⚠️ Risk", "risk")],
-                [("🔍 Signals", "signals"), ("⚙️ Settings", "settings")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("📊 Status", "status"), ("📈 Positions", "positions")],
+                    [("💰 Account", "account"), ("📋 Orders", "orders")],
+                    [("📊 Performance", "performance"), ("⚠️ Risk", "risk")],
+                    [("🔍 Signals", "signals"), ("⚙️ Settings", "settings")],
+                ]
+            )
 
             await self.send_message(update, context, welcome_message, keyboard)
-            
+
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             error_message = (
@@ -112,7 +114,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /help command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -145,15 +147,17 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create help keyboard
-            keyboard = create_keyboard([
-                [("📊 Status", "status"), ("📈 Positions", "positions")],
-                [("💰 Account", "account"), ("📊 Performance", "performance")],
-                [("⚠️ Risk", "risk"), ("🔍 Signals", "signals")],
-                [("⚙️ Settings", "settings"), ("🏥 Health", "health")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("📊 Status", "status"), ("📈 Positions", "positions")],
+                    [("💰 Account", "account"), ("📊 Performance", "performance")],
+                    [("⚠️ Risk", "risk"), ("🔍 Signals", "signals")],
+                    [("⚙️ Settings", "settings"), ("🏥 Health", "health")],
+                ]
+            )
 
             await self.send_message(update, context, help_message, keyboard)
-            
+
         except Exception as e:
             logger.error(f"Error in help command: {e}")
             error_message = (
@@ -165,7 +169,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /status command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -175,10 +179,10 @@ class SystemCommandHandler(BaseCommandHandler):
             system_status = await self.system_service.get_system_status()
 
             # Format the status message
-            status_emoji = "🟢" if system_status['status'] == "Online" else "🔴"
-            mt5_emoji = "🟢" if system_status['mt5_connection'] == "Connected" else "🔴"
-            ai_emoji = "🟢" if system_status['ai_analyzer'] == "Active" else "🔴"
-            risk_emoji = "🟢" if system_status['risk_manager'] == "Active" else "🔴"
+            status_emoji = "🟢" if system_status["status"] == "Online" else "🔴"
+            mt5_emoji = "🟢" if system_status["mt5_connection"] == "Connected" else "🔴"
+            ai_emoji = "🟢" if system_status["ai_analyzer"] == "Active" else "🔴"
+            risk_emoji = "🟢" if system_status["risk_manager"] == "Active" else "🔴"
 
             message = (
                 f"📊 **SYSTEM STATUS** 📊\n\n"
@@ -200,19 +204,21 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create status keyboard
-            keyboard = create_keyboard([
-                [("🔄 Refresh", "refresh_status"), ("🏥 Health", "health")],
-                [("📈 Positions", "positions"), ("📋 Orders", "orders")],
-                [("💰 Account", "account"), ("📊 Performance", "performance")],
-                [("⚙️ Settings", "settings"), ("🏠 Menu", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("🔄 Refresh", "refresh_status"), ("🏥 Health", "health")],
+                    [("📈 Positions", "positions"), ("📋 Orders", "orders")],
+                    [("💰 Account", "account"), ("📊 Performance", "performance")],
+                    [("⚙️ Settings", "settings"), ("🏠 Menu", "start")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in status command: {e}")
             error_message = (
@@ -220,10 +226,10 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"There was an issue loading system status.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_status"), ("🏥 Health", "health")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_status"), ("🏥 Health", "health")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
@@ -231,7 +237,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def health_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /health command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -245,10 +251,10 @@ class SystemCommandHandler(BaseCommandHandler):
                 "Healthy": "🟢",
                 "Warning": "🟡",
                 "Critical": "🔴",
-                "Unknown": "⚪"
+                "Unknown": "⚪",
             }
-            
-            overall_emoji = health_emoji.get(health_status['overall_health'], "⚪")
+
+            overall_emoji = health_emoji.get(health_status["overall_health"], "⚪")
 
             message = (
                 f"🏥 **SYSTEM HEALTH CHECK** 🏥\n\n"
@@ -258,34 +264,34 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Add component statuses
-            for component_name, component in health_status['components'].items():
-                severity_emoji = {
-                    "info": "🟢",
-                    "warning": "🟡",
-                    "error": "🔴"
-                }
-                emoji = severity_emoji.get(component.get('severity', 'info'), '⚪')
-                message += f"{emoji} **{component_name.title()}**: {component['status']}\n"
+            for component_name, component in health_status["components"].items():
+                severity_emoji = {"info": "🟢", "warning": "🟡", "error": "🔴"}
+                emoji = severity_emoji.get(component.get("severity", "info"), "⚪")
+                message += (
+                    f"{emoji} **{component_name.title()}**: {component['status']}\n"
+                )
 
             # Add recommendations
-            if health_status['recommendations']:
+            if health_status["recommendations"]:
                 message += f"\n**Recommendations**:\n"
-                for rec in health_status['recommendations']:
+                for rec in health_status["recommendations"]:
                     message += f"💡 {rec}\n"
 
             # Create health keyboard
-            keyboard = create_keyboard([
-                [("🔄 Refresh", "refresh_health"), ("📊 Status", "status")],
-                [("ℹ️ Info", "info"), ("⚙️ Settings", "settings")],
-                [("📈 Positions", "positions"), ("💰 Account", "account")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("🔄 Refresh", "refresh_health"), ("📊 Status", "status")],
+                    [("ℹ️ Info", "info"), ("⚙️ Settings", "settings")],
+                    [("📈 Positions", "positions"), ("💰 Account", "account")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in health command: {e}")
             error_message = (
@@ -293,10 +299,10 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"There was an issue loading health status.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_health"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_health"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
@@ -304,7 +310,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
     async def info_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /info command.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -335,18 +341,20 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create info keyboard
-            keyboard = create_keyboard([
-                [("🔄 Refresh", "refresh_info"), ("🏥 Health", "health")],
-                [("📊 Status", "status"), ("⚙️ Settings", "settings")],
-                [("📈 Positions", "positions"), ("💰 Account", "account")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("🔄 Refresh", "refresh_info"), ("🏥 Health", "health")],
+                    [("📊 Status", "status"), ("⚙️ Settings", "settings")],
+                    [("📈 Positions", "positions"), ("💰 Account", "account")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in info command: {e}")
             error_message = (
@@ -354,18 +362,20 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"There was an issue loading system information.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "refresh_info"), ("📊 Status", "status")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "refresh_info"), ("📊 Status", "status")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
 
-    async def settings_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def settings_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /settings command - Main settings menu.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -373,16 +383,16 @@ class SystemCommandHandler(BaseCommandHandler):
         try:
             telegram_id = update.effective_user.id
             config = await self.user_config_service.get_user_config(telegram_id)
-            
+
             # Get quick stats from config
             auto_trading = config.get("trading", {}).get("auto_trading", False)
             risk_per_trade = config.get("trading", {}).get("risk_per_trade_pct", 2.0)
             max_positions = config.get("trading", {}).get("max_open_positions", 5)
-            
+
             # Count active notifications
             notifications = config.get("notifications", {})
             active_notifications = sum(1 for v in notifications.values() if v)
-            
+
             message = (
                 f"⚙️ **USER SETTINGS** ⚙️\n\n"
                 f"**Current Configuration**:\n"
@@ -395,19 +405,27 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create settings keyboard
-            keyboard = create_keyboard([
-                [("🔔 Notifications", "settings_notifications"), ("📊 Trading", "settings_trading")],
-                [("⚠️ Risk Management", "settings_risk"), ("🔧 System", "settings_system")],
-                [("📈 Trading", "positions"), ("💰 Account", "account")],
-                [("🏠 Main Menu", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🔔 Notifications", "settings_notifications"),
+                        ("📊 Trading", "settings_trading"),
+                    ],
+                    [
+                        ("⚠️ Risk Management", "settings_risk"),
+                        ("🔧 System", "settings_system"),
+                    ],
+                    [("📈 Trading", "positions"), ("💰 Account", "account")],
+                    [("🏠 Main Menu", "start")],
+                ]
+            )
 
             # If this is a callback query, edit the message
             if update.callback_query:
                 await self.edit_message(update, context, message, keyboard)
             else:
                 await self.send_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in settings command: {e}")
             error_message = (
@@ -415,26 +433,28 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"There was an issue loading your settings.\n"
                 f"Please try again in a moment."
             )
-            keyboard = create_keyboard([
-                [("🔄 Retry", "settings"), ("🏠 Main Menu", "start")]
-            ])
-            
+            keyboard = create_keyboard(
+                [[("🔄 Retry", "settings"), ("🏠 Main Menu", "start")]]
+            )
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
 
-    async def settings_notifications(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def settings_notifications(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle notifications settings submenu."""
         try:
             telegram_id = update.effective_user.id
             config = await self.user_config_service.get_user_config(telegram_id)
             notifications = config.get("notifications", {})
-            
+
             # Create status indicators
             def status_icon(enabled):
                 return "✅" if enabled else "❌"
-            
+
             message = (
                 f"🔔 **NOTIFICATION SETTINGS** 🔔\n\n"
                 f"**Current Status**:\n"
@@ -448,26 +468,39 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"Click any notification type below to enable/disable it."
             )
 
-            keyboard = create_keyboard([
-                [("📈 Signals", "toggle_notification:signals"), ("📊 Positions", "toggle_notification:positions")],
-                [("📋 Orders", "toggle_notification:orders"), ("⚠️ Risk", "toggle_notification:risk")],
-                [("📊 Performance", "toggle_notification:performance"), ("🔧 System", "toggle_notification:system")],
-                [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📈 Signals", "toggle_notification:signals"),
+                        ("📊 Positions", "toggle_notification:positions"),
+                    ],
+                    [
+                        ("📋 Orders", "toggle_notification:orders"),
+                        ("⚠️ Risk", "toggle_notification:risk"),
+                    ],
+                    [
+                        ("📊 Performance", "toggle_notification:performance"),
+                        ("🔧 System", "toggle_notification:system"),
+                    ],
+                    [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
+                ]
+            )
 
             await self.edit_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in notifications settings: {e}")
             await self._handle_settings_error(update, context, "notifications")
 
-    async def settings_trading(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def settings_trading(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle trading settings submenu."""
         try:
             telegram_id = update.effective_user.id
             config = await self.user_config_service.get_user_config(telegram_id)
             trading = config.get("trading", {})
-            
+
             message = (
                 f"📊 **TRADING SETTINGS** 📊\n\n"
                 f"**Current Configuration**:\n"
@@ -480,15 +513,26 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"Select a setting to modify:"
             )
 
-            keyboard = create_keyboard([
-                [("🤖 Auto Trading", "toggle_auto_trading"), ("📈 Risk %", "edit_risk_percent")],
-                [("🎯 Max Positions", "edit_max_positions"), ("💰 Daily Loss", "edit_daily_loss")],
-                [("📋 Symbols", "manage_symbols"), ("🔄 Reset Defaults", "reset_trading")],
-                [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🤖 Auto Trading", "toggle_auto_trading"),
+                        ("📈 Risk %", "edit_risk_percent"),
+                    ],
+                    [
+                        ("🎯 Max Positions", "edit_max_positions"),
+                        ("💰 Daily Loss", "edit_daily_loss"),
+                    ],
+                    [
+                        ("📋 Symbols", "manage_symbols"),
+                        ("🔄 Reset Defaults", "reset_trading"),
+                    ],
+                    [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
+                ]
+            )
 
             await self.edit_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in trading settings: {e}")
             await self._handle_settings_error(update, context, "trading")
@@ -499,7 +543,7 @@ class SystemCommandHandler(BaseCommandHandler):
             telegram_id = update.effective_user.id
             config = await self.user_config_service.get_user_config(telegram_id)
             risk = config.get("risk", {})
-            
+
             message = (
                 f"⚠️ **RISK MANAGEMENT** ⚠️\n\n"
                 f"**Current Settings**:\n"
@@ -511,15 +555,26 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"These settings protect your account from excessive losses."
             )
 
-            keyboard = create_keyboard([
-                [("📉 Drawdown %", "edit_max_drawdown"), ("💸 Daily Loss %", "edit_daily_loss_pct")],
-                [("💼 Position Size %", "edit_position_size"), ("🛑 Stop Losses", "edit_stop_losses")],
-                [("🔄 Reset Defaults", "reset_risk"), ("📊 Risk Report", "risk_report")],
-                [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📉 Drawdown %", "edit_max_drawdown"),
+                        ("💸 Daily Loss %", "edit_daily_loss_pct"),
+                    ],
+                    [
+                        ("💼 Position Size %", "edit_position_size"),
+                        ("🛑 Stop Losses", "edit_stop_losses"),
+                    ],
+                    [
+                        ("🔄 Reset Defaults", "reset_risk"),
+                        ("📊 Risk Report", "risk_report"),
+                    ],
+                    [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
+                ]
+            )
 
             await self.edit_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in risk settings: {e}")
             await self._handle_settings_error(update, context, "risk")
@@ -530,7 +585,7 @@ class SystemCommandHandler(BaseCommandHandler):
             telegram_id = update.effective_user.id
             config = await self.user_config_service.get_user_config(telegram_id)
             system = config.get("system", {})
-            
+
             message = (
                 f"🔧 **SYSTEM SETTINGS** 🔧\n\n"
                 f"**Current Configuration**:\n"
@@ -542,83 +597,106 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"Configure how the bot operates and displays information."
             )
 
-            keyboard = create_keyboard([
-                [("🌍 Timezone", "edit_timezone"), ("⏱️ Update Rate", "edit_update_freq")],
-                [("📝 Log Level", "edit_log_level"), ("📊 Timeframe", "edit_timeframe")],
-                [("🔄 Reset Defaults", "reset_system"), ("📊 System Info", "system_info")],
-                [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🌍 Timezone", "edit_timezone"),
+                        ("⏱️ Update Rate", "edit_update_freq"),
+                    ],
+                    [
+                        ("📝 Log Level", "edit_log_level"),
+                        ("📊 Timeframe", "edit_timeframe"),
+                    ],
+                    [
+                        ("🔄 Reset Defaults", "reset_system"),
+                        ("📊 System Info", "system_info"),
+                    ],
+                    [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
+                ]
+            )
 
             await self.edit_message(update, context, message, keyboard)
-                
+
         except Exception as e:
             logger.error(f"Error in system settings: {e}")
             await self._handle_settings_error(update, context, "system")
 
-    async def toggle_notification_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def toggle_notification_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle notification toggle callbacks."""
         try:
             query = update.callback_query
             notification_type = query.data.split(":")[1]
             telegram_id = update.effective_user.id
-            
+
             # Toggle the notification
-            new_state = await self.user_config_service.toggle_notification(telegram_id, notification_type)
-            
+            new_state = await self.user_config_service.toggle_notification(
+                telegram_id, notification_type
+            )
+
             # Show confirmation
             state_text = "enabled" if new_state else "disabled"
-            await query.answer(f"✅ {notification_type.title()} notifications {state_text}")
-            
+            await query.answer(
+                f"✅ {notification_type.title()} notifications {state_text}"
+            )
+
             # Refresh the notifications settings page
             await self.settings_notifications(update, context)
-            
+
         except Exception as e:
             logger.error(f"Error toggling notification: {e}")
             await update.callback_query.answer("❌ Error updating notification setting")
 
-    async def _handle_settings_error(self, update: Update, context: ContextTypes.DEFAULT_TYPE, section: str):
+    async def _handle_settings_error(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE, section: str
+    ):
         """Handle settings errors."""
         error_message = (
             f"❌ **Error Loading {section.title()} Settings**\n\n"
             f"There was an issue loading your {section} settings.\n"
             f"Please try again in a moment."
         )
-        keyboard = create_keyboard([
-            [("🔄 Retry", f"settings_{section}"), ("⬅️ Back", "back_to_settings")]
-        ])
-        
+        keyboard = create_keyboard(
+            [[("🔄 Retry", f"settings_{section}"), ("⬅️ Back", "back_to_settings")]]
+        )
+
         await self.edit_message(update, context, error_message, keyboard)
 
-    async def toggle_auto_trading_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def toggle_auto_trading_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle auto trading toggle callback."""
         try:
             telegram_id = update.effective_user.id
-            
+
             # Get current config
             config = await self.user_config_service.get_user_config(telegram_id)
             current_state = config.get("trading", {}).get("auto_trading", False)
             new_state = not current_state
-            
+
             # Update the setting
             success = await self.user_config_service.update_user_config(
                 telegram_id, "trading", "auto_trading", new_state
             )
-            
+
             if success:
                 state_text = "enabled" if new_state else "disabled"
                 await update.callback_query.answer(f"✅ Auto trading {state_text}")
                 # Refresh the trading settings page
                 await self.settings_trading(update, context)
             else:
-                await update.callback_query.answer("❌ Error updating auto trading setting")
-            
+                await update.callback_query.answer(
+                    "❌ Error updating auto trading setting"
+                )
+
         except Exception as e:
             logger.error(f"Error toggling auto trading: {e}")
             await update.callback_query.answer("❌ Error updating auto trading setting")
 
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle errors in command processing.
-        
+
         Args:
             update: The update object.
             context: The context object.
@@ -633,13 +711,15 @@ class SystemCommandHandler(BaseCommandHandler):
             )
 
             # Create error keyboard
-            keyboard = create_keyboard([
-                [("🔄 Retry", "start"), ("📊 Status", "status")],
-                [("❓ Help", "help"), ("🏠 Menu", "start")]
-            ])
+            keyboard = create_keyboard(
+                [
+                    [("🔄 Retry", "start"), ("📊 Status", "status")],
+                    [("❓ Help", "help"), ("🏠 Menu", "start")],
+                ]
+            )
 
             await self.send_message(update, context, error_message, keyboard)
-            
+
         except Exception as e:
             logger.error(f"Error in error handler: {e}")
             # Fallback error message
