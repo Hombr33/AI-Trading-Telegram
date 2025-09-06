@@ -12,7 +12,9 @@ from src.analysis.openai_analyzer import OpenAIAnalyzer
 from src.common.interfaces import IAnalyzer, IPlatformManager, ISignalGenerationService
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event
-from src.telegram_bot.notifications.trading import send_signal_notification
+
+# Lazy import to avoid circular dependencies
+# from src.telegram_bot.notifications.trading import send_signal_notification
 
 logger = get_logger(__name__)
 
@@ -1082,6 +1084,9 @@ class SignalGenerationService(ISignalGenerationService):
     async def _send_signal_notification(self, signal: Dict[str, Any]):
         """Send signal notification via Telegram."""
         try:
+            # Lazy import to avoid circular dependencies
+            from src.telegram_bot.notifications.trading import send_signal_notification
+
             await send_signal_notification(signal)
         except Exception as e:
             logger.error(f"Error sending signal notification: {e}")

@@ -9,8 +9,9 @@ from typing import Any, Dict, List, Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...bridge.ea_bridge import EABridge
-from ...bridge.signal_distributor import SignalDistributor
+# Lazy imports to avoid circular dependencies
+# from ...bridge.ea_bridge import EABridge
+# from ...bridge.signal_distributor import SignalDistributor
 from ...core.logging import get_logger
 from ...models.telegram_users import PlatformType, SubscriptionStatus, TelegramUser
 from ...services.config_manager import ConfigManager
@@ -28,8 +29,33 @@ class MultiUserHandlers:
     def __init__(self):
         self.user_manager = UserManager()
         self.config_manager = ConfigManager()
-        self.ea_bridge = EABridge()
-        self.signal_distributor = SignalDistributor()
+        # Lazy initialization to avoid circular imports
+        self._ea_bridge = None
+        self._signal_distributor = None
+
+    def _get_ea_bridge(self):
+        """Get EABridge with lazy initialization."""
+        if self._ea_bridge is None:
+            try:
+                from ...bridge.ea_bridge import EABridge
+
+                self._ea_bridge = EABridge()
+            except ImportError:
+                logger.warning("EABridge not available due to import issues")
+                self._ea_bridge = None
+        return self._ea_bridge
+
+    def _get_signal_distributor(self):
+        """Get SignalDistributor with lazy initialization."""
+        if self._signal_distributor is None:
+            try:
+                from ...bridge.signal_distributor import SignalDistributor
+
+                self._signal_distributor = SignalDistributor()
+            except ImportError:
+                logger.warning("SignalDistributor not available due to import issues")
+                self._signal_distributor = None
+        return self._signal_distributor
 
     async def search_users_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
