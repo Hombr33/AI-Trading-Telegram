@@ -41,9 +41,9 @@ class CommandHandler:
         self.symbol_handler = SymbolCommandHandler()
 
         # Initialize callback router
-        from ..handlers.callback_handler import CallbackRouter
+        from ..handlers.callback_handler import callback_router
 
-        self.callback_router = CallbackRouter()
+        self.callback_router = callback_router
 
         # Combine commands from all handlers
         self.commands = {}
