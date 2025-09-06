@@ -1005,6 +1005,181 @@ No trading history found.
 
             await query.edit_message_text(message, parse_mode="Markdown")
 
+        # Handle settings value callbacks
+        elif data.startswith("set_risk:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "risk_per_trade_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Risk per trade set to {value}%")
+            else:
+                await query.answer("❌ Error updating risk setting")
+
+        elif data.startswith("set_max_pos:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "max_open_positions", value
+            )
+            if success:
+                await query.answer(f"✅ Max positions set to {value}")
+            else:
+                await query.answer("❌ Error updating max positions")
+
+        elif data.startswith("set_daily_loss:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "max_daily_loss_usd", value
+            )
+            if success:
+                await query.answer(f"✅ Daily loss limit set to ${value}")
+            else:
+                await query.answer("❌ Error updating daily loss limit")
+
+        elif data.startswith("set_drawdown:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_drawdown_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Max drawdown set to {value}%")
+            else:
+                await query.answer("❌ Error updating drawdown setting")
+
+        elif data.startswith("set_daily_loss_pct:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_daily_loss_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Daily loss % set to {value}%")
+            else:
+                await query.answer("❌ Error updating daily loss %")
+
+        elif data.startswith("set_position_size:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_position_size_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Position size set to {value}%")
+            else:
+                await query.answer("❌ Error updating position size")
+
+        elif data.startswith("set_stop_losses:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "stop_on_consecutive_losses", value
+            )
+            if success:
+                await query.answer(f"✅ Stop after losses set to {value}")
+            else:
+                await query.answer("❌ Error updating stop losses setting")
+
+        elif data.startswith("set_timezone:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "timezone", value
+            )
+            if success:
+                await query.answer(f"✅ Timezone set to {value}")
+            else:
+                await query.answer("❌ Error updating timezone")
+
+        elif data.startswith("set_update_freq:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "update_frequency_seconds", value
+            )
+            if success:
+                await query.answer(f"✅ Update frequency set to {value}s")
+            else:
+                await query.answer("❌ Error updating update frequency")
+
+        elif data.startswith("set_log_level:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "log_level", value
+            )
+            if success:
+                await query.answer(f"✅ Log level set to {value}")
+            else:
+                await query.answer("❌ Error updating log level")
+
+        elif data.startswith("set_timeframe:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "preferred_timeframe", value
+            )
+            if success:
+                await query.answer(f"✅ Timeframe set to {value}")
+            else:
+                await query.answer("❌ Error updating timeframe")
+
+        elif data.startswith("update_interval:"):
+            parts = data.split(":")
+            interval_type = parts[1]
+            value = int(parts[2])
+
+            if interval_type == "performance":
+                success = await self.config_manager.update_user_config(
+                    telegram_id,
+                    "notification_intervals",
+                    f"{interval_type}_hours",
+                    value,
+                )
+            else:
+                success = await self.config_manager.update_user_config(
+                    telegram_id,
+                    "notification_intervals",
+                    f"{interval_type}_minutes",
+                    value,
+                )
+
+            if success:
+                unit = "hours" if interval_type == "performance" else "minutes"
+                await query.answer(
+                    f"✅ {interval_type.title()} interval set to {value} {unit}"
+                )
+            else:
+                await query.answer(f"❌ Error updating {interval_type} interval")
+
+        elif data.startswith("add_pair:"):
+            symbol = data.split(":")[1]
+            # Get current allowed symbols
+            config = await self.config_manager.get_user_config(telegram_id, "trading")
+            allowed_symbols = config.get("allowed_symbols", [])
+
+            if symbol not in allowed_symbols:
+                allowed_symbols.append(symbol)
+                success = await self.config_manager.update_user_config(
+                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                )
+                if success:
+                    await query.answer(f"✅ Added {symbol} to trading pairs")
+                else:
+                    await query.answer("❌ Error adding trading pair")
+            else:
+                await query.answer(f"❌ {symbol} already in trading pairs")
+
+        elif data.startswith("remove_pair:"):
+            symbol = data.split(":")[1]
+            # Get current allowed symbols
+            config = await self.config_manager.get_user_config(telegram_id, "trading")
+            allowed_symbols = config.get("allowed_symbols", [])
+
+            if symbol in allowed_symbols:
+                allowed_symbols.remove(symbol)
+                success = await self.config_manager.update_user_config(
+                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                )
+                if success:
+                    await query.answer(f"✅ Removed {symbol} from trading pairs")
+                else:
+                    await query.answer("❌ Error removing trading pair")
+            else:
+                await query.answer(f"❌ {symbol} not in trading pairs")
+
     async def cancel_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:

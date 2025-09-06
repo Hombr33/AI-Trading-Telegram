@@ -10,6 +10,7 @@ from src.services.symbol_service import SymbolService
 
 from ..handlers.admin_commands import AdminCommandHandlers
 from ..handlers.multi_user_handlers import MultiUserHandlers
+from .admin_global_settings import AdminGlobalSettingsHandler
 from .analysis import AnalysisCommandHandler
 from .auto_trading import AutoTradingCommandHandler
 from .symbol import SymbolCommandHandler
@@ -30,6 +31,7 @@ class CommandHandler:
         self.analysis_handler = AnalysisCommandHandler()
         self.auto_trading_handler = AutoTradingCommandHandler()
         self.admin_handler = AdminCommandHandlers()
+        self.admin_global_handler = AdminGlobalSettingsHandler()
         self.multi_user_handler = MultiUserHandlers()
 
         # Initialize symbol handler with service
@@ -62,6 +64,9 @@ class CommandHandler:
             "restart": self.admin_handler.restart_command,
             "logs": self.admin_handler.logs_command,
             "close_all": self.admin_handler.close_all_command,
+            "admin_global": self.admin_global_handler.admin_global_command,
+            "global_pairs": self.admin_global_handler.global_pairs_command,
+            "global_intervals": self.admin_global_handler.global_intervals_command,
         }
 
         # Add multi-user commands

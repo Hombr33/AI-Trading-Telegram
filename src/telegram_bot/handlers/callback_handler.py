@@ -34,9 +34,11 @@ class CallbackRouter:
         self.trading_callbacks = TradingCallbackHandler(trading_handler)
 
         # Initialize admin callback handler
+        from ..commands.admin_global_settings import AdminGlobalSettingsHandler
         from .admin_commands import AdminCommandHandlers
 
         self.admin_callbacks = AdminCommandHandlers()
+        self.admin_global_callbacks = AdminGlobalSettingsHandler()
 
         # Initialize multi-user callback handler
         from .multi_user_handlers import MultiUserHandlers
@@ -105,6 +107,24 @@ class CallbackRouter:
             "cancel_restart",
             "confirm_close_all",
             "cancel_close_all",
+            # Admin global settings callbacks
+            "admin_global",
+            "global_pairs",
+            "global_intervals",
+            "set_global_pairs",
+            "set_global_intervals",
+            "add_global_pair",
+            "remove_global_pair",
+            "reset_global_pairs",
+            "set_global_interval",
+            "reset_global_intervals",
+            "add_global_forex",
+            "add_global_crypto",
+            "view_global_pairs",
+            "update_global_interval",
+            "custom_global_interval",
+            "global_system",
+            "global_stats",
         }
 
         # Multi-user callback keys
@@ -141,6 +161,62 @@ class CallbackRouter:
             "crypto_bybit",
             "crypto_kucoin",
             "crypto_cancel",
+            # Trading settings callbacks
+            "manage_symbols",
+            "edit_risk_percent",
+            "edit_max_positions",
+            "edit_daily_loss",
+            "reset_trading",
+            "edit_max_drawdown",
+            "edit_daily_loss_pct",
+            "edit_position_size",
+            "edit_stop_losses",
+            "reset_risk",
+            "risk_report",
+            "edit_timezone",
+            "edit_update_freq",
+            "edit_log_level",
+            "edit_timeframe",
+            "reset_system",
+            "system_info",
+            "notification_intervals",
+            "set_interval",
+            "trading_pairs",
+            "add_trading_pair",
+            "remove_trading_pair",
+            # Value setting callbacks
+            "set_risk",
+            "set_max_pos",
+            "set_daily_loss",
+            "set_drawdown",
+            "set_daily_loss_pct",
+            "set_position_size",
+            "set_stop_losses",
+            "set_timezone",
+            "set_update_freq",
+            "set_log_level",
+            "set_timeframe",
+            "update_interval",
+            "add_pair",
+            "remove_pair",
+            "add_popular_forex",
+            "add_popular_crypto",
+            "reset_trading_pairs",
+            "view_all_pairs",
+            "reset_symbols",
+            "view_all_symbols",
+            "reset_intervals",
+            "custom_risk",
+            "custom_max_pos",
+            "custom_daily_loss",
+            "custom_drawdown",
+            "custom_daily_loss_pct",
+            "custom_position_size",
+            "custom_stop_losses",
+            "custom_timezone",
+            "custom_update_freq",
+            "custom_interval",
+            "custom_add_pair",
         }
 
         self.trading_callback_keys = {
@@ -196,12 +272,35 @@ class CallbackRouter:
                 await self.multi_user_callbacks.handle_multi_user_callback(
                     update, context
                 )
+            # Handle admin global callbacks with pattern matching
+            elif (
+                callback_data.startswith("add_global_")
+                or callback_data.startswith("remove_global_")
+                or callback_data.startswith("update_global_")
+                or callback_data.startswith("custom_global_")
+            ):
+                await self.admin_callbacks.handle_admin_callback(update, context)
+            # Handle settings value callbacks with pattern matching
+            elif (
+                callback_data.startswith("set_")
+                or callback_data.startswith("update_")
+                or callback_data.startswith("add_")
+                or callback_data.startswith("remove_")
+                or callback_data.startswith("custom_")
+            ):
+                await self.user_callbacks.handle_user_callback(update, context)
             elif callback_data in self.system_callback_keys:
                 await self.system_callbacks.handle_callback(update, context)
             elif callback_data in self.trading_callback_keys:
                 await self.trading_callbacks.handle_callback(update, context)
             elif callback_data in self.admin_callback_keys:
-                await self.admin_callbacks.handle_admin_callback(update, context)
+                # Route to appropriate admin handler
+                if callback_data.startswith("global_") or callback_data.startswith(
+                    "admin_global"
+                ):
+                    await self.admin_global_callbacks.handle_callback(update, context)
+                else:
+                    await self.admin_callbacks.handle_admin_callback(update, context)
             elif callback_data in self.multi_user_callback_keys:
                 await self.multi_user_callbacks.handle_multi_user_callback(
                     update, context

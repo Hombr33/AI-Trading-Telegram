@@ -53,6 +53,28 @@ class SystemCommandHandler(BaseCommandHandler):
             "toggle_notification": self.toggle_notification_callback,
             "toggle_auto_trading": self.toggle_auto_trading_callback,
             "back_to_settings": self.settings_command,
+            "manage_symbols": self.manage_symbols_callback,
+            "edit_risk_percent": self.edit_risk_percent_callback,
+            "edit_max_positions": self.edit_max_positions_callback,
+            "edit_daily_loss": self.edit_daily_loss_callback,
+            "reset_trading": self.reset_trading_callback,
+            "edit_max_drawdown": self.edit_max_drawdown_callback,
+            "edit_daily_loss_pct": self.edit_daily_loss_pct_callback,
+            "edit_position_size": self.edit_position_size_callback,
+            "edit_stop_losses": self.edit_stop_losses_callback,
+            "reset_risk": self.reset_risk_callback,
+            "risk_report": self.risk_report_callback,
+            "edit_timezone": self.edit_timezone_callback,
+            "edit_update_freq": self.edit_update_freq_callback,
+            "edit_log_level": self.edit_log_level_callback,
+            "edit_timeframe": self.edit_timeframe_callback,
+            "reset_system": self.reset_system_callback,
+            "system_info": self.info_command,
+            "notification_intervals": self.notification_intervals_callback,
+            "set_interval": self.set_interval_callback,
+            "trading_pairs": self.trading_pairs_callback,
+            "add_trading_pair": self.add_trading_pair_callback,
+            "remove_trading_pair": self.remove_trading_pair_callback,
         }
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -415,6 +437,10 @@ class SystemCommandHandler(BaseCommandHandler):
                         ("⚠️ Risk Management", "settings_risk"),
                         ("🔧 System", "settings_system"),
                     ],
+                    [
+                        ("⏰ Intervals", "notification_intervals"),
+                        ("📋 Trading Pairs", "trading_pairs"),
+                    ],
                     [("📈 Trading", "positions"), ("💰 Account", "account")],
                     [("🏠 Main Menu", "start")],
                 ]
@@ -729,3 +755,886 @@ class SystemCommandHandler(BaseCommandHandler):
                 "Please contact support immediately."
             )
             await self.send_message(update, context, fallback_message)
+
+    # Trading Settings Callbacks
+    async def manage_symbols_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle manage symbols callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            message = (
+                f"📋 **MANAGE TRADING SYMBOLS** 📋\n\n"
+                f"**Current Allowed Symbols**:\n"
+            )
+
+            if allowed_symbols:
+                for symbol in allowed_symbols:
+                    message += f"• {symbol}\n"
+            else:
+                message += "• No symbols configured\n"
+
+            message += f"\n**Total**: {len(allowed_symbols)} symbols\n\n"
+            message += "**Available Actions**:\n"
+            message += "• Add new trading pairs\n"
+            message += "• Remove existing pairs\n"
+            message += "• Reset to default pairs"
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("➕ Add Symbol", "add_trading_pair"),
+                        ("➖ Remove Symbol", "remove_trading_pair"),
+                    ],
+                    [
+                        ("🔄 Reset Defaults", "reset_symbols"),
+                        ("📋 View All", "view_all_symbols"),
+                    ],
+                    [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in manage_symbols_callback: {e}")
+            await self._handle_settings_error(update, context, "symbols")
+
+    async def edit_risk_percent_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit risk percent callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_risk = config.get("trading", {}).get("risk_per_trade_pct", 2.0)
+
+            message = (
+                f"📈 **EDIT RISK PER TRADE** 📈\n\n"
+                f"**Current Risk**: {current_risk}%\n\n"
+                f"**Select New Risk Level**:\n"
+                f"Choose a risk percentage for each trade."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("0.5%", "set_risk:0.5"),
+                        ("1.0%", "set_risk:1.0"),
+                        ("1.5%", "set_risk:1.5"),
+                    ],
+                    [
+                        ("2.0%", "set_risk:2.0"),
+                        ("2.5%", "set_risk:2.5"),
+                        ("3.0%", "set_risk:3.0"),
+                    ],
+                    [("Custom", "custom_risk"), ("⬅️ Back", "settings_trading")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_risk_percent_callback: {e}")
+            await self._handle_settings_error(update, context, "risk")
+
+    async def edit_max_positions_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit max positions callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_max = config.get("trading", {}).get("max_open_positions", 5)
+
+            message = (
+                f"🎯 **EDIT MAX POSITIONS** 🎯\n\n"
+                f"**Current Max**: {current_max} positions\n\n"
+                f"**Select New Maximum**:\n"
+                f"Choose maximum number of open positions."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("1", "set_max_pos:1"),
+                        ("2", "set_max_pos:2"),
+                        ("3", "set_max_pos:3"),
+                    ],
+                    [
+                        ("5", "set_max_pos:5"),
+                        ("10", "set_max_pos:10"),
+                        ("15", "set_max_pos:15"),
+                    ],
+                    [("Custom", "custom_max_pos"), ("⬅️ Back", "settings_trading")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_max_positions_callback: {e}")
+            await self._handle_settings_error(update, context, "positions")
+
+    async def edit_daily_loss_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit daily loss callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_loss = config.get("trading", {}).get("max_daily_loss_usd", 25.0)
+
+            message = (
+                f"💰 **EDIT DAILY LOSS LIMIT** 💰\n\n"
+                f"**Current Limit**: ${current_loss}\n\n"
+                f"**Select New Limit**:\n"
+                f"Choose maximum daily loss in USD."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("$10", "set_daily_loss:10"),
+                        ("$25", "set_daily_loss:25"),
+                        ("$50", "set_daily_loss:50"),
+                    ],
+                    [
+                        ("$100", "set_daily_loss:100"),
+                        ("$200", "set_daily_loss:200"),
+                        ("$500", "set_daily_loss:500"),
+                    ],
+                    [("Custom", "custom_daily_loss"), ("⬅️ Back", "settings_trading")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_daily_loss_callback: {e}")
+            await self._handle_settings_error(update, context, "daily_loss")
+
+    async def reset_trading_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reset trading settings callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Reset to default trading settings
+            default_trading = {
+                "auto_trading": False,
+                "risk_per_trade_pct": 2.0,
+                "max_open_positions": 5,
+                "max_daily_loss_usd": 25.0,
+                "allowed_symbols": ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"],
+            }
+
+            success = await self.user_config_service.update_user_config(
+                telegram_id, "trading", None, default_trading
+            )
+
+            if success:
+                await update.callback_query.answer(
+                    "✅ Trading settings reset to defaults"
+                )
+                await self.settings_trading(update, context)
+            else:
+                await update.callback_query.answer(
+                    "❌ Error resetting trading settings"
+                )
+
+        except Exception as e:
+            logger.error(f"Error in reset_trading_callback: {e}")
+            await update.callback_query.answer("❌ Error resetting trading settings")
+
+    # Risk Management Callbacks
+    async def edit_max_drawdown_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit max drawdown callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_drawdown = config.get("risk", {}).get("max_drawdown_pct", 15.0)
+
+            message = (
+                f"📉 **EDIT MAX DRAWDOWN** 📉\n\n"
+                f"**Current Limit**: {current_drawdown}%\n\n"
+                f"**Select New Limit**:\n"
+                f"Choose maximum drawdown percentage."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("5%", "set_drawdown:5"),
+                        ("10%", "set_drawdown:10"),
+                        ("15%", "set_drawdown:15"),
+                    ],
+                    [
+                        ("20%", "set_drawdown:20"),
+                        ("25%", "set_drawdown:25"),
+                        ("30%", "set_drawdown:30"),
+                    ],
+                    [("Custom", "custom_drawdown"), ("⬅️ Back", "settings_risk")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_max_drawdown_callback: {e}")
+            await self._handle_settings_error(update, context, "drawdown")
+
+    async def edit_daily_loss_pct_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit daily loss percentage callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_loss_pct = config.get("risk", {}).get("max_daily_loss_pct", 5.0)
+
+            message = (
+                f"💸 **EDIT DAILY LOSS %** 💸\n\n"
+                f"**Current Limit**: {current_loss_pct}%\n\n"
+                f"**Select New Limit**:\n"
+                f"Choose maximum daily loss percentage."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("2%", "set_daily_loss_pct:2"),
+                        ("3%", "set_daily_loss_pct:3"),
+                        ("5%", "set_daily_loss_pct:5"),
+                    ],
+                    [
+                        ("7%", "set_daily_loss_pct:7"),
+                        ("10%", "set_daily_loss_pct:10"),
+                        ("15%", "set_daily_loss_pct:15"),
+                    ],
+                    [("Custom", "custom_daily_loss_pct"), ("⬅️ Back", "settings_risk")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_daily_loss_pct_callback: {e}")
+            await self._handle_settings_error(update, context, "daily_loss_pct")
+
+    async def edit_position_size_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit position size callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_size = config.get("risk", {}).get("max_position_size_pct", 10.0)
+
+            message = (
+                f"💼 **EDIT POSITION SIZE** 💼\n\n"
+                f"**Current Limit**: {current_size}%\n\n"
+                f"**Select New Limit**:\n"
+                f"Choose maximum position size percentage."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("5%", "set_position_size:5"),
+                        ("10%", "set_position_size:10"),
+                        ("15%", "set_position_size:15"),
+                    ],
+                    [
+                        ("20%", "set_position_size:20"),
+                        ("25%", "set_position_size:25"),
+                        ("30%", "set_position_size:30"),
+                    ],
+                    [("Custom", "custom_position_size"), ("⬅️ Back", "settings_risk")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_position_size_callback: {e}")
+            await self._handle_settings_error(update, context, "position_size")
+
+    async def edit_stop_losses_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit stop losses callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_stop = config.get("risk", {}).get("stop_on_consecutive_losses", 4)
+
+            message = (
+                f"🛑 **EDIT STOP AFTER LOSSES** 🛑\n\n"
+                f"**Current Setting**: {current_stop} consecutive losses\n\n"
+                f"**Select New Setting**:\n"
+                f"Choose when to stop trading after losses."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("2", "set_stop_losses:2"),
+                        ("3", "set_stop_losses:3"),
+                        ("4", "set_stop_losses:4"),
+                    ],
+                    [
+                        ("5", "set_stop_losses:5"),
+                        ("6", "set_stop_losses:6"),
+                        ("7", "set_stop_losses:7"),
+                    ],
+                    [("Custom", "custom_stop_losses"), ("⬅️ Back", "settings_risk")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_stop_losses_callback: {e}")
+            await self._handle_settings_error(update, context, "stop_losses")
+
+    async def reset_risk_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reset risk settings callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Reset to default risk settings
+            default_risk = {
+                "max_drawdown_pct": 15.0,
+                "max_daily_loss_pct": 5.0,
+                "max_position_size_pct": 10.0,
+                "stop_on_consecutive_losses": 4,
+            }
+
+            success = await self.user_config_service.update_user_config(
+                telegram_id, "risk", None, default_risk
+            )
+
+            if success:
+                await update.callback_query.answer("✅ Risk settings reset to defaults")
+                await self.settings_risk(update, context)
+            else:
+                await update.callback_query.answer("❌ Error resetting risk settings")
+
+        except Exception as e:
+            logger.error(f"Error in reset_risk_callback: {e}")
+            await update.callback_query.answer("❌ Error resetting risk settings")
+
+    async def risk_report_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle risk report callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            risk_config = config.get("risk", {})
+
+            message = (
+                f"📊 **RISK MANAGEMENT REPORT** 📊\n\n"
+                f"**Current Risk Settings**:\n"
+                f"📉 Max Drawdown: {risk_config.get('max_drawdown_pct', 15.0)}%\n"
+                f"💸 Daily Loss Limit: {risk_config.get('max_daily_loss_pct', 5.0)}%\n"
+                f"💼 Max Position Size: {risk_config.get('max_position_size_pct', 10.0)}%\n"
+                f"🛑 Stop After Losses: {risk_config.get('stop_on_consecutive_losses', 4)}\n\n"
+                f"**Risk Assessment**:\n"
+                f"• Conservative: Drawdown ≤ 10%, Daily Loss ≤ 3%\n"
+                f"• Moderate: Drawdown ≤ 15%, Daily Loss ≤ 5%\n"
+                f"• Aggressive: Drawdown ≤ 25%, Daily Loss ≤ 10%\n\n"
+                f"**Recommendations**:\n"
+                f"• Monitor positions daily\n"
+                f"• Adjust limits based on performance\n"
+                f"• Use stop losses consistently"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📉 Edit Drawdown", "edit_max_drawdown"),
+                        ("💸 Edit Daily Loss", "edit_daily_loss_pct"),
+                    ],
+                    [
+                        ("💼 Edit Position Size", "edit_position_size"),
+                        ("🛑 Edit Stop Losses", "edit_stop_losses"),
+                    ],
+                    [("⬅️ Back", "settings_risk"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in risk_report_callback: {e}")
+            await self._handle_settings_error(update, context, "risk_report")
+
+    # System Settings Callbacks
+    async def edit_timezone_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit timezone callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_tz = config.get("system", {}).get("timezone", "UTC")
+
+            message = (
+                f"🌍 **EDIT TIMEZONE** 🌍\n\n"
+                f"**Current Timezone**: {current_tz}\n\n"
+                f"**Select New Timezone**:\n"
+                f"Choose your preferred timezone."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("UTC", "set_timezone:UTC"),
+                        ("EST", "set_timezone:EST"),
+                        ("PST", "set_timezone:PST"),
+                    ],
+                    [
+                        ("GMT", "set_timezone:GMT"),
+                        ("CET", "set_timezone:CET"),
+                        ("JST", "set_timezone:JST"),
+                    ],
+                    [
+                        ("Asia/Jakarta", "set_timezone:Asia/Jakarta"),
+                        ("Custom", "custom_timezone"),
+                    ],
+                    [("⬅️ Back", "settings_system")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_timezone_callback: {e}")
+            await self._handle_settings_error(update, context, "timezone")
+
+    async def edit_update_freq_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit update frequency callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_freq = config.get("system", {}).get("update_frequency_seconds", 60)
+
+            message = (
+                f"⏱️ **EDIT UPDATE FREQUENCY** ⏱️\n\n"
+                f"**Current Frequency**: {current_freq} seconds\n\n"
+                f"**Select New Frequency**:\n"
+                f"Choose how often the system updates."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("30s", "set_update_freq:30"),
+                        ("60s", "set_update_freq:60"),
+                        ("120s", "set_update_freq:120"),
+                    ],
+                    [
+                        ("300s", "set_update_freq:300"),
+                        ("600s", "set_update_freq:600"),
+                        ("1800s", "set_update_freq:1800"),
+                    ],
+                    [("Custom", "custom_update_freq"), ("⬅️ Back", "settings_system")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_update_freq_callback: {e}")
+            await self._handle_settings_error(update, context, "update_freq")
+
+    async def edit_log_level_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit log level callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_level = config.get("system", {}).get("log_level", "INFO")
+
+            message = (
+                f"📝 **EDIT LOG LEVEL** 📝\n\n"
+                f"**Current Level**: {current_level}\n\n"
+                f"**Select New Level**:\n"
+                f"Choose logging detail level."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [("DEBUG", "set_log_level:DEBUG"), ("INFO", "set_log_level:INFO")],
+                    [
+                        ("WARNING", "set_log_level:WARNING"),
+                        ("ERROR", "set_log_level:ERROR"),
+                    ],
+                    [("⬅️ Back", "settings_system")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_log_level_callback: {e}")
+            await self._handle_settings_error(update, context, "log_level")
+
+    async def edit_timeframe_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit timeframe callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_tf = config.get("system", {}).get("preferred_timeframe", "H1")
+
+            message = (
+                f"📊 **EDIT PREFERRED TIMEFRAME** 📊\n\n"
+                f"**Current Timeframe**: {current_tf}\n\n"
+                f"**Select New Timeframe**:\n"
+                f"Choose your preferred trading timeframe."
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("M1", "set_timeframe:M1"),
+                        ("M5", "set_timeframe:M5"),
+                        ("M15", "set_timeframe:M15"),
+                    ],
+                    [
+                        ("M30", "set_timeframe:M30"),
+                        ("H1", "set_timeframe:H1"),
+                        ("H4", "set_timeframe:H4"),
+                    ],
+                    [("D1", "set_timeframe:D1"), ("⬅️ Back", "settings_system")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in edit_timeframe_callback: {e}")
+            await self._handle_settings_error(update, context, "timeframe")
+
+    async def reset_system_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle reset system settings callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Reset to default system settings
+            default_system = {
+                "timezone": "UTC",
+                "update_frequency_seconds": 60,
+                "log_level": "INFO",
+                "preferred_timeframe": "H1",
+            }
+
+            success = await self.user_config_service.update_user_config(
+                telegram_id, "system", None, default_system
+            )
+
+            if success:
+                await update.callback_query.answer(
+                    "✅ System settings reset to defaults"
+                )
+                await self.settings_system(update, context)
+            else:
+                await update.callback_query.answer("❌ Error resetting system settings")
+
+        except Exception as e:
+            logger.error(f"Error in reset_system_callback: {e}")
+            await update.callback_query.answer("❌ Error resetting system settings")
+
+    # Notification Intervals Callbacks
+    async def notification_intervals_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle notification intervals callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            intervals = config.get("notification_intervals", {})
+
+            message = (
+                f"⏰ **NOTIFICATION INTERVALS** ⏰\n\n"
+                f"**Current Settings**:\n"
+                f"📈 Signals: {intervals.get('signals_minutes', 5)} minutes\n"
+                f"📊 Positions: {intervals.get('positions_minutes', 1)} minutes\n"
+                f"⚠️ Risk: {intervals.get('risk_minutes', 15)} minutes\n"
+                f"📈 Performance: {intervals.get('performance_hours', 4)} hours\n"
+                f"🔧 System: {intervals.get('system_minutes', 30)} minutes\n\n"
+                f"**Token Saving**:\n"
+                f"Longer intervals = fewer notifications = lower token usage\n"
+                f"Shorter intervals = more notifications = higher token usage"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📈 Signal Interval", "set_interval:signals"),
+                        ("📊 Position Interval", "set_interval:positions"),
+                    ],
+                    [
+                        ("⚠️ Risk Interval", "set_interval:risk"),
+                        ("📈 Performance Interval", "set_interval:performance"),
+                    ],
+                    [
+                        ("🔧 System Interval", "set_interval:system"),
+                        ("🔄 Reset All", "reset_intervals"),
+                    ],
+                    [("⬅️ Back", "settings"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in notification_intervals_callback: {e}")
+            await self._handle_settings_error(update, context, "intervals")
+
+    async def set_interval_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle set interval callback."""
+        try:
+            query = update.callback_query
+            interval_type = query.data.split(":")[1]
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            intervals = config.get("notification_intervals", {})
+
+            current_interval = intervals.get(f"{interval_type}_minutes", 5)
+            if interval_type == "performance":
+                current_interval = intervals.get(f"{interval_type}_hours", 4)
+
+            message = (
+                f"⏰ **SET {interval_type.upper()} INTERVAL** ⏰\n\n"
+                f"**Current Interval**: {current_interval} {'hours' if interval_type == 'performance' else 'minutes'}\n\n"
+                f"**Select New Interval**:\n"
+                f"Choose how often to receive {interval_type} notifications."
+            )
+
+            if interval_type == "performance":
+                # Performance intervals in hours
+                keyboard = create_keyboard(
+                    [
+                        [
+                            ("1h", f"update_interval:{interval_type}:1"),
+                            ("2h", f"update_interval:{interval_type}:2"),
+                            ("4h", f"update_interval:{interval_type}:4"),
+                        ],
+                        [
+                            ("6h", f"update_interval:{interval_type}:6"),
+                            ("8h", f"update_interval:{interval_type}:8"),
+                            ("12h", f"update_interval:{interval_type}:12"),
+                        ],
+                        [
+                            ("24h", f"update_interval:{interval_type}:24"),
+                            ("Custom", f"custom_interval:{interval_type}"),
+                        ],
+                        [("⬅️ Back", "notification_intervals")],
+                    ]
+                )
+            else:
+                # Other intervals in minutes
+                keyboard = create_keyboard(
+                    [
+                        [
+                            ("1m", f"update_interval:{interval_type}:1"),
+                            ("5m", f"update_interval:{interval_type}:5"),
+                            ("15m", f"update_interval:{interval_type}:15"),
+                        ],
+                        [
+                            ("30m", f"update_interval:{interval_type}:30"),
+                            ("60m", f"update_interval:{interval_type}:60"),
+                            ("120m", f"update_interval:{interval_type}:120"),
+                        ],
+                        [
+                            ("240m", f"update_interval:{interval_type}:240"),
+                            ("Custom", f"custom_interval:{interval_type}"),
+                        ],
+                        [("⬅️ Back", "notification_intervals")],
+                    ]
+                )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in set_interval_callback: {e}")
+            await self._handle_settings_error(update, context, "interval")
+
+    # Trading Pairs Callbacks
+    async def trading_pairs_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle trading pairs callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            message = (
+                f"📋 **TRADING PAIRS SETTINGS** 📋\n\n" f"**Current Allowed Pairs**:\n"
+            )
+
+            if allowed_symbols:
+                for symbol in allowed_symbols:
+                    message += f"• {symbol}\n"
+            else:
+                message += "• No pairs configured\n"
+
+            message += f"\n**Total**: {len(allowed_symbols)} pairs\n\n"
+            message += "**Popular Pairs**:\n"
+            message += "• Forex: EURUSD, GBPUSD, USDJPY, USDCAD\n"
+            message += "• Crypto: BTCUSD, ETHUSD, XRPUSD\n"
+            message += "• Metals: XAUUSD, XAGUSD\n"
+            message += "• Indices: SPX500, NAS100, GER30"
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("➕ Add Pair", "add_trading_pair"),
+                        ("➖ Remove Pair", "remove_trading_pair"),
+                    ],
+                    [
+                        ("📋 Popular Forex", "add_popular_forex"),
+                        ("📋 Popular Crypto", "add_popular_crypto"),
+                    ],
+                    [
+                        ("🔄 Reset Defaults", "reset_trading_pairs"),
+                        ("📊 View All", "view_all_pairs"),
+                    ],
+                    [("⬅️ Back", "settings"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in trading_pairs_callback: {e}")
+            await self._handle_settings_error(update, context, "trading_pairs")
+
+    async def add_trading_pair_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle add trading pair callback."""
+        try:
+            message = (
+                f"➕ **ADD TRADING PAIR** ➕\n\n"
+                f"**Popular Trading Pairs**:\n\n"
+                f"**Forex Major Pairs**:\n"
+                f"• EURUSD - Euro/US Dollar\n"
+                f"• GBPUSD - British Pound/US Dollar\n"
+                f"• USDJPY - US Dollar/Japanese Yen\n"
+                f"• USDCAD - US Dollar/Canadian Dollar\n\n"
+                f"**Crypto Pairs**:\n"
+                f"• BTCUSD - Bitcoin/US Dollar\n"
+                f"• ETHUSD - Ethereum/US Dollar\n"
+                f"• XRPUSD - Ripple/US Dollar\n\n"
+                f"**Metals**:\n"
+                f"• XAUUSD - Gold/US Dollar\n"
+                f"• XAGUSD - Silver/US Dollar\n\n"
+                f"**Indices**:\n"
+                f"• SPX500 - S&P 500\n"
+                f"• NAS100 - NASDAQ 100\n"
+                f"• GER30 - German DAX"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("EURUSD", "add_pair:EURUSD"),
+                        ("GBPUSD", "add_pair:GBPUSD"),
+                        ("USDJPY", "add_pair:USDJPY"),
+                    ],
+                    [
+                        ("USDCAD", "add_pair:USDCAD"),
+                        ("AUDUSD", "add_pair:AUDUSD"),
+                        ("NZDUSD", "add_pair:NZDUSD"),
+                    ],
+                    [
+                        ("BTCUSD", "add_pair:BTCUSD"),
+                        ("ETHUSD", "add_pair:ETHUSD"),
+                        ("XRPUSD", "add_pair:XRPUSD"),
+                    ],
+                    [
+                        ("XAUUSD", "add_pair:XAUUSD"),
+                        ("XAGUSD", "add_pair:XAGUSD"),
+                        ("SPX500", "add_pair:SPX500"),
+                    ],
+                    [("Custom", "custom_add_pair"), ("⬅️ Back", "trading_pairs")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in add_trading_pair_callback: {e}")
+            await self._handle_settings_error(update, context, "add_pair")
+
+    async def remove_trading_pair_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle remove trading pair callback."""
+        try:
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            allowed_symbols = config.get("trading", {}).get("allowed_symbols", [])
+
+            if not allowed_symbols:
+                message = (
+                    f"➖ **REMOVE TRADING PAIR** ➖\n\n"
+                    f"**No pairs to remove**\n\n"
+                    f"You don't have any trading pairs configured.\n"
+                    f"Add some pairs first to be able to remove them."
+                )
+                keyboard = create_keyboard(
+                    [
+                        [
+                            ("➕ Add Pairs", "add_trading_pair"),
+                            ("⬅️ Back", "trading_pairs"),
+                        ]
+                    ]
+                )
+            else:
+                message = f"➖ **REMOVE TRADING PAIR** ➖\n\n" f"**Current Pairs**:\n"
+                for symbol in allowed_symbols:
+                    message += f"• {symbol}\n"
+
+                message += f"\n**Select pair to remove**:"
+
+                # Create buttons for each symbol (max 8 per row)
+                buttons = []
+                for i in range(0, len(allowed_symbols), 2):
+                    row = []
+                    for j in range(2):
+                        if i + j < len(allowed_symbols):
+                            symbol = allowed_symbols[i + j]
+                            row.append((symbol, f"remove_pair:{symbol}"))
+                    buttons.append(row)
+
+                buttons.append([("⬅️ Back", "trading_pairs")])
+                keyboard = create_keyboard(buttons)
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in remove_trading_pair_callback: {e}")
+            await self._handle_settings_error(update, context, "remove_pair")
