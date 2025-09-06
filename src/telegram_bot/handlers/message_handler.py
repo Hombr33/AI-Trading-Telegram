@@ -1,7 +1,9 @@
 """Message handler for Telegram bot."""
 
 from telegram import Update
-from telegram.ext import MessageHandler as TelegramMessageHandler, ContextTypes, filters
+from telegram.ext import ContextTypes
+from telegram.ext import MessageHandler as TelegramMessageHandler
+from telegram.ext import filters
 
 from src.core.logging import get_logger
 from src.telegram_bot.notifications.manager import NotificationManager

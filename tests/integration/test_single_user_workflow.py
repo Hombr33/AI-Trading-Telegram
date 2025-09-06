@@ -4,9 +4,9 @@ Test script to verify the single-user trading workflow.
 This script tests the end-to-end trading functionality for a single admin user.
 """
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import traceback
 from pathlib import Path
 
@@ -25,9 +25,9 @@ def test_imports():
 
         print("Testing database models...")
         from src.models.base import Base
-        from src.models.users import User
-        from src.models.trades import Trade
         from src.models.signals import Signal
+        from src.models.trades import Trade
+        from src.models.users import User
 
         print("✅ Database models successful")
 
@@ -38,8 +38,8 @@ def test_imports():
         print("✅ Services imports successful")
 
         print("Testing execution components...")
-        from src.execution.platform_manager import PlatformManager
         from src.execution.order_manager import OrderManager
+        from src.execution.platform_manager import PlatformManager
         from src.execution.position_manager import PositionManager
 
         print("✅ Execution components successful")
@@ -92,12 +92,13 @@ def test_configuration():
 async def test_database_connection():
     """Test database connection and basic operations."""
     try:
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
         from src.core.config import config
         from src.database.connection import get_db_session
         from src.models.base import Base
         from src.models.users import User
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
 
         print("Testing database connection...")
         print(f"Database URL: {config.database.url}")
@@ -152,8 +153,8 @@ async def test_database_connection():
 async def test_signal_generation():
     """Test signal generation service."""
     try:
-        from src.services.signal_generation_service import SignalGenerationService
         from src.core.config import config
+        from src.services.signal_generation_service import SignalGenerationService
         from src.telegram_bot.core.trading_bot import TradingBot
 
         print("Testing signal generation service...")
@@ -188,9 +189,9 @@ async def test_signal_generation():
 async def test_auto_trading_service():
     """Test auto trading service."""
     try:
-        from src.services.auto_trading_service import AutoTradingService
-        from src.execution.platform_manager import PlatformManager
         from src.core.config import config
+        from src.execution.platform_manager import PlatformManager
+        from src.services.auto_trading_service import AutoTradingService
         from src.telegram_bot.core.trading_bot import TradingBot
 
         print("Testing auto trading service...")
@@ -232,8 +233,8 @@ async def test_auto_trading_service():
 async def test_platform_manager():
     """Test platform manager."""
     try:
-        from src.execution.platform_manager import PlatformManager
         from src.core.config import config
+        from src.execution.platform_manager import PlatformManager
 
         print("Testing platform manager...")
 
@@ -262,8 +263,8 @@ async def test_platform_manager():
 async def test_telegram_bot():
     """Test Telegram bot initialization."""
     try:
-        from src.telegram_bot.core.trading_bot import TradingBot
         from src.core.config import config
+        from src.telegram_bot.core.trading_bot import TradingBot
 
         print("Testing Telegram bot...")
 

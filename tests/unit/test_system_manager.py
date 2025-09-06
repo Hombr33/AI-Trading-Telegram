@@ -2,9 +2,11 @@
 Unit tests for the system manager module.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from src.core.system_manager import SystemManager, system_manager
 
 

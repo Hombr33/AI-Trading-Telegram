@@ -1,14 +1,15 @@
 """Trading notifications for Telegram bot."""
 
-import os
 import json
-from typing import Dict, Any
+import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict
 
 from src.core.logging import get_logger
-from .manager import NotificationManager
+
 from ..utils.constants import NotificationPriority
+from .manager import NotificationManager
 
 logger = get_logger(__name__)
 
@@ -56,8 +57,8 @@ def save_signal_to_file(signal_data: Dict[str, Any], message: str):
             "error" in analysis.lower() or "validation failed" in analysis.lower()
         ):
             try:
-                import json
                 import ast
+                import json
 
                 # Try to parse the analysis string if it looks like JSON
                 parsed_analysis = None
@@ -348,8 +349,8 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
         raw_analysis = signal_data.get("raw_analysis", {})
         if isinstance(raw_analysis, str):
             try:
-                import json
                 import ast
+                import json
 
                 # First try standard JSON parsing
                 try:
@@ -439,8 +440,8 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
             ):
                 try:
                     # Extract the actual error message from the JSON-like string
-                    import json
                     import ast
+                    import json
 
                     # Try to parse the string as a dict if it's formatted like one
                     try:
@@ -545,8 +546,8 @@ async def send_signal_notification(signal_data: Dict[str, Any]):
             raw_analysis = signal_data.get("raw_analysis", {})
             if isinstance(raw_analysis, str):
                 try:
-                    import json
                     import ast
+                    import json
 
                     # Try to parse the raw_analysis string
                     try:

@@ -4,11 +4,12 @@ This replaces the fake data generation with real market information.
 """
 
 import asyncio
-import aiohttp
-import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import json
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

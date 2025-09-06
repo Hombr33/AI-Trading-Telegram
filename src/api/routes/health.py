@@ -3,9 +3,10 @@ Health check API routes.
 """
 
 from datetime import datetime, timezone
+
+import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-import structlog
 
 from ...core.config import config
 

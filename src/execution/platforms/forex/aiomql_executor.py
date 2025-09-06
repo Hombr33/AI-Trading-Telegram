@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-import time
 import asyncio
-from typing import Dict, List, Optional, Any
+import time
+from typing import Any, Dict, List, Optional
 
+from ....core.error_handler import CircuitBreaker, ErrorContext, with_error_handling
+from ....core.exceptions import AioMQLError, MT5ConnectionError, MT5ExecutionError
 from ....core.logging import (
     get_logger,
     log_error_with_context,
+    log_operation_timing,
+    log_performance_metric,
     log_system_event,
     log_trade_event,
-    log_performance_metric,
-    log_operation_timing,
 )
-from ....core.error_handler import with_error_handling, ErrorContext, CircuitBreaker
-from ....core.exceptions import MT5ConnectionError, MT5ExecutionError, AioMQLError
-from .mt5_executor import MT5Executor
 from ...base_executor import BaseExecutor
 from ...interfaces import PlatformType
+from .mt5_executor import MT5Executor
 
 logger = get_logger(__name__)
 

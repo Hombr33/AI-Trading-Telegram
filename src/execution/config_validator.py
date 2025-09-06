@@ -4,13 +4,13 @@ Configuration validation system for execution module.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Any, Set, Union
+import re
 from dataclasses import dataclass
 from enum import Enum
-import re
+from typing import Any, Dict, List, Optional, Set, Union
 
-from .platform_compatibility import get_compatibility_manager
 from ..core.logging import get_logger
+from .platform_compatibility import get_compatibility_manager
 
 logger = get_logger(__name__)
 

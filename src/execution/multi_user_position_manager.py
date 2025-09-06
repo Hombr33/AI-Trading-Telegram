@@ -4,27 +4,27 @@ Multi-User Position Manager for enhanced user-specific position tracking.
 
 import asyncio
 import logging
-import time
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime, timedelta
-from collections import defaultdict
 import threading
+import time
+from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, List, Optional
 
-from ..core.logging import get_logger
-from ..core.error_handler import with_error_handling, ErrorContext
+from ..bridge.ea_bridge import EABridge
+from ..common.interfaces import IPositionManager
+from ..core.config import TradingConfig
+from ..core.error_handler import ErrorContext, with_error_handling
 from ..core.exceptions import (
     PositionManagerError,
-    UserIsolationError,
     TradingBotException,
+    UserIsolationError,
 )
+from ..core.logging import get_logger
 from ..core.workflow import Component, ComponentStatus
-from ..core.config import TradingConfig
-from ..common.interfaces import IPositionManager
 from ..models.positions import Position
 from ..models.trades import Trade
-from ..bridge.ea_bridge import EABridge
-from ..services.user_manager import UserManager
 from ..services.config_manager import ConfigManager
+from ..services.user_manager import UserManager
 
 logger = get_logger(__name__)
 

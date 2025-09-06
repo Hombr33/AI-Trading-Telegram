@@ -2,7 +2,7 @@
 Custom exceptions for the AI Trading Bot.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class TradingBotException(Exception):

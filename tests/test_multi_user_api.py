@@ -5,17 +5,18 @@ This module contains comprehensive tests for all multi-user API endpoints
 including user management, configuration, signal processing, and admin operations.
 """
 
-import pytest
 import json
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from src.api.routes.multi_user import router, set_multi_user_service
+from src.services.config_manager import ConfigManager
 from src.services.multi_user_service import MultiUserService
 from src.services.user_manager import UserManager
-from src.services.config_manager import ConfigManager
 
 
 @pytest.fixture

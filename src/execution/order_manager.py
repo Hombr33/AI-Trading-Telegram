@@ -2,25 +2,25 @@
 Order Manager for handling order lifecycle and signal execution.
 """
 
-from typing import Dict, List, Optional, Union, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
+from ..common.interfaces import IOrderManager, OrderSide, OrderType
+from ..core.config import TradingConfig
+from ..core.error_handler import ErrorContext, with_error_handling
+from ..core.exceptions import OrderValidationError, RiskManagementError
 from ..core.logging import (
     get_logger,
     log_error_with_context,
-    log_trade_event,
-    log_system_event,
     log_operation_timing,
+    log_system_event,
+    log_trade_event,
 )
-from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import OrderValidationError, RiskManagementError
-from ..core.config import TradingConfig
-from ..common.interfaces import IOrderManager, OrderType, OrderSide
+from ..models.instruments import Instrument
 
 # MT5Executor will be injected via platform manager
 from ..models.orders import Order
-from ..models.instruments import Instrument
 from ..models.signals import Signal
 
 logger = get_logger(__name__)

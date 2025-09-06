@@ -1,14 +1,15 @@
 """Analysis commands for Telegram bot."""
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from telegram import Update, InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
-from src.telegram_bot.utils.keyboards import create_keyboard
 from src.telegram_bot.services.performance_data_service import PerformanceDataService
+from src.telegram_bot.utils.keyboards import create_keyboard
+
 from .base import BaseCommandHandler
 
 logger = get_logger(__name__)

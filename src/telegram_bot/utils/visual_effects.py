@@ -1,8 +1,8 @@
 """Visual effects and animations for Telegram bot."""
 
 import asyncio
-from typing import List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List
 
 from telegram import Update
 from telegram.ext import ContextTypes

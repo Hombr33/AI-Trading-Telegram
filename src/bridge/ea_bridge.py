@@ -2,21 +2,22 @@
 EA Bridge service for MT5 platform integration with enhanced multi-user support.
 """
 
-import logging
 import asyncio
 import json
-from typing import Optional, Dict, Any, List, Tuple
+import logging
+import threading
+from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
 from aiohttp import ClientSession, ClientTimeout
 from sqlalchemy.orm import Session
-from collections import defaultdict
-import threading
 
-from src.models.telegram_users import TelegramUser, PlatformConnection, PlatformType
+from src.core.exceptions import BridgeConnectionError, EABridgeError, UserIsolationError
 from src.database.session import SessionLocal
-from src.services.user_manager import UserManager
+from src.models.telegram_users import PlatformConnection, PlatformType, TelegramUser
 from src.services.config_manager import ConfigManager
-from src.core.exceptions import EABridgeError, UserIsolationError, BridgeConnectionError
+from src.services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

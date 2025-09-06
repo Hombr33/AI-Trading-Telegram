@@ -1,7 +1,7 @@
 """Trading callback handlers for Telegram bot."""
 
-from typing import Dict, Any
 from datetime import datetime
+from typing import Any, Dict
 
 from telegram import Update
 from telegram.ext import ContextTypes

@@ -1,21 +1,18 @@
 """Trading bot implementation for Telegram."""
 
 import asyncio
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from telegram import Update
-from telegram.ext import (
-    CommandHandler as TGCommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
+from telegram.ext import CallbackQueryHandler
+from telegram.ext import CommandHandler as TGCommandHandler
+from telegram.ext import ContextTypes, MessageHandler, filters
 
-from src.core.logging import get_logger
 from src.core.config import TelegramConfig
-from .bot import BaseTelegramBot
+from src.core.logging import get_logger
+
 from ..notifications.manager import NotificationManager
+from .bot import BaseTelegramBot
 
 logger = get_logger(__name__)
 
@@ -73,10 +70,10 @@ class TradingBot(BaseTelegramBot):
         self.notification_manager = NotificationManager(self.config)
 
         # Import handlers here to avoid circular imports
-        from ..handlers.command_handler import setup_command_handlers
         from ..handlers.callback_handler import setup_callback_handler
-        from ..handlers.message_handler import setup_message_handler
+        from ..handlers.command_handler import setup_command_handlers
         from ..handlers.error_handler import setup_error_handler
+        from ..handlers.message_handler import setup_message_handler
 
         # Register command handlers
         command_handlers = setup_command_handlers(self.notification_manager)

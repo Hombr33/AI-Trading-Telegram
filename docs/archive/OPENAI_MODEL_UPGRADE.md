@@ -119,7 +119,7 @@ analyzer = OpenAIAnalyzer(
 # Analyze chart screenshot
 with open("chart.png", "rb") as f:
     screenshot_data = f.read()
-    
+
 result = await analyzer.analyze(screenshot_data, market_context)
 ```
 
@@ -179,7 +179,7 @@ This will:
    ```yaml
    # Old
    model: "gpt-4"
-   
+
    # New
    model: "gpt-4o-mini"
    ```

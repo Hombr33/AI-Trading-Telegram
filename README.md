@@ -182,7 +182,7 @@ rich>=13.7.0
 - **Python 3.8+**
 - **MetaTrader 5** terminal
 - **PostgreSQL** database (optional, can use SQLite)
-- **Telegram Bot Token** 
+- **Telegram Bot Token**
 
 ## 🚀 Quick Start
 

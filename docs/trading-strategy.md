@@ -133,7 +133,7 @@ class TradeMetrics:
 
     def calculate_expectancy(self) -> float:
         """Calculate system expectancy."""
-        return (self.win_rate * self.average_win) - 
+        return (self.win_rate * self.average_win) -
                ((1 - self.win_rate) * self.average_loss)
 ```
 
@@ -211,19 +211,19 @@ class TradeManager:
         """Continuous position management."""
         while self.trade.is_active:
             current_price = await get_current_price(self.trade.symbol)
-            
+
             # Update stops
             if self.trade.in_profit(1.0) and not self.trade.breakeven:
                 await self.move_to_breakeven()
-            
+
             # Partial TP
             if self.trade.in_profit(1.5) and not self.partial_tp_hit:
                 await self.take_partial_profit()
-            
+
             # Trailing stop
             if self.trade.in_profit(2.0):
                 await self.update_trailing_stop(current_price)
-            
+
             await asyncio.sleep(1)
 ```
 

@@ -6,72 +6,68 @@ multiple platforms with full cross-platform compatibility, monitoring, and
 production-grade error handling.
 """
 
-# Core interfaces and data models
-from .interfaces import (
-    # Protocols and interfaces
-    IExecutor,
-    IPlatformManager,
-    IConnectable,
-    IHealthCheckable,
-    IOrderExecutor,
-    IPositionManager,
-    IMarketDataProvider,
-    IAccountManager,
-    # Data models
-    OrderRequest,
-    OrderResponse,
-    PositionData,
-    AccountInfo,
-    MarketData,
-    # Enums
-    PlatformType,
-    OrderType,
-    OrderSide,
-    OrderStatus,
-    HealthStatus,
-    # Context managers
-    executor_context,
-    platform_manager_context,
-)
+# Base implementation
+from .base_executor import BaseExecutor
 
-# Platform compatibility and factory
-from .platform_compatibility import (
-    get_compatibility_manager,
-    init_platform_compatibility,
-    is_windows,
-    is_linux,
-    is_macos,
-    log_platform_status,
+# Configuration validation
+from .config_validator import (
+    ConfigurationValidator,
+    ValidationLevel,
+    validate_execution_config,
 )
 from .factory import (
-    get_platform_manager,
-    get_executor_factory,
     create_executor,
+    get_executor_factory,
+    get_platform_manager,
     initialize_execution_system,
     shutdown_execution_system,
 )
 
-# Configuration validation
-from .config_validator import (
-    validate_execution_config,
-    ConfigurationValidator,
-    ValidationLevel,
+# Core interfaces and data models
+from .interfaces import (  # Protocols and interfaces; Data models; Enums; Context managers
+    AccountInfo,
+    HealthStatus,
+    IAccountManager,
+    IConnectable,
+    IExecutor,
+    IHealthCheckable,
+    IMarketDataProvider,
+    IOrderExecutor,
+    IPlatformManager,
+    IPositionManager,
+    MarketData,
+    OrderRequest,
+    OrderResponse,
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    PlatformType,
+    PositionData,
+    executor_context,
+    platform_manager_context,
 )
 
 # Monitoring and health checks
 from .monitoring import get_executor_monitor
 
-# Base implementation
-from .base_executor import BaseExecutor
-
 # Legacy managers (still available for backwards compatibility)
 from .order_manager import OrderManager
-from .position_manager import PositionManager
-from .trailing_manager import TrailingManager
+
+# Platform compatibility and factory
+from .platform_compatibility import (
+    get_compatibility_manager,
+    init_platform_compatibility,
+    is_linux,
+    is_macos,
+    is_windows,
+    log_platform_status,
+)
 from .platform_manager import PlatformManager as LegacyPlatformManager
 
 # Platform implementations (imported conditionally)
 from .platforms import *
+from .position_manager import PositionManager
+from .trailing_manager import TrailingManager
 
 # Initialize platform compatibility on module import
 init_platform_compatibility()

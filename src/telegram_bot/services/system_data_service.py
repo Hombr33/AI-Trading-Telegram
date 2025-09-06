@@ -2,15 +2,16 @@
 System data service for Telegram bot - provides real system status and monitoring data.
 """
 
-import psutil
+import asyncio
 import os
 import platform
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-import asyncio
+from typing import Any, Dict, List, Optional
 
-from src.core.logging import get_logger
+import psutil
+
 from src.core.config import AppConfig
+from src.core.logging import get_logger
 from src.execution.platforms.forex.mt5_executor import MT5Executor
 from src.telegram_bot.services.trading_data_service import TradingDataService
 

@@ -1,11 +1,12 @@
 """Keyboard utilities for Telegram bot."""
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    ReplyKeyboardMarkup,
     KeyboardButton,
+    ReplyKeyboardMarkup,
     WebAppInfo,
 )
 

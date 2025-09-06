@@ -2,10 +2,12 @@
 Unit tests for the multi-user service health check functionality.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
+
 from src.services.multi_user_service import MultiUserService
 
 

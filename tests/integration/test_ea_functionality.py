@@ -11,10 +11,11 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import aiohttp
 import requests
-from pathlib import Path
 
 # Setup logging
 logging.basicConfig(

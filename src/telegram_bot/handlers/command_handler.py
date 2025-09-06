@@ -1,9 +1,10 @@
 """Command handler for Telegram bot."""
 
-from typing import Dict, Any, List, Callable
+from typing import Any, Callable, Dict, List
 
 from telegram import Update
-from telegram.ext import CommandHandler as TelegramCommandHandler, ContextTypes
+from telegram.ext import CommandHandler as TelegramCommandHandler
+from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
 from src.telegram_bot.notifications.manager import NotificationManager

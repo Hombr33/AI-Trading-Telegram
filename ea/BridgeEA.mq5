@@ -117,40 +117,40 @@ void OnTimer()
       SendHeartbeat();
       lastHeartbeatTime = TimeCurrent();
    }
-   
+
    // Send position snapshot
    if(TimeCurrent() - lastPositionSnapshotTime >= POSITION_SNAPSHOT_INTERVAL)
    {
       SendPositionSnapshot();
       lastPositionSnapshotTime = TimeCurrent();
    }
-   
+
    // Send tick data if enabled
    if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
    {
       SendTickData();
       lastTickTime = TimeCurrent();
    }
-   
+
    // Check for incoming orders from Python
    if(ENABLE_ORDER_EXECUTION)
    {
       CheckForIncomingOrders();
    }
-   
+
    // Manage trailing stops if enabled
    if(ENABLE_TRAILING_MANAGEMENT)
    {
       ManageTrailingStops();
    }
-   
+
    // Take and send screenshot for AI analysis
    if(ENABLE_SCREENSHOT_ANALYSIS && (TimeCurrent() - lastScreenshotTime >= SCREENSHOT_INTERVAL))
    {
       TakeAndSendScreenshot();
       lastScreenshotTime = TimeCurrent();
    }
-   
+
    // Test connection periodically
    if(TimeCurrent() % 300 == 0) // Every 5 minutes
    {
@@ -165,9 +165,9 @@ void TestConnection()
 {
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
     string postData = CreateHeartbeatData();
-    
+
     int result = MakeWebRequest("POST", url, headers, postData, 5000);
-    
+
     if(result == 200)
     {
         if(!isConnected)
@@ -183,7 +183,7 @@ void TestConnection()
         {
             isConnected = false;
             Print("Connection lost with Python API. Result code: ", result);
-            
+
             if(ENABLE_AUTO_RECONNECT)
             {
                 HandleReconnection();
@@ -198,10 +198,10 @@ void TestConnection()
 void SendHeartbeat()
 {
     if(!isConnected) return;
-    
+
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
     string postData = CreateHeartbeatData();
-    
+
     int result = MakeWebRequest("POST", url, headers, postData, 5000);
 
     if(result != 200)
@@ -217,12 +217,12 @@ void SendHeartbeat()
 void SendTickData()
 {
     if(!isConnected) return;
-    
+
     string url = API_ENDPOINT + "/api/v1/bridge/tick_data";
     string postData = CreateTickData();
-    
+
     int result = MakeWebRequest("POST", url, headers, postData, 5000);
-    
+
     if(result != 200)
     {
         Print("Tick data send failed with code: ", result);
@@ -235,12 +235,12 @@ void SendTickData()
 void SendPositionSnapshot()
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/position_snapshot";
    string postData = CreatePositionSnapshotData();
-   
+
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result != 200)
    {
       Print("Position snapshot send failed with code: ", result);
@@ -253,13 +253,13 @@ void SendPositionSnapshot()
 void CheckForIncomingOrders()
 {
     if(!isConnected) return;
-    
+
     // First authenticate with POST request
     string authUrl = API_ENDPOINT + "/api/v1/bridge/pending_orders";
     string authData = CreateHeartbeatData(); // Use heartbeat as authentication
-    
+
     int authResult = MakeWebRequest("POST", authUrl, headers, authData, 5000);
-    
+
     if(authResult == 200)
     {
         // Now get orders with GET request (fallback)
@@ -267,9 +267,9 @@ void CheckForIncomingOrders()
         char empty[];  // Empty array for GET request
         char result_data[];
         string response_headers;
-        
+
         int getResult = WebRequest("GET", getUrl, headers, 5000, empty, result_data, response_headers);
-        
+
         if(getResult == 200)
         {
             string response = CharArrayToString(result_data);
@@ -287,11 +287,11 @@ void CheckForIncomingOrders()
 void ProcessIncomingOrders(string response)
 {
    // This is a simplified parser - in production use a proper JSON library
-   
+
    if(StringFind(response, "\"type\":\"order\"") >= 0)
    {
       Print("Processing incoming order from Python");
-      
+
       // Extract order details (simplified parsing)
       string symbol = ExtractValue(response, "symbol");
       string action = ExtractValue(response, "action");
@@ -300,24 +300,24 @@ void ProcessIncomingOrders(string response)
       string priceStr = ExtractValue(response, "price");
       string slStr = ExtractValue(response, "stop_loss");
       string tpStr = ExtractValue(response, "take_profit");
-      
+
       // Convert strings to appropriate types
       double volume = StringToDouble(volStr);
       double price = StringToDouble(priceStr);
       double sl = StringToDouble(slStr);
       double tp = StringToDouble(tpStr);
-      
+
       // Execute the order
       ExecuteOrder(symbol, action, orderType, volume, price, sl, tp);
    }
    else if(StringFind(response, "\"type\":\"signal\"") >= 0)
    {
       Print("Processing trading signal from Python");
-      
+
       // Extract signal details
       string symbol = ExtractValue(response, "symbol");
       string bias = ExtractValue(response, "bias");
-      
+
       // Process signal (could trigger order execution)
       ProcessTradingSignal(symbol, bias);
    }
@@ -326,20 +326,20 @@ void ProcessIncomingOrders(string response)
 //+------------------------------------------------------------------+
 //| Execute order received from Python                               |
 //+------------------------------------------------------------------+
-void ExecuteOrder(string symbol, string action, string orderType, 
+void ExecuteOrder(string symbol, string action, string orderType,
                  double volume, double price, double sl, double tp)
 {
    if(!ENABLE_ORDER_EXECUTION) return;
-   
+
    Print("Executing order: ", symbol, " ", action, " ", orderType, " ", volume);
-   
+
    // Set symbol info
    if(!symbolInfo.Name(symbol))
    {
       Print("Symbol not found: ", symbol);
       return;
    }
-   
+
    // Determine order type
    ENUM_ORDER_TYPE mt5OrderType;
    if(orderType == "BUY")
@@ -359,10 +359,10 @@ void ExecuteOrder(string symbol, string action, string orderType,
       Print("Unsupported order type: ", orderType);
       return;
    }
-   
+
    // Execute the order
    bool success = false;
-   
+
    if(mt5OrderType == ORDER_TYPE_BUY || mt5OrderType == ORDER_TYPE_SELL)
    {
       // Market order
@@ -376,7 +376,7 @@ void ExecuteOrder(string symbol, string action, string orderType,
       // Pending order
       success = trade.OrderOpen(symbol, mt5OrderType, volume, price, sl, tp, ORDER_TIME_GTC, 0, "AI_ORDER");
    }
-   
+
    if(success)
    {
       Print("Order executed successfully: ", trade.ResultOrder());
@@ -395,10 +395,10 @@ void ExecuteOrder(string symbol, string action, string orderType,
 void ProcessTradingSignal(string symbol, string bias)
 {
    Print("Processing signal: ", symbol, " ", bias);
-   
+
    // This could trigger automated order execution based on signal
    // For now, just log the signal
-   
+
    // Send signal acknowledgment
    SendSignalAcknowledgment(symbol, bias);
 }
@@ -409,7 +409,7 @@ void ProcessTradingSignal(string symbol, string bias)
 void ManageTrailingStops()
 {
    if(!ENABLE_TRAILING_MANAGEMENT) return;
-   
+
    for(int i = 0; i < PositionsTotal(); i++)
    {
       if(positionInfo.SelectByIndex(i))
@@ -417,7 +417,7 @@ void ManageTrailingStops()
          // Check if position has trailing stop enabled
          if(positionInfo.Comment() != "" && StringFind(positionInfo.Comment(), "TRAILING") >= 0)
          {
-            UpdateTrailingStop(positionInfo.Ticket(), positionInfo.Symbol(), 
+            UpdateTrailingStop(positionInfo.Ticket(), positionInfo.Symbol(),
                              positionInfo.PositionType(), positionInfo.PriceOpen(),
                              positionInfo.StopLoss(), positionInfo.TakeProfit());
          }
@@ -432,16 +432,16 @@ void UpdateTrailingStop(ulong ticket, string symbol, ENUM_POSITION_TYPE type,
                        double openPrice, double currentSL, double currentTP)
 {
    double currentPrice = (type == POSITION_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_BID) : SymbolInfoDouble(symbol, SYMBOL_ASK);
-   
+
    // Calculate new stop loss based on trailing rules
    double newSL = currentSL;
    bool shouldUpdate = false;
-   
+
    if(type == POSITION_TYPE_BUY)
    {
       // For long positions, trail up
       double trailPrice = currentPrice - 200 * Point(); // 200 points trailing distance
-      
+
       if(trailPrice > currentSL + 50 * Point()) // Only move if significantly higher
       {
          newSL = trailPrice;
@@ -452,14 +452,14 @@ void UpdateTrailingStop(ulong ticket, string symbol, ENUM_POSITION_TYPE type,
    {
       // For short positions, trail down
       double trailPrice = currentPrice + 200 * Point(); // 200 points trailing distance
-      
+
       if(trailPrice < currentSL - 50 * Point()) // Only move if significantly lower
       {
          newSL = trailPrice;
          shouldUpdate = true;
       }
    }
-   
+
    // Update stop loss if needed
    if(shouldUpdate)
    {
@@ -477,16 +477,16 @@ void UpdateTrailingStop(ulong ticket, string symbol, ENUM_POSITION_TYPE type,
 //+------------------------------------------------------------------+
 //| Send order confirmation to Python                                |
 //+------------------------------------------------------------------+
-void SendOrderConfirmation(string symbol, string action, string orderType, 
+void SendOrderConfirmation(string symbol, string action, string orderType,
                           double volume, string status)
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/order_confirmation";
    string postData = CreateOrderConfirmationData(symbol, action, orderType, volume, status);
-   
+
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result != 200)
    {
       Print("Order confirmation send failed with code: ", result);
@@ -499,12 +499,12 @@ void SendOrderConfirmation(string symbol, string action, string orderType,
 void SendSignalAcknowledgment(string symbol, string bias)
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/signal_ack";
    string postData = CreateSignalAckData(symbol, bias);
-   
+
    int result = MakeWebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result != 200)
    {
       Print("Signal acknowledgment send failed with code: ", result);
@@ -514,7 +514,7 @@ void SendSignalAcknowledgment(string symbol, string bias)
 //+------------------------------------------------------------------+
 //| Create order confirmation data JSON                              |
 //+------------------------------------------------------------------+
-string CreateOrderConfirmationData(string symbol, string action, string orderType, 
+string CreateOrderConfirmationData(string symbol, string action, string orderType,
                                   double volume, string status)
 {
    string json = "{";
@@ -526,7 +526,7 @@ string CreateOrderConfirmationData(string symbol, string action, string orderTyp
    json += "\"status\":\"" + status + "\",";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -541,7 +541,7 @@ string CreateSignalAckData(string symbol, string bias)
    json += "\"bias\":\"" + bias + "\",";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -561,7 +561,7 @@ string ExtractValue(string json, string key)
             return StringSubstr(json, start, end - start);
         }
     }
-    
+
     // Try numeric value format
     searchStr = "\"" + key + "\":";
     start = StringFind(json, searchStr);
@@ -569,7 +569,7 @@ string ExtractValue(string json, string key)
     {
         start += StringLen(searchStr);
         int end = start;
-        
+
         // Find end of numeric value
         while(end < StringLen(json))
         {
@@ -578,13 +578,13 @@ string ExtractValue(string json, string key)
                 break;
             end++;
         }
-        
+
         if(end > start)
         {
             return StringSubstr(json, start, end - start);
         }
     }
-    
+
     return "";
 }
 
@@ -599,7 +599,7 @@ string CreateHeartbeatData()
    json += "\"account\":\"" + accountNumber + "\",";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -614,7 +614,7 @@ string CreateTickData()
    json += "\"ask\":" + DoubleToString(SymbolInfoDouble(Symbol(), SYMBOL_ASK), Digits()) + ",";
    json += "\"time\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -625,15 +625,15 @@ string CreatePositionSnapshotData()
 {
    string json = "{";
    json += "\"positions\":[";
-   
+
    bool firstPosition = true;
-   
+
    for(int i = 0; i < PositionsTotal(); i++)
    {
       if(positionInfo.SelectByIndex(i))
       {
          if(!firstPosition) json += ",";
-         
+
          json += "{";
          json += "\"ticket\":\"" + IntegerToString(positionInfo.Ticket()) + "\",";
          json += "\"symbol\":\"" + positionInfo.Symbol() + "\",";
@@ -649,15 +649,15 @@ string CreatePositionSnapshotData()
          datetime openTime = (datetime)openTimeRaw;
          json += "\"time_open\":\"" + TimeToString(openTime, TIME_DATE|TIME_SECONDS) + "\"";
          json += "}";
-         
+
          firstPosition = false;
       }
    }
-   
+
    json += "],";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -670,10 +670,10 @@ void HandleReconnection()
    {
       retryCount++;
       Print("Attempting reconnection ", retryCount, "/", MAX_RETRY_ATTEMPTS);
-      
+
       // Wait before retrying
       Sleep(RETRY_DELAY_MS * retryCount);
-      
+
       TestConnection();
    }
    else
@@ -692,15 +692,15 @@ void TakeAndSendScreenshot()
    StringReplace(timestamp, ".", "_");
    StringReplace(timestamp, ":", "_");
    StringReplace(timestamp, " ", "_");
-   
+
    string filename = "chart_" + Symbol() + "_" + timestamp + ".gif";
    string fullPath = screenshotPath + filename;
-   
+
    // Take screenshot
    if(ChartScreenShot(0, fullPath, 1920, 1080, ALIGN_RIGHT))
    {
       Print("Screenshot taken: " + filename);
-      
+
       // Send screenshot to API
       SendScreenshotToAPI(fullPath, filename);
    }
@@ -716,17 +716,17 @@ void TakeAndSendScreenshot()
 void SendScreenshotToAPI(string filePath, string filename)
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/screenshot_analysis";
-   
+
    // Read file and convert to base64
    string base64Data = "";
    if(ReadFileAsBase64(filePath, base64Data))
    {
       string postData = CreateScreenshotAnalysisData(base64Data, filename);
-      
+
       int result = MakeWebRequest("POST", url, headers, postData, 10000);
-      
+
       if(result == 200)
       {
          Print("Screenshot sent successfully for AI analysis");
@@ -762,7 +762,7 @@ string CreateScreenshotAnalysisData(string base64Image, string filename)
    json += "\"account_equity\":" + DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY), 2) + "";
    json += "}";
    json += "}";
-   
+
    return json;
 }
 
@@ -782,14 +782,14 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
    {
       filename = filePath;
    }
-   
+
    int fileHandle = FileOpen(filename, FILE_READ|FILE_BIN);
    if(fileHandle == INVALID_HANDLE)
    {
       Print("Failed to open file: " + filename + ", Error: " + IntegerToString(GetLastError()));
       return false;
    }
-   
+
    // Get file size
    ulong fileSizeLong = FileSize(fileHandle);
    if(fileSizeLong > 2147483647) // Max int value
@@ -804,11 +804,11 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
       Print("File is empty or invalid size: " + filename);
       return false;
    }
-   
+
    // Read file data
    uchar fileData[];
    ArrayResize(fileData, fileSize);
-   
+
    uint bytesRead = FileReadArray(fileHandle, fileData, 0, fileSize);
    if(bytesRead > INT_MAX)
    {
@@ -816,20 +816,20 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
       return false;
    }
    FileClose(fileHandle);
-   
+
    if(bytesRead != fileSize)
    {
       Print("Failed to read complete file. Expected: " + IntegerToString(fileSize) + ", Read: " + IntegerToString(bytesRead));
       return false;
    }
-   
+
    // Convert to base64 (simplified - in real implementation you'd use proper base64 encoding)
    base64Data = "";
    for(int i = 0; i < fileSize; i++)
    {
       base64Data += IntegerToString(fileData[i], 16);
    }
-   
+
    Print("File read successfully. Size: " + IntegerToString(fileSize) + " bytes");
    return true;
 }
@@ -842,9 +842,9 @@ string GetCurrentSession()
    datetime currentTime = TimeCurrent();
    MqlDateTime dt;
    TimeToStruct(currentTime, dt);
-   
+
    int hour = dt.hour;
-   
+
    // Determine session based on hour (GMT)
    if(hour >= 0 && hour < 8)
       return "Asian";

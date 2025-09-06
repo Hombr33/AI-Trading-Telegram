@@ -4,16 +4,16 @@ Test script for multi-user signal distribution system.
 """
 
 import asyncio
-import sys
 import os
-from typing import Dict, Any
+import sys
+from typing import Any, Dict
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
+from src.core.config import TelegramConfig
 from src.services.multi_user_service import MultiUserService
 from src.telegram_bot.core.trading_bot import TradingBot
-from src.core.config import TelegramConfig
 
 
 async def test_signal_distribution():

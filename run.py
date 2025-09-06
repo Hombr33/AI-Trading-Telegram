@@ -2,10 +2,11 @@
 """Run the AI Trading Bot application."""
 
 import asyncio
+import os
 import signal
 import sys
-import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file

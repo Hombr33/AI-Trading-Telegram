@@ -274,7 +274,7 @@ services:
     volumes:
       - ./runtime:/app/runtime
     restart: unless-stopped
-    
+
   db:
     image: sqlite:latest
     volumes:

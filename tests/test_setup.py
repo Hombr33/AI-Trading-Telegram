@@ -17,8 +17,8 @@ def test_imports():
         print("✅ Core imports successful")
 
         print("Testing execution modules...")
-        from src.execution.mt5_executor import MT5Executor
         from src.execution.aiomql_executor import AioMQLExecutor
+        from src.execution.mt5_executor import MT5Executor
 
         print("✅ Execution modules successful")
 
@@ -28,10 +28,10 @@ def test_imports():
         print("✅ Telegram bot imports successful")
 
         print("Testing handlers...")
-        from src.telegram_bot.handlers.command_handler import setup_command_handlers
         from src.telegram_bot.handlers.callback_handler import setup_callback_handler
-        from src.telegram_bot.handlers.message_handler import setup_message_handler
+        from src.telegram_bot.handlers.command_handler import setup_command_handlers
         from src.telegram_bot.handlers.error_handler import setup_error_handler
+        from src.telegram_bot.handlers.message_handler import setup_message_handler
 
         print("✅ Handler setup functions successful")
 
@@ -65,8 +65,8 @@ def test_configuration():
 def test_executor_creation():
     """Test executor creation."""
     try:
-        from src.execution.aiomql_executor import AioMQLExecutor
         from src.core.config import config
+        from src.execution.aiomql_executor import AioMQLExecutor
 
         executor = AioMQLExecutor(config.mt5)
         print(f"Executor created: {type(executor).__name__}")

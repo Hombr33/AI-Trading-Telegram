@@ -6,18 +6,19 @@ including user management, platform connections, configuration, signal distribut
 trading operations, admin functions, monitoring, and security.
 """
 
+import json
 import logging
-from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends, status, Query, Path, Body
-from pydantic import BaseModel, Field, validator
 from datetime import datetime, timedelta
 from enum import Enum
-import json
+from typing import Any, Dict, List, Optional
 
-from ...services.user_manager import UserManager
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
+from pydantic import BaseModel, Field, validator
+
+from ...models.telegram_users import PlatformType, SubscriptionStatus, UserRole
 from ...services.config_manager import ConfigManager
 from ...services.multi_user_service import MultiUserService
-from ...models.telegram_users import SubscriptionStatus, PlatformType, UserRole
+from ...services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

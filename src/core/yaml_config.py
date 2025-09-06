@@ -1,8 +1,10 @@
 """YAML configuration loader utility."""
 
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import yaml
+
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)

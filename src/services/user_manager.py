@@ -3,22 +3,23 @@ User management service for multi-user trading system.
 """
 
 import logging
-from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from typing import Any, Dict, List, Optional
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from ..database.session import SessionLocal
 from ..models.telegram_users import (
-    TelegramUser,
-    UserRole,
-    SubscriptionStatus,
-    UserConfiguration,
     PlatformConnection,
     PlatformType,
-    SignalSubscription,
     ServerConfiguration,
+    SignalSubscription,
+    SubscriptionStatus,
+    TelegramUser,
+    UserConfiguration,
+    UserRole,
 )
-from ..database.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 

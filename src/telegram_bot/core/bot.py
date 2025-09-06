@@ -3,20 +3,15 @@
 import asyncio
 import contextlib
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler as TGCommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
+from telegram.ext import Application, CallbackQueryHandler
+from telegram.ext import CommandHandler as TGCommandHandler
+from telegram.ext import ContextTypes, MessageHandler, filters
 
-from src.core.logging import get_logger
 from src.core.config import TelegramConfig
+from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -90,7 +85,7 @@ class BaseTelegramBot:
                 logger.error(f"Exception while handling an update: {context.error}")
 
                 # Handle specific network errors gracefully
-                from telegram.error import NetworkError, TimedOut, BadRequest
+                from telegram.error import BadRequest, NetworkError, TimedOut
 
                 if isinstance(context.error, (NetworkError, TimedOut)):
                     logger.warning("Network error occurred, will retry automatically")

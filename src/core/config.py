@@ -4,10 +4,12 @@ Configuration management for the AI Trading Bot.
 
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
+
 from .logging import get_logger
 
 # Load environment variables from .env file

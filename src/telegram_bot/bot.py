@@ -2,19 +2,14 @@
 Telegram Bot for AI Trading Bot monitoring and alerts.
 """
 
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 try:
-    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import (
-        Application,
-        CommandHandler as TGCommandHandler,
-        CallbackQueryHandler,
-        MessageHandler,
-        filters,
-        ContextTypes,
-    )
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+    from telegram.ext import Application, CallbackQueryHandler
+    from telegram.ext import CommandHandler as TGCommandHandler
+    from telegram.ext import ContextTypes, MessageHandler, filters
 except ImportError:
     # Try alternative imports for different python-telegram-bot versions
     from telegram.bot import Update
@@ -27,11 +22,12 @@ except ImportError:
     from telegram.ext.filters import filters
     from telegram.ext.contexttypes import ContextTypes
 
-from src.core.logging import get_logger
 from src.core.config import TelegramConfig
-from .notifications import NotificationManager
+from src.core.logging import get_logger
+
 from .commands import CommandHandler
 from .handlers.conversation_handlers import setup_conversation_handlers
+from .notifications import NotificationManager
 
 logger = get_logger(__name__)
 

@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 
 from src.core.config import config
 from src.database import get_db_session
-from src.models.telegram_users import TelegramUser, UserRole, SubscriptionStatus
+from src.models.telegram_users import SubscriptionStatus, TelegramUser, UserRole
 from src.services.user_manager import UserManager
 
 

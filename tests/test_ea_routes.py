@@ -2,11 +2,14 @@
 Test EA API routes directly.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from fastapi.testclient import TestClient
 from fastapi import FastAPI
-from src.api.routes.ea import router as ea_router, set_ea_globals
+from fastapi.testclient import TestClient
+
+from src.api.routes.ea import router as ea_router
+from src.api.routes.ea import set_ea_globals
 
 pytestmark = pytest.mark.asyncio
 

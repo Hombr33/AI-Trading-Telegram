@@ -1,19 +1,20 @@
 """Command handler for Telegram bot."""
 
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
-from .system import SystemCommandHandler
-from .trading import TradingCommandHandler
+from src.services.symbol_service import SymbolService
+
+from ..handlers.admin_commands import AdminCommandHandlers
+from ..handlers.multi_user_handlers import MultiUserHandlers
 from .analysis import AnalysisCommandHandler
 from .auto_trading import AutoTradingCommandHandler
 from .symbol import SymbolCommandHandler
-from ..handlers.admin_commands import AdminCommandHandlers
-from ..handlers.multi_user_handlers import MultiUserHandlers
-from src.services.symbol_service import SymbolService
+from .system import SystemCommandHandler
+from .trading import TradingCommandHandler
 
 logger = get_logger(__name__)
 

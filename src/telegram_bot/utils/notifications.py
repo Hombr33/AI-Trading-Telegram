@@ -1,9 +1,9 @@
 """Utility functions for easy access to notification features."""
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from ..notifications.manager import NotificationManager
 from ..utils.constants import NotificationPriority
-
 
 # Global notification manager instance
 _notification_manager: Optional[NotificationManager] = None

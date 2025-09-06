@@ -5,13 +5,14 @@ Order Bridge for sending orders from Python to MT5 EA.
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple
+
 import aiohttp
 import websockets
 
-from ..core.logging import get_logger
 from ..core.config import BridgeConfig
+from ..core.logging import get_logger
 from ..models.orders import Order
 from ..models.signals import Signal
 

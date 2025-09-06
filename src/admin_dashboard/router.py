@@ -4,13 +4,14 @@ Provides web-based administrative interface for the AI Trading Bot.
 """
 
 import logging
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, Request, HTTPException, Depends, Query, Form
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from ..services.multi_user_service import MultiUserService
 from ..core.config import config
+from ..services.multi_user_service import MultiUserService
 
 logger = logging.getLogger(__name__)
 

@@ -2,6 +2,7 @@
 """Test script to verify Telegram bot functionality."""
 
 import asyncio
+
 from src.core.config import config
 from src.telegram_bot.core.trading_bot import TradingBot
 

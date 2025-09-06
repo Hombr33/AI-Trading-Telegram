@@ -20,7 +20,7 @@ class MarketAnalyzer:
         "setup": ["M15", "M5"],
         "execution": ["M1"]
     }
-    
+
     async def analyze_market(self, data: MarketData) -> AnalysisResult:
         """Perform multi-timeframe analysis."""
         pass

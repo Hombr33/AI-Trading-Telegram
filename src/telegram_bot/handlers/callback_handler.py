@@ -20,10 +20,10 @@ class CallbackRouter:
     def _setup_handlers(self):
         """Setup callback handlers."""
         # Import handlers
-        from .system_callbacks import SystemCallbackHandler
-        from .trading_callbacks import TradingCallbackHandler
         from ..commands.system import SystemCommandHandler
         from ..commands.trading import TradingCommandHandler
+        from .system_callbacks import SystemCallbackHandler
+        from .trading_callbacks import TradingCallbackHandler
 
         # Initialize command handlers
         system_handler = SystemCommandHandler()

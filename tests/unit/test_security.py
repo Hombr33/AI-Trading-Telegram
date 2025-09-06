@@ -2,18 +2,20 @@
 Unit tests for the security module.
 """
 
-import pytest
 import hashlib
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
+
 from src.core.security import (
-    verify_bridge_token,
-    hash_password,
-    verify_password,
     generate_secure_token,
+    hash_password,
     sanitize_input,
-    validate_symbol,
     validate_price,
+    validate_symbol,
     validate_volume,
+    verify_bridge_token,
+    verify_password,
 )
 
 

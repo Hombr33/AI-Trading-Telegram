@@ -6,11 +6,11 @@ Executes trades automatically when auto trading is enabled.
 import asyncio
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+from src.common.interfaces import IAutoTradingService, IOrderManager, IPlatformManager
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event, log_trade_event
-from src.common.interfaces import IAutoTradingService, IPlatformManager, IOrderManager
 
 logger = get_logger(__name__)
 

@@ -1,14 +1,15 @@
 """User configuration service for managing user-specific trading settings."""
 
-from typing import Dict, Any, Optional, List
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
+from ..core.logging import get_logger
 from ..database.session import SessionLocal
 from ..models.telegram_users import TelegramUser, UserConfiguration
-from ..core.logging import get_logger
 
 logger = get_logger(__name__)
 

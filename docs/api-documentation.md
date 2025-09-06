@@ -194,12 +194,12 @@ class IBrokerInterface:
     async def place_order(self, order: Order) -> OrderResult:
         """Place an order with the broker."""
         pass
-    
-    async def modify_order(self, order_id: str, 
+
+    async def modify_order(self, order_id: str,
                           modifications: Dict) -> OrderResult:
         """Modify an existing order."""
         pass
-    
+
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an existing order."""
         pass
@@ -211,7 +211,7 @@ class IAnalysisInterface:
     async def analyze_market(self, data: MarketData) -> Analysis:
         """Analyze market data and generate signals."""
         pass
-    
+
     async def validate_signal(self, signal: Signal) -> bool:
         """Validate a trading signal."""
         pass

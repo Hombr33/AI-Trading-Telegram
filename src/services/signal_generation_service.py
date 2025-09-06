@@ -6,12 +6,12 @@ Generates trading signals at configurable intervals using AI analysis.
 import asyncio
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Optional, Union
 
+from src.analysis.openai_analyzer import OpenAIAnalyzer
+from src.common.interfaces import IAnalyzer, IPlatformManager, ISignalGenerationService
 from src.core.config import config
 from src.core.logging import get_logger, log_system_event
-from src.common.interfaces import ISignalGenerationService, IAnalyzer, IPlatformManager
-from src.analysis.openai_analyzer import OpenAIAnalyzer
 from src.telegram_bot.notifications.trading import send_signal_notification
 
 logger = get_logger(__name__)
@@ -439,8 +439,9 @@ class SignalGenerationService(ISignalGenerationService):
         """Get real-time market data for analysis."""
         try:
             # Use real market data APIs instead of mock data
-            import aiohttp
             import asyncio
+
+            import aiohttp
 
             # Determine if it's forex or crypto
             is_crypto = any(crypto in symbol for crypto in ["BTC", "ETH", "ADA"])

@@ -2,13 +2,16 @@
 Test HTTP fallback mechanism for EA communication.
 """
 
-import pytest
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import aiohttp
-from unittest.mock import Mock, AsyncMock, patch
-from fastapi.testclient import TestClient
+import pytest
 from fastapi import FastAPI
-from src.api.routes.ea import router as ea_router, set_ea_globals
+from fastapi.testclient import TestClient
+
+from src.api.routes.ea import router as ea_router
+from src.api.routes.ea import set_ea_globals
 from src.bridge.socketio_bridge import SocketIOBridge
 from src.core.config import BridgeConfig
 

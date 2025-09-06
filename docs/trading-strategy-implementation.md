@@ -11,17 +11,17 @@ This document details the institutional-grade trading strategy implementation, f
 ```python
 class MarketStructureAnalyzer:
     """Analyze market structure across timeframes."""
-    
+
     def __init__(self):
         self.timeframes = {
             "bias": ["H4", "H1"],
             "setup": ["M15", "M5"],
             "execution": ["M1"]
         }
-    
+
     async def analyze_structure(self, data: MarketData) -> MarketStructure:
         """Perform multi-timeframe structure analysis.
-        
+
         Analyzes:
         - Break of Structure (BOS)
         - Change of Character (CHoCH)
@@ -38,7 +38,7 @@ class MarketStructureAnalyzer:
 ```python
 class LiquidityAnalyzer:
     """Identify and analyze liquidity zones."""
-    
+
     def __init__(self):
         self.liquidity_types = {
             "equal_highs": {"min_length": 3, "max_age": "7D"},
@@ -46,11 +46,11 @@ class LiquidityAnalyzer:
             "round_numbers": {"precision": 2, "range": 50},
             "stop_clusters": {"density_threshold": 0.7}
         }
-    
+
     async def find_liquidity_zones(self) -> List[LiquidityZone]:
         """Identify potential liquidity zones."""
         pass
-    
+
     async def validate_sweep(self, zone: LiquidityZone) -> bool:
         """Validate if a liquidity sweep is valid."""
         pass
@@ -60,7 +60,7 @@ class LiquidityAnalyzer:
 ```python
 class OrderBlockDetector:
     """Detect and validate institutional order blocks."""
-    
+
     def __init__(self):
         self.ob_rules = {
             "min_volume": "200% average",
@@ -71,7 +71,7 @@ class OrderBlockDetector:
                 "partial": "price returns to 50%"
             }
         }
-    
+
     async def identify_order_blocks(self) -> List[OrderBlock]:
         """Find potential order blocks."""
         pass
@@ -83,7 +83,7 @@ class OrderBlockDetector:
 ```python
 class EntryValidator:
     """Validate trade entry conditions."""
-    
+
     def __init__(self):
         self.required_confluences = 3
         self.conditions = {
@@ -104,7 +104,7 @@ class EntryValidator:
                 "validation": "rsi_divergence"
             }
         }
-    
+
     async def validate_setup(self, setup: TradeSetup) -> ValidationResult:
         """Validate if a trade setup meets requirements."""
         pass
@@ -115,7 +115,7 @@ class EntryValidator:
 ```python
 class TradeRiskManager:
     """Manage trade risk parameters."""
-    
+
     def __init__(self):
         self.risk_params = {
             "account_risk": 0.02,  # 2% per trade
@@ -132,8 +132,8 @@ class TradeRiskManager:
                 ]
             }
         }
-    
-    async def calculate_trade_parameters(self, 
+
+    async def calculate_trade_parameters(self,
                                       setup: TradeSetup,
                                       account: Account) -> TradeParameters:
         """Calculate position size and risk parameters."""
@@ -145,7 +145,7 @@ class TradeRiskManager:
 ```python
 class ExecutionManager:
     """Manage trade execution and monitoring."""
-    
+
     def __init__(self):
         self.execution_rules = {
             "entry_types": {
@@ -163,7 +163,7 @@ class ExecutionManager:
                 }
             }
         }
-    
+
     async def execute_trade(self, setup: TradeSetup) -> ExecutionResult:
         """Execute trade based on setup parameters."""
         pass
@@ -176,7 +176,7 @@ class ExecutionManager:
 ```python
 class PerformanceAnalytics:
     """Track and analyze trading performance."""
-    
+
     def __init__(self):
         self.metrics = {
             "win_rate": {"min": 0.40, "target": 0.50},
@@ -184,8 +184,8 @@ class PerformanceAnalytics:
             "avg_rr": {"min": 1.5, "target": 2.0},
             "max_drawdown": {"max": 0.06, "warning": 0.04}
         }
-    
-    async def calculate_metrics(self, 
+
+    async def calculate_metrics(self,
                               trades: List[Trade],
                               timeframe: str = "1D") -> PerformanceMetrics:
         """Calculate performance metrics."""

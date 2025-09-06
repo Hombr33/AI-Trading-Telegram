@@ -17,12 +17,12 @@ async def test_complete_workflow():
 
         # Test 1: Component Initialization
         print("\n1. Testing Component Initialization...")
+        from src.bridge.socketio_bridge import SocketIOBridge
+        from src.common.interfaces import IPositionManager
         from src.core.config import config
         from src.execution.aiomql_executor import AioMQLExecutor
         from src.execution.order_manager import OrderManager
-        from src.common.interfaces import IPositionManager
         from src.telegram_bot.core.trading_bot import TradingBot
-        from src.bridge.socketio_bridge import SocketIOBridge
 
         # Initialize components
         mt5_executor = AioMQLExecutor(config.mt5)
@@ -134,7 +134,7 @@ async def test_error_handling():
         print("\n🚨 Testing Error Handling")
         print("=" * 40)
 
-        from src.core.error_handler import with_error_handling, ErrorContext
+        from src.core.error_handler import ErrorContext, with_error_handling
         from src.core.exceptions import TradingBotException
 
         # Test 1: Error context manager

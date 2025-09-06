@@ -2,16 +2,17 @@
 Signal distribution service for multi-user trading system.
 """
 
-import logging
 import asyncio
-from typing import List, Dict, Any, Optional
+import logging
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
-from ..models.telegram_users import TelegramUser, SignalSubscription
 from ..database.connection import get_db_session
-from ..services.user_manager import UserManager
+from ..models.telegram_users import SignalSubscription, TelegramUser
 from ..services.config_manager import ConfigManager
+from ..services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

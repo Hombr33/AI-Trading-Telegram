@@ -4,9 +4,10 @@ Test script for bridge endpoints to debug 500 errors.
 """
 
 import asyncio
-import httpx
 import json
 from datetime import datetime, timezone
+
+import httpx
 
 
 async def test_bridge_endpoints():

@@ -1,13 +1,14 @@
 """Animation utilities for Telegram bot."""
 
 import asyncio
-from typing import List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
+
 from .keyboards import create_animated_loading_keyboard, create_quick_actions_keyboard
 
 logger = get_logger(__name__)
@@ -77,8 +78,8 @@ class LiveDashboard:
         """Update dashboard with live data."""
         try:
             # Import services for real data
-            from ..services.trading_data_service import TradingDataService
             from ..services.system_data_service import SystemDataService
+            from ..services.trading_data_service import TradingDataService
 
             # Initialize services
             trading_service = TradingDataService()

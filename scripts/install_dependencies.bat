@@ -60,7 +60,7 @@ if exist "requirements.txt" (
     if %errorlevel% neq 0 (
         echo %RED%❌ Failed to install requirements%RESET%
         echo %YELLOW%Trying to install packages individually...%RESET%
-        
+
         :: Install core packages individually
         pip install fastapi
         pip install uvicorn[standard]
@@ -74,7 +74,7 @@ if exist "requirements.txt" (
         pip install pydantic
         pip install asyncio-mqtt
         pip install websockets
-        
+
         echo %GREEN%✅ Individual package installation completed%RESET%
     ) else (
         echo %GREEN%✅ All requirements installed successfully%RESET%
@@ -98,7 +98,7 @@ if %errorlevel% equ 0 (
 ) else (
     echo %YELLOW%⚠️  Some packages failed to import%RESET%
     echo %CYAN%Testing individual imports...%RESET%
-    
+
     python -c "import fastapi" 2>nul && echo %GREEN%✅ FastAPI OK%RESET% || echo %RED%❌ FastAPI failed%RESET%
     python -c "import uvicorn" 2>nul && echo %GREEN%✅ Uvicorn OK%RESET% || echo %RED%❌ Uvicorn failed%RESET%
     python -c "import sqlalchemy" 2>nul && echo %GREEN%✅ SQLAlchemy OK%RESET% || echo %RED%❌ SQLAlchemy failed%RESET%

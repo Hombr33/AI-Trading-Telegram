@@ -2,13 +2,13 @@
 System management utilities for the AI Trading Bot.
 """
 
-import os
-import sys
 import asyncio
 import logging
+import os
 import signal
-from typing import Optional, Dict, Any
+import sys
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

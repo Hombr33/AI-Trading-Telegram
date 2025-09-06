@@ -2,16 +2,17 @@
 Bridge API routes for MT4/MT5 communication.
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-import structlog
 import time
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from src.core.logging import log_trade_event, log_system_event
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from src.core.logging import log_system_event, log_trade_event
 from src.database.session import get_db_session
-from src.models import Instrument, Signal, Order, Trade, Position
+from src.models import Instrument, Order, Position, Signal, Trade
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()

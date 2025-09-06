@@ -4,14 +4,14 @@ Comprehensive health monitoring system for the AI Trading Bot.
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Any, Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
-from .logging import get_logger, log_system_event, log_error_with_context
 from .error_handler import with_error_handling
 from .exceptions import TradingBotException
+from .logging import get_logger, log_error_with_context, log_system_event
 
 logger = get_logger(__name__)
 
@@ -315,7 +315,7 @@ class HealthMonitor:
         """Check if critical connections are active."""
         try:
             # Check if we can import main components
-            from ..main import telegram_bot, socketio_bridge, platform_manager
+            from ..main import platform_manager, socketio_bridge, telegram_bot
 
             mt5_healthy = False
             if platform_manager:

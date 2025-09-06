@@ -5,8 +5,8 @@ Test script to show signal generation structure and verify real data integration
 
 import asyncio
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add src to path
 src_path = Path(__file__).parent.parent / "src"
@@ -20,9 +20,9 @@ async def test_signal_structure():
 
     try:
         # Import required modules
-        from analysis.openai_analyzer import OpenAIAnalyzer
-        from analysis.modules.realtime_data_provider import RealtimeDataProvider
         from analysis.modules.openai_client_wrapper import OpenAIClientWrapper
+        from analysis.modules.realtime_data_provider import RealtimeDataProvider
+        from analysis.openai_analyzer import OpenAIAnalyzer
 
         print("\n📋 Testing Model Capabilities...")
         print("-" * 40)

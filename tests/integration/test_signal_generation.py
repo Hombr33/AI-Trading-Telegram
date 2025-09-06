@@ -6,8 +6,8 @@ Test script to validate signal generation with real data.
 import asyncio
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add src to path
 src_path = Path(__file__).parent.parent / "src"
@@ -31,8 +31,8 @@ async def test_signal_generation():
 
     try:
         # Import required modules
-        from analysis.openai_analyzer import OpenAIAnalyzer
         from analysis.modules.realtime_data_provider import RealtimeDataProvider
+        from analysis.openai_analyzer import OpenAIAnalyzer
 
         print("\n🧪 Testing Real-time Data Provider...")
         print("-" * 40)

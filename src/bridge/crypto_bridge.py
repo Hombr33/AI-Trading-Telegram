@@ -2,20 +2,21 @@
 Crypto exchange bridge service for multi-platform trading.
 """
 
-import logging
 import asyncio
-import hmac
 import hashlib
+import hmac
+import logging
 import time
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from aiohttp import ClientSession, ClientTimeout
 from sqlalchemy.orm import Session
 
-from ..models.telegram_users import TelegramUser, PlatformConnection, PlatformType
 from ..database.connection import get_db_session
-from ..services.user_manager import UserManager
+from ..models.telegram_users import PlatformConnection, PlatformType, TelegramUser
 from ..services.config_manager import ConfigManager
+from ..services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

@@ -2,18 +2,19 @@
 Configuration management service for multi-user trading system.
 """
 
-import logging
-import json
-from typing import Optional, Dict, Any, List, Tuple
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import and_, desc
 import asyncio
+import json
+import logging
+from datetime import datetime, timedelta
 from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..models.telegram_users import TelegramUser, UserConfiguration, ServerConfiguration
+from sqlalchemy import and_, desc
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
 from ..database.connection import get_db_session
+from ..models.telegram_users import ServerConfiguration, TelegramUser, UserConfiguration
 
 logger = logging.getLogger(__name__)
 

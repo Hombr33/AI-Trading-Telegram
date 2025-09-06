@@ -11,7 +11,7 @@ Your AI Trading Bot now supports **multiple trading platforms** simultaneously:
 
 ### **Crypto Exchanges**
 - **Binance** - World's largest crypto exchange
-- **Bybit** - Popular derivatives platform  
+- **Bybit** - Popular derivatives platform
 - **Bitget** - Growing crypto exchange
 
 ## 📋 Quick Setup
@@ -104,7 +104,7 @@ All platforms use the same interface:
 result = await platform_manager.place_order({
     "symbol": "BTCUSDT",  # Auto-routes to crypto exchange
     "side": "buy",
-    "type": "market", 
+    "type": "market",
     "quantity": 0.001
 })
 
@@ -186,7 +186,7 @@ curl http://localhost:8000/health
 
 The bot automatically **notifies you** of:
 - ✅ Platform connections/disconnections
-- 📈 Trade executions across all platforms  
+- 📈 Trade executions across all platforms
 - ⚠️ Errors or warnings
 - 📊 Account summaries from all exchanges
 

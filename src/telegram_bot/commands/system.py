@@ -1,15 +1,16 @@
 """System commands for Telegram bot."""
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from telegram import Update, InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
-from src.telegram_bot.utils.keyboards import create_keyboard
-from src.telegram_bot.services.system_data_service import SystemDataService
 from src.services.user_config_service import UserConfigService
+from src.telegram_bot.services.system_data_service import SystemDataService
+from src.telegram_bot.utils.keyboards import create_keyboard
+
 from .base import BaseCommandHandler
 
 logger = get_logger(__name__)

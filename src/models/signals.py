@@ -3,18 +3,19 @@ Signal model for trading signals.
 """
 
 from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    Integer,
-    Float,
-    Text,
-    ForeignKey,
     JSON,
+    Boolean,
+    Column,
     DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from .base import Base
 
 

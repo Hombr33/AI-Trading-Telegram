@@ -6,14 +6,15 @@ Provides fallback to long polling if Socket.IO fails.
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime, timezone
+from typing import Any, Callable, Dict, List, Optional
+
+import aiohttp
 import socketio
 from fastapi import HTTPException
-import aiohttp
 
-from ..core.logging import get_logger
 from ..core.config import BridgeConfig
+from ..core.logging import get_logger
 
 logger = get_logger(__name__)
 

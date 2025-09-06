@@ -4,17 +4,18 @@ Provides endpoints for EA to communicate with the trading system.
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel, Field
-import structlog
+from typing import Any, Dict, List, Optional
 
-from src.core.logging import log_trade_event, log_system_event
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+
+from src.core.logging import log_system_event, log_trade_event
 from src.database.session import get_db_session
-from src.models import Instrument, Signal, Order, Trade, Position
-from src.services.user_manager import UserManager
-from src.services.config_manager import ConfigManager
 from src.execution.order_manager import OrderManager
+from src.models import Instrument, Order, Position, Signal, Trade
+from src.services.config_manager import ConfigManager
+from src.services.user_manager import UserManager
 from src.telegram_bot.core.trading_bot import TradingBot
 
 logger = structlog.get_logger(__name__)

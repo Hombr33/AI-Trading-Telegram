@@ -41,23 +41,23 @@ string headers = "";
 int init()
 {
    Print("BridgeEA MT4 Initialized");
-   
+
    // Get terminal and account information
    terminalId = TerminalName();
    accountNumber = AccountNumber();
-   
+
    // Initialize screenshot path
    screenshotPath = TerminalInfoString(TERMINAL_DATA_PATH) + "\\MQL4\\Files\\Screenshots\\";
-   
+
    // Set up headers for authentication
    headers = "Authorization: Bearer " + BRIDGE_TOKEN + "\r\n";
    headers += "Content-Type: application/json\r\n";
-   
+
    // Test connection
    TestConnection();
-   
+
    Print("Screenshot path: " + screenshotPath);
-   
+
    return(0);
 }
 
@@ -81,28 +81,28 @@ int start()
       SendHeartbeat();
       lastHeartbeatTime = TimeCurrent();
    }
-   
+
    // Send position snapshot
    if((TimeCurrent() - lastPositionSnapshotTime) >= POSITION_SNAPSHOT_INTERVAL)
    {
       SendPositionSnapshot();
       lastPositionSnapshotTime = TimeCurrent();
    }
-   
+
    // Send tick data if enabled and enough time has passed
    if(ENABLE_TICK_STREAMING && (TimeCurrent() - lastTickTime) >= 1)
    {
       SendTickData();
       lastTickTime = TimeCurrent();
    }
-   
+
    // Take and send screenshot for AI analysis
    if(ENABLE_SCREENSHOT_ANALYSIS && (TimeCurrent() - lastScreenshotTime) >= SCREENSHOT_INTERVAL)
    {
       TakeAndSendScreenshot();
       lastScreenshotTime = TimeCurrent();
    }
-   
+
    return(0);
 }
 
@@ -113,9 +113,9 @@ void TestConnection()
 {
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
-   
+
    int result = WebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result == 200)
    {
       isConnected = true;
@@ -140,12 +140,12 @@ void SendHeartbeat()
       TestConnection();
       return;
    }
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/heartbeat";
    string postData = CreateHeartbeatData();
-   
+
    int result = WebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result == 200)
    {
       isConnected = true;
@@ -156,7 +156,7 @@ void SendHeartbeat()
       isConnected = false;
       lastError = "Heartbeat failed with code: " + IntegerToString(result);
       Print("Heartbeat failed: ", lastError);
-      
+
       if(ENABLE_AUTO_RECONNECT)
       {
          HandleReconnection();
@@ -170,12 +170,12 @@ void SendHeartbeat()
 void SendTickData()
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/tick_data";
    string postData = CreateTickData();
-   
+
    int result = WebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result != 200)
    {
       Print("Tick data send failed with code: ", result);
@@ -188,12 +188,12 @@ void SendTickData()
 void SendPositionSnapshot()
 {
    if(!isConnected) return;
-   
+
     string url = API_ENDPOINT + "/api/v1/bridge/position_snapshot";
    string postData = CreatePositionSnapshotData();
-   
+
    int result = WebRequest("POST", url, headers, postData, 5000);
-   
+
    if(result != 200)
    {
       Print("Position snapshot send failed with code: ", result);
@@ -211,7 +211,7 @@ string CreateHeartbeatData()
    json += "\"account\":\"" + accountNumber + "\",";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -226,7 +226,7 @@ string CreateTickData()
    json += "\"ask\":" + DoubleToString(Ask, Digits) + ",";
    json += "\"time\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -237,9 +237,9 @@ string CreatePositionSnapshotData()
 {
    string json = "{";
    json += "\"positions\":[";
-   
+
    bool firstPosition = true;
-   
+
    for(int i = 0; i < OrdersTotal(); i++)
    {
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
@@ -247,7 +247,7 @@ string CreatePositionSnapshotData()
          if(OrderType() <= OP_SELL) // Only open positions
          {
             if(!firstPosition) json += ",";
-            
+
             json += "{";
             json += "\"ticket\":\"" + IntegerToString(OrderTicket()) + "\",";
             json += "\"symbol\":\"" + OrderSymbol() + "\",";
@@ -261,16 +261,16 @@ string CreatePositionSnapshotData()
             json += "\"commission\":" + DoubleToString(OrderCommission(), 2) + ",";
             json += "\"time_open\":\"" + TimeToString(OrderOpenTime(), TIME_DATE|TIME_SECONDS) + "\"";
             json += "}";
-            
+
             firstPosition = false;
          }
       }
    }
-   
+
    json += "],";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
-   
+
    return json;
 }
 
@@ -283,10 +283,10 @@ void HandleReconnection()
    {
       retryCount++;
       Print("Attempting reconnection ", retryCount, "/", MAX_RETRY_ATTEMPTS);
-      
+
       // Wait before retrying
       Sleep(RETRY_DELAY_MS * retryCount);
-      
+
       TestConnection();
    }
    else
@@ -305,15 +305,15 @@ void TakeAndSendScreenshot()
    StringReplace(timestamp, ".", "_");
    StringReplace(timestamp, ":", "_");
    StringReplace(timestamp, " ", "_");
-   
+
    string filename = "chart_" + Symbol() + "_" + timestamp + ".gif";
    string fullPath = screenshotPath + filename;
-   
+
    // Take screenshot
    if(WindowScreenShot(filename, 1920, 1080))
    {
       Print("Screenshot taken: " + filename);
-      
+
       // Send screenshot to API
       SendScreenshotToAPI(fullPath, filename);
    }
@@ -334,12 +334,12 @@ void SendScreenshotToAPI(string filePath, string filename)
    {
       // Create JSON payload for screenshot analysis
       string jsonData = CreateScreenshotAnalysisData(base64Data, filename);
-      
+
       // Send to API
       string url = API_ENDPOINT + "/api/v1/market-analysis/screenshot";
-      
+
       int result = WebRequest("POST", url, headers, 10000, jsonData, NULL, NULL);
-      
+
       if(result == 200)
       {
          Print("Screenshot analysis sent successfully");
@@ -359,7 +359,7 @@ void SendScreenshotToAPI(string filePath, string filename)
    {
       Print("Failed to read screenshot file: " + filePath);
    }
-   
+
    // Clean up - delete screenshot file after sending
    FileDelete(filename);
 }
@@ -383,7 +383,7 @@ string CreateScreenshotAnalysisData(string base64Image, string filename)
    json += "\"account_equity\":" + DoubleToStr(AccountEquity(), 2) + "";
    json += "}";
    json += "}";
-   
+
    return json;
 }
 
@@ -403,14 +403,14 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
    {
       filename = filePath;
    }
-   
+
    int fileHandle = FileOpen(filename, FILE_READ|FILE_BIN);
    if(fileHandle < 0)
    {
       Print("Failed to open file: " + filename + ", Error: " + GetLastError());
       return false;
    }
-   
+
    // Get file size
    int fileSize = FileSize(fileHandle);
    if(fileSize <= 0)
@@ -419,7 +419,7 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
       Print("File is empty or invalid size: " + filename);
       return false;
    }
-   
+
    // Read file data (simplified base64 encoding for MT4)
    base64Data = "";
    for(int i = 0; i < fileSize && i < 1000000; i++) // Limit to 1MB
@@ -427,7 +427,7 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
       int byteValue = FileReadInteger(fileHandle, 1);
       base64Data += IntegerToHexString(byteValue);
    }
-   
+
    FileClose(fileHandle);
    Print("File read successfully. Size: " + fileSize + " bytes");
    return true;
@@ -439,7 +439,7 @@ bool ReadFileAsBase64(string filePath, string &base64Data)
 string GetCurrentSession()
 {
    int hour = TimeHour(TimeCurrent());
-   
+
    // Determine session based on hour (GMT)
    if(hour >= 0 && hour < 8)
       return "Asian";

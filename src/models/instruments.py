@@ -2,8 +2,9 @@
 Instrument model for trading instruments.
 """
 
-from sqlalchemy import Column, String, Boolean, Integer, Float, Text, JSON
+from sqlalchemy import JSON, Boolean, Column, Float, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from .base import Base
 
 

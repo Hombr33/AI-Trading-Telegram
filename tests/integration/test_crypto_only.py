@@ -4,8 +4,8 @@ Cross-platform crypto-only test for Linux/macOS deployment.
 """
 
 import asyncio
-import sys
 import platform
+import sys
 from datetime import datetime
 
 
@@ -27,8 +27,8 @@ async def test_crypto_only_setup():
         # Test crypto executor imports
         print("\n2. Testing Crypto Executors...")
         from src.execution.crypto.binance_executor import BinanceExecutor
-        from src.execution.crypto.bybit_executor import BybitExecutor
         from src.execution.crypto.bitget_executor import BitgetExecutor
+        from src.execution.crypto.bybit_executor import BybitExecutor
 
         print("   ✅ Crypto executors imported successfully")
 

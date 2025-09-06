@@ -1,30 +1,30 @@
 """Trading commands for Telegram bot."""
 
 import json
-from typing import Dict, Any, List, Optional
 import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from telegram import Update, InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from src.analysis.openai_analyzer import OpenAIAnalyzer
+from src.core.config import AppConfig
 from src.core.logging import get_logger
-from src.telegram_bot.utils.keyboards import (
-    create_keyboard,
-    create_progress_keyboard,
-    create_confirmation_keyboard,
-    create_paginated_keyboard,
-    get_trading_menu_keyboard,
-)
-from src.telegram_bot.utils.visual_effects import VisualEffects
 from src.database.session import SessionLocal
 from src.services.symbol_service import SymbolService
 from src.telegram_bot.services.trading_data_service import TradingDataService
+from src.telegram_bot.utils.keyboards import (
+    create_confirmation_keyboard,
+    create_keyboard,
+    create_paginated_keyboard,
+    create_progress_keyboard,
+    get_trading_menu_keyboard,
+)
+from src.telegram_bot.utils.visual_effects import VisualEffects
 
 # Lazy import to avoid circular imports - moved to method level
 from .base import BaseCommandHandler
-from src.analysis.openai_analyzer import OpenAIAnalyzer
-from src.core.config import AppConfig
 
 logger = get_logger(__name__)
 

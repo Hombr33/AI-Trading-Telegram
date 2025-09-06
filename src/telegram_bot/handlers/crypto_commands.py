@@ -3,13 +3,14 @@ Telegram bot command handlers for crypto trading operations.
 """
 
 import logging
-from typing import Dict, Any, List
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from typing import Any, Dict, List
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...services.user_manager import UserManager
-from ...services.crypto_bridge import CryptoBridge
 from ...models.telegram_users import PlatformType
+from ...services.crypto_bridge import CryptoBridge
+from ...services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

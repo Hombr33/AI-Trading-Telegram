@@ -3,11 +3,12 @@ OpenAI client wrapper module for enhanced functionality.
 Handles OpenAI API interactions with proper error handling and retry logic.
 """
 
-import logging
 import asyncio
 import base64
-from typing import Dict, Any, List, Optional, Union
 import json
+import logging
+from typing import Any, Dict, List, Optional, Union
+
 import openai
 from openai import AsyncOpenAI
 

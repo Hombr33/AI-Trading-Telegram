@@ -4,21 +4,21 @@ Position Manager for monitoring and managing open positions.
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
+from ..common.interfaces import IPositionManager
+from ..core.config import TradingConfig
+from ..core.error_handler import ErrorContext, with_error_handling
+from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.logging import (
     get_logger,
     log_error_with_context,
+    log_operation_timing,
     log_system_event,
     log_trade_event,
-    log_operation_timing,
 )
-from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.workflow import Component, ComponentStatus
-from ..core.config import TradingConfig
-from ..common.interfaces import IPositionManager
 
 # MT5Executor will be injected via platform manager
 from ..models.positions import Position

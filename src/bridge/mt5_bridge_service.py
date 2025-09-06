@@ -5,15 +5,15 @@ Integrates EA Bridge, Socket.IO Bridge, and Trading Data Service.
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
-from src.core.logging import get_logger
 from src.bridge.ea_bridge import EABridge
 from src.bridge.socketio_bridge import SocketIOBridge
-from src.telegram_bot.services.trading_data_service import TradingDataService
-from src.services.signal_generation_service import SignalGenerationService
 from src.core.config import AppConfig, BridgeConfig
+from src.core.logging import get_logger
+from src.services.signal_generation_service import SignalGenerationService
+from src.telegram_bot.services.trading_data_service import TradingDataService
 
 logger = get_logger(__name__)
 

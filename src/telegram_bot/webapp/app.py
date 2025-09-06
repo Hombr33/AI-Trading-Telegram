@@ -1,7 +1,7 @@
 """Telegram WebApp handler."""
 
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 from telegram import Update, WebAppInfo
 from telegram.ext import ContextTypes

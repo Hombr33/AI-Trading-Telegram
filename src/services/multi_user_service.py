@@ -2,22 +2,22 @@
 Multi-user service orchestrator for the trading system.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta, timezone
-from collections import defaultdict
 import json
+import logging
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
-from .user_manager import UserManager
-from .config_manager import ConfigManager
-from ..bridge.ea_bridge import EABridge
 from ..bridge.crypto_bridge import CryptoBridge
+from ..bridge.ea_bridge import EABridge
 from ..bridge.signal_distributor import SignalDistributor
-from ..execution.multi_user_position_manager import MultiUserPositionManager
 from ..execution.multi_user_order_manager import MultiUserOrderManager
+from ..execution.multi_user_position_manager import MultiUserPositionManager
 from ..telegram_bot.core.trading_bot import TradingBot
 from ..telegram_bot.notifications.manager import NotificationManager
+from .config_manager import ConfigManager
+from .user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
@@ -1574,8 +1574,9 @@ class MultiUserService:
     async def _check_memory_usage(self, health_status: Dict[str, Any]) -> None:
         """Check memory usage."""
         try:
-            import psutil
             import os
+
+            import psutil
 
             # Get current process memory usage
             process = psutil.Process(os.getpid())

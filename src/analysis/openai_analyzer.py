@@ -3,16 +3,16 @@ OpenAI-powered market analyzer for trading signals.
 Integrates real-time market data with AI analysis.
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
 import json
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
-from .modules.openai_client_wrapper import OpenAIClientWrapper
-from .modules.real_market_data_provider import RealMarketDataProvider
-from .modules.prompt_manager import PromptManager
-from .modules.signal_validator import SignalValidator
 from ..common.interfaces import IAnalyzer
+from .modules.openai_client_wrapper import OpenAIClientWrapper
+from .modules.prompt_manager import PromptManager
+from .modules.real_market_data_provider import RealMarketDataProvider
+from .modules.signal_validator import SignalValidator
 
 logger = logging.getLogger(__name__)
 

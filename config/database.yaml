@@ -12,26 +12,26 @@ database:
     cache_size: -64000  # 64MB cache
     temp_store: "MEMORY"  # Store temp tables in memory
     mmap_size: 268435456  # 256MB memory mapping
-  
+
   # Connection Settings
   connection:
     timeout: 30
     check_same_thread: false  # Allow multiple threads
     isolation_level: null  # Use autocommit mode
-  
+
   # Migration Settings
   migrations:
     directory: "./database/migrations/"
     version_table: "alembic_version"
     auto_generate: true
-  
+
   # Backup Settings
   backup:
     enabled: true
     frequency: "daily"
     retention_days: 30
     compression: true
-  
+
   # Performance Settings
   performance:
     pragma_optimize: true

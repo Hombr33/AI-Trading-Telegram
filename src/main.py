@@ -4,53 +4,54 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 """
 
 import asyncio
-from datetime import datetime, timezone
 import logging
 import signal as signal_module
-from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
 
+# Import MT5/AioMQL only on Windows
+import sys
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
+import socketio
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-import socketio
 from socketio import AsyncServer
 
 from src.core.config import config
 from src.core.logging import (
     get_logger,
+    log_error_with_context,
     log_system_event,
     print_banner,
     print_status_table,
-    log_error_with_context,
 )
-from .core.workflow import performance_monitor
-from .core.health_monitor import health_monitor
+
+from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_service
 from .bridge.socketio_bridge import SocketIOBridge
-from .execution.platform_manager import PlatformManager
 from .common.interfaces import (
-    IPlatformManager,
-    ISignalGenerationService,
     IOrderManager,
+    IPlatformManager,
     IPositionManager,
+    ISignalGenerationService,
 )
+from .core.health_monitor import health_monitor
+from .core.workflow import performance_monitor
 from .execution.order_manager import OrderManager
+from .execution.platform_manager import PlatformManager
 from .execution.position_manager import PositionManager
 from .execution.trailing_manager import TrailingManager
-from .telegram_bot.core.trading_bot import TradingBot
-from .services.signal_generation_service import SignalGenerationService
 from .services.auto_trading_service import AutoTradingService
-from .services.multi_user_service import MultiUserService
-from .services.user_manager import UserManager
 from .services.config_manager import ConfigManager
-from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_service
-
-# Import MT5/AioMQL only on Windows
-import sys
+from .services.multi_user_service import MultiUserService
+from .services.signal_generation_service import SignalGenerationService
+from .services.user_manager import UserManager
+from .telegram_bot.core.trading_bot import TradingBot
 
 if sys.platform == "win32":
     try:
@@ -62,14 +63,14 @@ if sys.platform == "win32":
 else:
     AioMQLExecutor = None
 
-# Import API routes
-from src.api.routes import health, v1, bridge, trading, multi_user, ea
-
 # Import admin dashboard
+from src.admin_dashboard.router import router as admin_router
 from src.admin_dashboard.router import (
-    router as admin_router,
     set_multi_user_service as set_admin_multi_user_service,
 )
+
+# Import API routes
+from src.api.routes import bridge, ea, health, multi_user, trading, v1
 
 # Get logger
 logger = get_logger(__name__)
@@ -494,9 +495,10 @@ app.include_router(multi_user.router, prefix="/api/v1/multi-user", tags=["multi-
 app.include_router(ea.router, prefix="/api/v1/ea", tags=["ea"])
 app.include_router(admin_router, tags=["admin-dashboard"])
 
+import os
+
 # Mount static files for admin dashboard
 from fastapi.staticfiles import StaticFiles
-import os
 
 admin_static_path = os.path.join(os.path.dirname(__file__), "admin_dashboard", "static")
 if os.path.exists(admin_static_path):
@@ -714,7 +716,7 @@ async def dashboard():
                     <h1>🤖 AI Trading Bot Dashboard</h1>
                     <p>Real-time system monitoring and status</p>
                 </div>
-                
+
                 <div class="status-grid">
                     <div class="status-card status-{'healthy' if status_data.get('healthy', False) else 'error'}">
                         <h3>System Status</h3>
@@ -731,7 +733,7 @@ async def dashboard():
                             <span class="metric-value">{status_data.get('environment', 'Unknown')}</span>
                         </div>
                     </div>
-                    
+
                     <div class="status-card">
                         <h3>Platform Connections</h3>
                         <div class="metric">
@@ -743,7 +745,7 @@ async def dashboard():
                             <span class="metric-value">🟢 Connected</span>
                         </div>
                     </div>
-                    
+
                     <div class="status-card">
                         <h3>Trading Managers</h3>
                         <div class="metric">
@@ -755,7 +757,7 @@ async def dashboard():
                             <span class="metric-value">🟢 Running</span>
                         </div>
                     </div>
-                    
+
                     <div class="status-card">
                         <h3>Communication</h3>
                         <div class="metric">
@@ -768,7 +770,7 @@ async def dashboard():
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="api-links">
                     <h3>API Endpoints</h3>
                     <a href="/status">System Status</a>
@@ -776,7 +778,7 @@ async def dashboard():
                     <a href="/config">Configuration</a>
                     <a href="/docs">API Documentation</a>
                 </div>
-                
+
                 <div class="timestamp">
                     Last updated: {status_data.get('timestamp', 'Unknown')}
                 </div>

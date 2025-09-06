@@ -5,17 +5,18 @@ Tests all aspects of EA communication including HTTP endpoints, fallback mechani
 
 import asyncio
 import json
-import pytest
-import aiohttp
-from unittest.mock import Mock, AsyncMock, patch
-from fastapi.testclient import TestClient
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.main import app
+import aiohttp
+import pytest
+from fastapi.testclient import TestClient
+
 from src.api.routes.ea import set_ea_globals
-from src.services.user_manager import UserManager
-from src.services.config_manager import ConfigManager
 from src.execution.order_manager import OrderManager
+from src.main import app
+from src.services.config_manager import ConfigManager
+from src.services.user_manager import UserManager
 from src.telegram_bot.core.trading_bot import TradingBot
 
 

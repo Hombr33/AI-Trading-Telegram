@@ -4,9 +4,9 @@ Test script to verify end-to-end trading workflow with signal generation and exe
 This script tests the complete single-user trading workflow from signal generation to execution.
 """
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -18,9 +18,9 @@ async def test_complete_trading_workflow():
     """Test the complete trading workflow from signal generation to execution."""
     try:
         from src.core.config import config
-        from src.services.signal_generation_service import SignalGenerationService
-        from src.services.auto_trading_service import AutoTradingService
         from src.execution.platform_manager import PlatformManager
+        from src.services.auto_trading_service import AutoTradingService
+        from src.services.signal_generation_service import SignalGenerationService
         from src.telegram_bot.core.trading_bot import TradingBot
 
         print("🧪 Testing Complete End-to-End Trading Workflow")
@@ -182,9 +182,9 @@ async def test_risk_management():
     """Test risk management functionality."""
     try:
         from src.core.config import config
-        from src.services.auto_trading_service import AutoTradingService
-        from src.execution.platform_manager import PlatformManager
         from src.execution.order_manager import OrderManager
+        from src.execution.platform_manager import PlatformManager
+        from src.services.auto_trading_service import AutoTradingService
 
         print("\n🛡️ Testing Risk Management...")
 

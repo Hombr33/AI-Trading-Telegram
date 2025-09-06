@@ -2,8 +2,9 @@
 User model for authentication and authorization.
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, Integer
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
+
 from .base import Base
 
 

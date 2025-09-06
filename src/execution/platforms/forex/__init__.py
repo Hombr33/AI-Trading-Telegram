@@ -3,11 +3,11 @@ Forex trading platform executors (Windows only).
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from .mt5_executor import MT5Executor
     from .aiomql_executor import AioMQLExecutor
+    from .mt5_executor import MT5Executor
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ try:
     import platform
 
     if platform.system() == "Windows":
-        from .mt5_executor import MT5Executor
         from .aiomql_executor import AioMQLExecutor
+        from .mt5_executor import MT5Executor
 
         logger.info("Forex executors loaded successfully")
     else:

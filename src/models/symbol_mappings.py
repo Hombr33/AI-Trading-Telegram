@@ -1,6 +1,7 @@
 """Symbol mappings model."""
 
 from sqlalchemy import Column, String
+
 from .base import Base
 
 

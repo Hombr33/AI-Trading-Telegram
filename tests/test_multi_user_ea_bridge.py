@@ -2,19 +2,20 @@
 Tests for Multi-User EA Bridge Integration.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from src.bridge.ea_bridge import EABridge
-from src.execution.multi_user_position_manager import MultiUserPositionManager
+from src.core.config import TradingConfig
 from src.execution.multi_user_order_manager import MultiUserOrderManager
+from src.execution.multi_user_position_manager import MultiUserPositionManager
+from src.services.config_manager import ConfigManager
 from src.services.multi_user_service import MultiUserService
 from src.services.user_manager import UserManager
-from src.services.config_manager import ConfigManager
-from src.core.config import TradingConfig
 
 
 class TestMultiUserEABridge:

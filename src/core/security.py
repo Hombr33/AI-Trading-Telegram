@@ -2,9 +2,9 @@
 Security utilities for the AI Trading Bot system.
 """
 
-import os
 import hashlib
 import hmac
+import os
 from typing import Optional
 
 try:

@@ -3,17 +3,18 @@ Telegram bot command handlers for admin operations.
 """
 
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from typing import Any, Dict, List
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...services.user_manager import UserManager
-from ...services.config_manager import ConfigManager
 from ...core.system_manager import system_manager
 
 # EABridge import moved to method level to avoid circular imports
 from ...models.telegram_users import SubscriptionStatus
+from ...services.config_manager import ConfigManager
+from ...services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 

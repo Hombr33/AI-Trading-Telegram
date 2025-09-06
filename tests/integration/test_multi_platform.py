@@ -7,7 +7,7 @@ import asyncio
 import sys
 import traceback
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 async def test_platform_manager():
@@ -91,8 +91,8 @@ async def test_individual_exchanges():
 
         from src.core.config import config
         from src.execution.crypto.binance_executor import BinanceExecutor
-        from src.execution.crypto.bybit_executor import BybitExecutor
         from src.execution.crypto.bitget_executor import BitgetExecutor
+        from src.execution.crypto.bybit_executor import BybitExecutor
 
         # Test each exchange individually
         exchanges = []

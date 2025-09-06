@@ -17,23 +17,23 @@ def calculate_position_size(
 ) -> float:
     """
     Calculate safe position size based on risk parameters.
-    
+
     Args:
         account_balance: Current account balance
         risk_percentage: Risk per trade (e.g., 2.0 for 2%)
         stop_loss_pips: Distance to stop loss in pips
         pip_value: Value of one pip in account currency
         max_position_size: Optional maximum position size
-        
+
     Returns:
         Position size in standard lots
     """
     risk_amount = account_balance * (risk_percentage / 100)
     position_size = risk_amount / (stop_loss_pips * pip_value)
-    
+
     if max_position_size:
         position_size = min(position_size, max_position_size)
-        
+
     return position_size
 ```
 
@@ -57,7 +57,7 @@ class DrawdownManager:
         self.max_daily_dd = max_daily_dd
         self.daily_high = 0.0
         self.current_dd = 0.0
-    
+
     def update(self, balance: float) -> bool:
         """
         Update drawdown calculations and check limits.
@@ -65,7 +65,7 @@ class DrawdownManager:
         """
         self.daily_high = max(self.daily_high, balance)
         self.current_dd = (self.daily_high - balance) / self.daily_high * 100
-        
+
         return self.current_dd <= self.max_daily_dd
 ```
 
@@ -104,7 +104,7 @@ EXPOSURE_LIMITS = {
 class DynamicStopLoss:
     def __init__(self, atr_multiple: float = 2.0):
         self.atr_multiple = atr_multiple
-    
+
     def calculate_stop(
         self,
         entry_price: float,
@@ -113,7 +113,7 @@ class DynamicStopLoss:
     ) -> float:
         """Calculate dynamic stop-loss based on ATR."""
         distance = atr * self.atr_multiple
-        
+
         if direction == "LONG":
             return entry_price - distance
         return entry_price + distance
@@ -158,13 +158,13 @@ class RecoveryMode:
         self.active = False
         self.trigger_reason = None
         self.start_time = None
-        
+
     def activate(self, reason: str):
         """Activate recovery mode with specific parameters."""
         self.active = True
         self.trigger_reason = reason
         self.start_time = datetime.now()
-        
+
         if reason == "consecutive_losses":
             self.duration = timedelta(hours=12)
             self.position_size_modifier = 0.5
@@ -184,11 +184,11 @@ class RiskMetrics:
         self.max_drawdown = 0.0
         self.win_streak = 0
         self.loss_streak = 0
-        
+
     def update(self, trade_result: TradeResult):
         """Update risk metrics with new trade result."""
         pass
-        
+
     def get_risk_score(self) -> float:
         """Calculate current risk score (0-100)."""
         pass
@@ -203,11 +203,11 @@ class RiskAlert:
             "danger": 85,
             "critical": 95
         }
-        
+
     async def check_alerts(self, metrics: RiskMetrics):
         """Check and send risk alerts."""
         risk_score = metrics.get_risk_score()
-        
+
         for level, threshold in self.levels.items():
             if risk_score >= threshold:
                 await self.send_alert(level, metrics)

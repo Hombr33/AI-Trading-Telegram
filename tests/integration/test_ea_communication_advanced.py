@@ -5,22 +5,23 @@ Tests Socket.IO bridge, HTTP fallback, position updates, and API key security.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
-import sys
-import time
+import queue
 import secrets
-import hashlib
+import sys
+import threading
+import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from unittest.mock import Mock, patch
+
 import aiohttp
 import requests
-from pathlib import Path
 import socketio
-import threading
-import queue
-from unittest.mock import Mock, patch
 
 # Setup logging
 logging.basicConfig(

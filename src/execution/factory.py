@@ -5,30 +5,30 @@ Factory patterns and dependency injection for the execution module.
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List, Optional, Any, Type, Union, Callable
+import weakref
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import weakref
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
+from ..core.error_handler import ErrorContext, with_error_handling
+from ..core.exceptions import TradingBotException
+from ..core.logging import get_logger
 from .interfaces import (
+    AccountInfo,
     IExecutor,
     IPlatformManager,
-    PlatformType,
     OrderRequest,
     OrderResponse,
+    PlatformType,
     PositionData,
-    AccountInfo,
 )
 from .platform_compatibility import (
-    get_compatibility_manager,
     PlatformCompatibilityManager,
+    get_compatibility_manager,
     init_platform_compatibility,
     log_platform_status,
 )
-from ..core.logging import get_logger
-from ..core.error_handler import with_error_handling, ErrorContext
-from ..core.exceptions import TradingBotException
 
 logger = get_logger(__name__)
 

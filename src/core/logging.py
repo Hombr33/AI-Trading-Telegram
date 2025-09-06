@@ -2,17 +2,17 @@
 Logging configuration using loguru and rich for better output formatting.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from loguru import logger
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.traceback import install as install_rich_traceback
 from rich.panel import Panel
 from rich.text import Text
+from rich.traceback import install as install_rich_traceback
 
 # Colorama for Windows color support detection
 try:

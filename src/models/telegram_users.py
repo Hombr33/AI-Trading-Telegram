@@ -2,21 +2,23 @@
 Telegram user models for multi-user trading system.
 """
 
+from enum import Enum as PyEnum
+
 from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    DateTime,
-    Integer,
-    BigInteger,
-    Text,
     JSON,
-    ForeignKey,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
     Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from enum import Enum as PyEnum
+
 from .base import Base
 
 

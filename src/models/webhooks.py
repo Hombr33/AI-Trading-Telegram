@@ -2,8 +2,9 @@
 Webhook model for webhook management.
 """
 
-from sqlalchemy import Column, String, Boolean, Integer, Float, Text, ForeignKey, JSON
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from .base import Base
 
 

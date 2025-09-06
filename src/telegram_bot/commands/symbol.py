@@ -1,13 +1,15 @@
 """Symbol management commands for Telegram bot."""
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from src.core.logging import get_logger
-from src.services.symbol_service import SymbolService
-from src.telegram_bot.utils.keyboards import create_keyboard
-from src.telegram_bot.commands.base import BaseCommandHandler
 from src.database.session import SessionLocal
+from src.services.symbol_service import SymbolService
+from src.telegram_bot.commands.base import BaseCommandHandler
+from src.telegram_bot.utils.keyboards import create_keyboard
 
 logger = get_logger(__name__)
 

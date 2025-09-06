@@ -3,9 +3,10 @@ Signal validation module for OpenAI analyzer.
 Validates trading signals against schema and business rules.
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Union
 import json
+import logging
+from typing import Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)

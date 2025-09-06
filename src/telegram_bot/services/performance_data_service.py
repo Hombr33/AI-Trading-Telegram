@@ -2,17 +2,18 @@
 Performance data service for Telegram bot - provides real performance metrics.
 """
 
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
 from src.core.logging import get_logger
 from src.database.session import SessionLocal
-from src.models.trades import Trade
-from src.models.positions import Position
 from src.models.orders import Order
+from src.models.positions import Position
 from src.models.signals import Signal
+from src.models.trades import Trade
 
 logger = get_logger(__name__)
 

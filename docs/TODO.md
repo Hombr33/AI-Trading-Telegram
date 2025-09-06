@@ -25,7 +25,7 @@ Users can now request AI-generated trading signals for specific pairs via Telegr
 
 ### Supported Trading Pairs ✅
 - **Forex**: EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD
-- **Crypto**: BTCUSDT, ETHUSDT  
+- **Crypto**: BTCUSDT, ETHUSDT
 - **Metals**: XAUUSD
 
 ### Features Implemented ✅
