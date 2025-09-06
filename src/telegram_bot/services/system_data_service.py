@@ -2,8 +2,6 @@
 System data service for Telegram bot - provides real system status and monitoring data.
 """
 
-import asyncio
-import os
 import platform
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -50,7 +48,7 @@ class SystemDataService:
             # Get system metrics
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage("/")
+            psutil.disk_usage("/")
 
             # Get trading data
             positions = await self.trading_data_service.get_positions()
@@ -105,7 +103,7 @@ class SystemDataService:
             disk = psutil.disk_usage("/")
 
             # Get network info
-            network = psutil.net_io_counters()
+            psutil.net_io_counters()
 
             # Get uptime
             uptime = datetime.utcnow() - self._start_time

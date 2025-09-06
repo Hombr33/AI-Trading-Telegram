@@ -1,8 +1,7 @@
 """Base command handler for Telegram bot."""
 
 import asyncio
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Optional, Union
 
 from telegram import (
     InlineKeyboardMarkup,

@@ -10,7 +10,7 @@ from src.core.config import TelegramConfig
 from src.core.exceptions import TelegramBotError
 from src.core.logging import get_logger
 
-from ..utils.constants import NotificationPriority, NotificationStatus, NotificationType
+from ..utils.constants import NotificationPriority, NotificationStatus
 
 logger = get_logger(__name__)
 

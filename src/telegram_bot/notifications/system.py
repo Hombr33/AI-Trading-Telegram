@@ -1,7 +1,7 @@
 """System notifications for Telegram bot."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from src.core.logging import get_logger
 
@@ -10,12 +10,8 @@ from .manager import NotificationManager
 
 logger = get_logger(__name__)  # System notifications for Telegram bot.
 
-from datetime import datetime, timezone
-from typing import Any, Dict
 
 from src.core.logging import get_logger
-
-from .manager import NotificationManager
 
 logger = get_logger(__name__)
 
@@ -39,8 +35,8 @@ class SystemNotifications:
         """
         try:
             message = (
-                f"🚀 **SYSTEM STARTED** 🚀\n\n"
-                f"The AI Trading Bot has been started successfully.\n\n"
+                "🚀 **SYSTEM STARTED** 🚀\n\n"
+                "The AI Trading Bot has been started successfully.\n\n"
             )
 
             if system_info:
@@ -73,8 +69,8 @@ class SystemNotifications:
         """
         try:
             message = (
-                f"🛑 **SYSTEM SHUTDOWN** 🛑\n\n"
-                f"The AI Trading Bot is shutting down.\n\n"
+                "🛑 **SYSTEM SHUTDOWN** 🛑\n\n"
+                "The AI Trading Bot is shutting down.\n\n"
             )
 
             if reason:
@@ -103,7 +99,7 @@ class SystemNotifications:
             details: Additional details about the error.
         """
         try:
-            message = f"❌ **SYSTEM ERROR** ❌\n\n"
+            message = "❌ **SYSTEM ERROR** ❌\n\n"
 
             if error_type:
                 message += f"📝 **Type**: {error_type}\n"
@@ -142,7 +138,7 @@ class SystemNotifications:
             details: Additional details about the warning.
         """
         try:
-            message = f"⚠️ **SYSTEM WARNING** ⚠️\n\n"
+            message = "⚠️ **SYSTEM WARNING** ⚠️\n\n"
 
             if warning_type:
                 message += f"📝 **Type**: {warning_type}\n"
@@ -178,7 +174,7 @@ class SystemNotifications:
             details: Additional details about the info.
         """
         try:
-            message = f"ℹ️ **SYSTEM INFO** ℹ️\n\n"
+            message = "ℹ️ **SYSTEM INFO** ℹ️\n\n"
 
             if info_type:
                 message += f"📝 **Type**: {info_type}\n"

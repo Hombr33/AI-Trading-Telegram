@@ -4,7 +4,6 @@ Integrates EA Bridge, Socket.IO Bridge, and Trading Data Service.
 """
 
 import asyncio
-import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 

@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from .error_handler import with_error_handling
-from .exceptions import TradingBotException
 from .logging import get_logger, log_error_with_context, log_system_event
 
 logger = get_logger(__name__)
@@ -315,14 +313,13 @@ class HealthMonitor:
         """Check if critical connections are active."""
         try:
             # Check if we can import main components
-            from ..main import platform_manager, socketio_bridge, telegram_bot
+            from ..main import platform_manager, socketio_bridge
 
             mt5_healthy = False
             if platform_manager:
                 # Check if MT5 platform is available and connected
                 mt5_executor = platform_manager.get_executor("mt5")
                 mt5_healthy = mt5_executor and mt5_executor.is_connected
-            telegram_healthy = telegram_bot and telegram_bot.is_running
             bridge_healthy = socketio_bridge and socketio_bridge.get_status().get(
                 "connected", False
             )

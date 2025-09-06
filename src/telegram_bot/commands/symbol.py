@@ -1,7 +1,5 @@
 """Symbol management commands for Telegram bot."""
 
-from typing import Any, Dict, List, Optional
-
 from telegram import Update
 from telegram.ext import ContextTypes
 

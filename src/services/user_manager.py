@@ -3,21 +3,16 @@ User management service for multi-user trading system.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
-
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from ..database.session import SessionLocal
 from ..models.telegram_users import (
     PlatformConnection,
     PlatformType,
-    ServerConfiguration,
     SignalSubscription,
     SubscriptionStatus,
     TelegramUser,
-    UserConfiguration,
     UserRole,
 )
 
@@ -96,7 +91,7 @@ class UserManager:
                     session.query(TelegramUser)
                     .filter(
                         TelegramUser.telegram_id == telegram_id,
-                        TelegramUser.is_active == True,
+                        TelegramUser.is_active,
                     )
                     .first()
                 )
@@ -134,7 +129,7 @@ class UserManager:
                     session.query(TelegramUser)
                     .filter(
                         TelegramUser.telegram_id == telegram_id,
-                        TelegramUser.is_active == True,
+                        TelegramUser.is_active,
                     )
                     .first()
                 )
@@ -340,7 +335,7 @@ class UserManager:
                     session.query(PlatformConnection)
                     .filter(
                         PlatformConnection.user_id == user.id,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .all()
                 )
@@ -424,7 +419,7 @@ class UserManager:
                     session.query(SignalSubscription)
                     .filter(
                         SignalSubscription.user_id == user.id,
-                        SignalSubscription.is_active == True,
+                        SignalSubscription.is_active,
                     )
                     .all()
                 )
@@ -463,7 +458,7 @@ class UserManager:
                     session.query(TelegramUser)
                     .filter(
                         TelegramUser.telegram_id == telegram_id,
-                        TelegramUser.is_active == True,
+                        TelegramUser.is_active,
                     )
                     .first()
                 )

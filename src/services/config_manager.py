@@ -2,16 +2,13 @@
 Configuration management service for multi-user trading system.
 """
 
-import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import and_, desc
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from ..database.connection import get_db_session
 from ..models.telegram_users import ServerConfiguration, TelegramUser, UserConfiguration
@@ -163,7 +160,7 @@ class ConfigManager:
                     .filter(
                         UserConfiguration.user_id == user.id,
                         UserConfiguration.config_type == config_type,
-                        UserConfiguration.is_active == True,
+                        UserConfiguration.is_active,
                     )
                     .first()
                 )
@@ -228,7 +225,7 @@ class ConfigManager:
                     .filter(
                         UserConfiguration.user_id == user.id,
                         UserConfiguration.config_type == config_type,
-                        UserConfiguration.is_active == True,
+                        UserConfiguration.is_active,
                     )
                     .first()
                 )
@@ -289,7 +286,7 @@ class ConfigManager:
                     session.query(ServerConfiguration)
                     .filter(
                         ServerConfiguration.config_key == config_type,
-                        ServerConfiguration.is_active == True,
+                        ServerConfiguration.is_active,
                     )
                     .first()
                 )
@@ -374,7 +371,7 @@ class ConfigManager:
 
                 configs = (
                     session.query(ServerConfiguration)
-                    .filter(ServerConfiguration.is_active == True)
+                    .filter(ServerConfiguration.is_active)
                     .all()
                 )
 
@@ -397,7 +394,7 @@ class ConfigManager:
         if config_type not in self.DEFAULT_CONFIGS:
             return False, f"Invalid configuration type: {config_type}"
 
-        default_config = self.DEFAULT_CONFIGS[config_type]
+        self.DEFAULT_CONFIGS[config_type]
 
         # Basic validation based on config type
         if config_type == "risk":
@@ -437,7 +434,7 @@ class ConfigManager:
         if config_type not in self.DEFAULT_CONFIGS:
             return False, f"Invalid configuration type: {config_type}"
 
-        default_config = self.DEFAULT_CONFIGS[config_type]
+        self.DEFAULT_CONFIGS[config_type]
         errors = []
 
         try:
@@ -883,7 +880,7 @@ class ConfigManager:
                     .join(UserConfiguration)
                     .filter(
                         UserConfiguration.config_type == config_type,
-                        UserConfiguration.is_active == True,
+                        UserConfiguration.is_active,
                     )
                 )
 

@@ -1,7 +1,6 @@
 """Trading callback handlers for Telegram bot."""
 
 from datetime import datetime
-from typing import Any, Dict
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -248,14 +247,14 @@ class TradingCallbackHandler:
         query = update.callback_query
 
         message = (
-            f"🌐 **TELEGRAM WEB APP** 🌐\n\n"
-            f"🚀 **Advanced Trading Interface**\n\n"
-            f"Access our full-featured web interface with:\n"
-            f"• 📈 Real-time charts\n"
-            f"• 🎯 Advanced order management\n"
-            f"• 📊 Detailed analytics\n"
-            f"• 🔧 Strategy backtesting\n\n"
-            f"Click 'Open WebApp' to launch the interface!"
+            "🌐 **TELEGRAM WEB APP** 🌐\n\n"
+            "🚀 **Advanced Trading Interface**\n\n"
+            "Access our full-featured web interface with:\n"
+            "• 📈 Real-time charts\n"
+            "• 🎯 Advanced order management\n"
+            "• 📊 Detailed analytics\n"
+            "• 🔧 Strategy backtesting\n\n"
+            "Click 'Open WebApp' to launch the interface!"
         )
 
         keyboard = create_keyboard(
@@ -299,7 +298,7 @@ class TradingCallbackHandler:
                 )
 
                 if signal:
-                    direction_emoji = "🟢📈" if signal["direction"] == "BUY" else "🔴📉"
+                    "🟢📈" if signal["direction"] == "BUY" else "🔴📉"
                     confidence = (
                         "High"
                         if signal["strength"] > 0.8

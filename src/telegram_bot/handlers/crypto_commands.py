@@ -3,12 +3,10 @@ Telegram bot command handlers for crypto trading operations.
 """
 
 import logging
-from typing import Any, Dict, List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...models.telegram_users import PlatformType
 from ...services.crypto_bridge import CryptoBridge
 from ...services.user_manager import UserManager
 

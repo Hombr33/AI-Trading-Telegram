@@ -1,9 +1,8 @@
 """System commands for Telegram bot."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from telegram import InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
@@ -107,9 +106,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             error_message = (
-                f"❌ **Welcome Error**\n\n"
-                f"There was an issue starting the bot.\n"
-                f"Please try again in a moment."
+                "❌ **Welcome Error**\n\n"
+                "There was an issue starting the bot.\n"
+                "Please try again in a moment."
             )
             await self.send_message(update, context, error_message)
 
@@ -122,29 +121,29 @@ class SystemCommandHandler(BaseCommandHandler):
         """
         try:
             help_message = (
-                f"❓ **HELP MENU** ❓\n\n"
-                f"**Trading Commands**:\n"
-                f"📈 `/positions` - View open positions\n"
-                f"📋 `/orders` - View pending orders\n"
-                f"💰 `/account` - Account information\n"
-                f"🔍 `/signals` - Trading signals\n\n"
-                f"**Analysis Commands**:\n"
-                f"📊 `/performance` - Performance metrics\n"
-                f"⚠️ `/risk` - Risk analysis\n"
-                f"📖 `/journal` - Trading journal\n"
-                f"🔍 `/analysis` - Market analysis\n\n"
-                f"**System Commands**:\n"
-                f"📊 `/status` - System status\n"
-                f"⚙️ `/settings` - Bot settings\n"
-                f"🏥 `/health` - System health\n"
-                f"ℹ️ `/info` - System information\n\n"
-                f"**Admin Commands**:\n"
-                f"👑 `/admin` - Admin panel\n"
-                f"👥 `/users` - User management\n"
-                f"📋 `/logs` - System logs\n"
-                f"🔄 `/restart` - Restart system\n\n"
-                f"**Need More Help?**\n"
-                f"Contact support or check documentation for detailed information."
+                "❓ **HELP MENU** ❓\n\n"
+                "**Trading Commands**:\n"
+                "📈 `/positions` - View open positions\n"
+                "📋 `/orders` - View pending orders\n"
+                "💰 `/account` - Account information\n"
+                "🔍 `/signals` - Trading signals\n\n"
+                "**Analysis Commands**:\n"
+                "📊 `/performance` - Performance metrics\n"
+                "⚠️ `/risk` - Risk analysis\n"
+                "📖 `/journal` - Trading journal\n"
+                "🔍 `/analysis` - Market analysis\n\n"
+                "**System Commands**:\n"
+                "📊 `/status` - System status\n"
+                "⚙️ `/settings` - Bot settings\n"
+                "🏥 `/health` - System health\n"
+                "ℹ️ `/info` - System information\n\n"
+                "**Admin Commands**:\n"
+                "👑 `/admin` - Admin panel\n"
+                "👥 `/users` - User management\n"
+                "📋 `/logs` - System logs\n"
+                "🔄 `/restart` - Restart system\n\n"
+                "**Need More Help?**\n"
+                "Contact support or check documentation for detailed information."
             )
 
             # Create help keyboard
@@ -162,9 +161,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in help command: {e}")
             error_message = (
-                f"❌ **Help Error**\n\n"
-                f"There was an issue loading help information.\n"
-                f"Please try again in a moment."
+                "❌ **Help Error**\n\n"
+                "There was an issue loading help information.\n"
+                "Please try again in a moment."
             )
             await self.send_message(update, context, error_message)
 
@@ -223,9 +222,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in status command: {e}")
             error_message = (
-                f"❌ **Error Loading Status**\n\n"
-                f"There was an issue loading system status.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Status**\n\n"
+                "There was an issue loading system status.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_status"), ("🏥 Health", "health")]]
@@ -274,7 +273,7 @@ class SystemCommandHandler(BaseCommandHandler):
 
             # Add recommendations
             if health_status["recommendations"]:
-                message += f"\n**Recommendations**:\n"
+                message += "\n**Recommendations**:\n"
                 for rec in health_status["recommendations"]:
                     message += f"💡 {rec}\n"
 
@@ -296,9 +295,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in health command: {e}")
             error_message = (
-                f"❌ **Error Loading Health**\n\n"
-                f"There was an issue loading health status.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Health**\n\n"
+                "There was an issue loading health status.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_health"), ("📊 Status", "status")]]
@@ -359,9 +358,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in info command: {e}")
             error_message = (
-                f"❌ **Error Loading Info**\n\n"
-                f"There was an issue loading system information.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Info**\n\n"
+                "There was an issue loading system information.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_info"), ("📊 Status", "status")]]
@@ -430,9 +429,9 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in settings command: {e}")
             error_message = (
-                f"❌ **Error Loading Settings**\n\n"
-                f"There was an issue loading your settings.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading your settings.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "settings"), ("🏠 Main Menu", "start")]]
@@ -725,8 +724,8 @@ class SystemCommandHandler(BaseCommandHandler):
             logger.error(f"Error in error handler: {e}")
             # Fallback error message
             fallback_message = (
-                f"❌ **System Error**\n\n"
-                f"A critical error occurred.\n"
-                f"Please contact support immediately."
+                "❌ **System Error**\n\n"
+                "A critical error occurred.\n"
+                "Please contact support immediately."
             )
             await self.send_message(update, context, fallback_message)

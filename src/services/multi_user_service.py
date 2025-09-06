@@ -3,7 +3,6 @@ Multi-user service orchestrator for the trading system.
 """
 
 import asyncio
-import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -15,7 +14,6 @@ from ..bridge.signal_distributor import SignalDistributor
 from ..execution.multi_user_order_manager import MultiUserOrderManager
 from ..execution.multi_user_position_manager import MultiUserPositionManager
 from ..telegram_bot.core.trading_bot import TradingBot
-from ..telegram_bot.notifications.manager import NotificationManager
 from .config_manager import ConfigManager
 from .user_manager import UserManager
 
@@ -650,7 +648,7 @@ class MultiUserService:
                 return
 
             # Create batch message
-            message = f"📊 **Signal Batch Update** 📊\n\n"
+            message = "📊 **Signal Batch Update** 📊\n\n"
             message += f"You have {len(signals)} new signals:\n\n"
 
             for i, signal_item in enumerate(signals, 1):
@@ -925,7 +923,7 @@ class MultiUserService:
     ) -> float:
         """Calculate crypto trade quantity based on risk management."""
         # This is a simplified calculation - in production, you'd want more sophisticated position sizing
-        risk_per_trade = trading_config.get("risk_per_trade_pct", 2.0) / 100
+        trading_config.get("risk_per_trade_pct", 2.0) / 100
         default_quantity = 0.01  # Default small quantity
 
         # TODO: Implement proper position sizing based on account balance and risk
@@ -996,7 +994,7 @@ class MultiUserService:
             symbol = position.get("symbol")
             ticket = position.get("ticket")
             current_price = position.get("price_current", position.get("current_price"))
-            open_price = position.get("price_open", position.get("open_price"))
+            position.get("price_open", position.get("open_price"))
             profit = position.get("profit", position.get("pnl", 0))
             position_type = position.get("type", position.get("side"))
             volume = position.get("volume")
@@ -1053,19 +1051,19 @@ class MultiUserService:
 
             # Check for significant profit
             if profit >= profit_alert_threshold:
-                message = f"💰 **Profit Alert** 💰\n\n"
+                message = "💰 **Profit Alert** 💰\n\n"
                 message += f"📈 Position: {symbol} (#{ticket})\n"
                 message += f"💵 Current P&L: ${profit:.2f}\n"
-                message += f"✅ Consider taking partial profits or adjusting stop loss"
+                message += "✅ Consider taking partial profits or adjusting stop loss"
 
                 await self._send_position_alert(telegram_id, message)
 
             # Check for significant loss
             elif profit <= loss_alert_threshold:
-                message = f"⚠️ **Loss Alert** ⚠️\n\n"
+                message = "⚠️ **Loss Alert** ⚠️\n\n"
                 message += f"📉 Position: {symbol} (#{ticket})\n"
                 message += f"💸 Current P&L: ${profit:.2f}\n"
-                message += f"🛑 Consider reviewing position or risk management"
+                message += "🛑 Consider reviewing position or risk management"
 
                 await self._send_position_alert(telegram_id, message)
 
@@ -1094,7 +1092,7 @@ class MultiUserService:
                 sl_hit = True
 
             if sl_hit:
-                message = f"🛑 **Stop Loss Hit** 🛑\n\n"
+                message = "🛑 **Stop Loss Hit** 🛑\n\n"
                 message += f"📍 Position: {symbol} (#{ticket})\n"
                 message += f"💰 Stop Loss: {stop_loss}\n"
                 message += f"📊 Current Price: {current_price}\n"
@@ -1129,7 +1127,7 @@ class MultiUserService:
                 tp_hit = True
 
             if tp_hit:
-                message = f"🎯 **Take Profit Hit** 🎯\n\n"
+                message = "🎯 **Take Profit Hit** 🎯\n\n"
                 message += f"📍 Position: {symbol} (#{ticket})\n"
                 message += f"💰 Take Profit: {take_profit}\n"
                 message += f"📊 Current Price: {current_price}\n"
@@ -1216,7 +1214,7 @@ class MultiUserService:
                         )
 
                     # Send notification
-                    message = f"📈 **Trailing Stop Updated** 📈\n\n"
+                    message = "📈 **Trailing Stop Updated** 📈\n\n"
                     message += f"📍 Position: {symbol} (#{ticket})\n"
                     message += f"🔄 Old SL: {current_sl:.5f}\n"
                     message += f"🆕 New SL: {new_sl:.5f}\n"
@@ -1256,14 +1254,12 @@ class MultiUserService:
                 current_drawdown = ((balance - equity) / balance) * 100
 
                 if current_drawdown >= max_drawdown_pct:
-                    message = f"🚨 **Drawdown Alert** 🚨\n\n"
+                    message = "🚨 **Drawdown Alert** 🚨\n\n"
                     message += f"📉 Current Drawdown: {current_drawdown:.2f}%\n"
                     message += f"⚠️ Maximum Allowed: {max_drawdown_pct:.2f}%\n"
                     message += f"💰 Balance: ${balance:.2f}\n"
                     message += f"💎 Equity: ${equity:.2f}\n"
-                    message += (
-                        f"🛑 Consider reducing position sizes or stopping trading"
-                    )
+                    message += "🛑 Consider reducing position sizes or stopping trading"
 
                     await self._send_position_alert(telegram_id, message)
 
@@ -1274,10 +1270,10 @@ class MultiUserService:
             )  # 200% minimum
 
             if margin_level > 0 and margin_level < min_margin_level:
-                message = f"⚠️ **Margin Alert** ⚠️\n\n"
+                message = "⚠️ **Margin Alert** ⚠️\n\n"
                 message += f"📊 Current Margin Level: {margin_level:.2f}%\n"
                 message += f"🎯 Minimum Required: {min_margin_level:.2f}%\n"
-                message += f"🚨 Risk of margin call - consider closing positions"
+                message += "🚨 Risk of margin call - consider closing positions"
 
                 await self._send_position_alert(telegram_id, message)
 
@@ -1705,10 +1701,10 @@ class MultiUserService:
             if not issues:
                 return
 
-            message = f"🚨 **System Health Alert** 🚨\n\n"
+            message = "🚨 **System Health Alert** 🚨\n\n"
             message += f"📊 Overall Status: {overall_status.upper()}\n"
             message += f"⏰ Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n"
-            message += f"❌ **Issues Detected:**\n"
+            message += "❌ **Issues Detected:**\n"
 
             for issue in issues[:5]:  # Limit to first 5 issues
                 message += f"• {issue}\n"
@@ -1716,7 +1712,7 @@ class MultiUserService:
             if len(issues) > 5:
                 message += f"• ... and {len(issues) - 5} more issues\n"
 
-            message += f"\n🔧 Administrator intervention may be required."
+            message += "\n🔧 Administrator intervention may be required."
 
             # Send to administrators
             if self.telegram_bot:

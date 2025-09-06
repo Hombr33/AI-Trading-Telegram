@@ -1,6 +1,5 @@
 """Trading notifications for Telegram bot."""
 
-import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -819,7 +818,7 @@ Use /risk to monitor risk levels""".strip()
             # Build validation warning if issues exist
             validation_warning = ""
             if validation_issues:
-                validation_warning = f"\n⚠️ <b>Validation Issues</b>:\n"
+                validation_warning = "\n⚠️ <b>Validation Issues</b>:\n"
                 for issue in validation_issues[:2]:  # Show max 2 issues
                     validation_warning += f"• {issue}\n"
                 if manual_entry_suggested:
@@ -846,7 +845,7 @@ Use /positions to check current positions
 Use /risk to monitor risk levels""".strip()
 
         # Log the formatted signal
-        logger.info(f"📡 Telegram Signal Generated:")
+        logger.info("📡 Telegram Signal Generated:")
         logger.info(f"Symbol: {symbol} | Action: {action} | Entry: ${entry_price:.5f}")
         logger.info(f"Confidence: {confidence}/10 | Risk: {risk_level}")
 

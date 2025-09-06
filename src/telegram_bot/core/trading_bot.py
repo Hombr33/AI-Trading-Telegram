@@ -1,12 +1,10 @@
 """Trading bot implementation for Telegram."""
 
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
-from telegram import Update
 from telegram.ext import CallbackQueryHandler
 from telegram.ext import CommandHandler as TGCommandHandler
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import MessageHandler, filters
 
 from src.core.config import TelegramConfig
 from src.core.logging import get_logger
@@ -87,7 +85,6 @@ class TradingBot(BaseTelegramBot):
 
         # Register message handler
         message_handler = setup_message_handler(self.notification_manager)
-        from telegram.ext import MessageHandler
 
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler)

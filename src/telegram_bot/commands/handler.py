@@ -1,6 +1,6 @@
 """Command handler for Telegram bot."""
 
-from typing import Any, Callable, Dict
+from typing import Callable, Dict
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -35,7 +35,7 @@ class CommandHandler:
         # Initialize symbol handler with service
         from src.database.session import SessionLocal
 
-        symbol_service = SymbolService(SessionLocal())
+        SymbolService(SessionLocal())
         self.symbol_handler = SymbolCommandHandler()
 
         # Initialize callback router

@@ -2,12 +2,9 @@
 Signal distribution service for multi-user trading system.
 """
 
-import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-
-from sqlalchemy.orm import Session
+from datetime import datetime
+from typing import Any, Dict, List
 
 from ..database.connection import get_db_session
 from ..models.telegram_users import SignalSubscription, TelegramUser
@@ -38,10 +35,10 @@ class SignalDistributor:
                         TelegramUser.id == SignalSubscription.user_id,
                     )
                     .filter(
-                        TelegramUser.is_active == True,
+                        TelegramUser.is_active,
                         TelegramUser.subscription_status == "active",
                         SignalSubscription.symbol == symbol,
-                        SignalSubscription.is_active == True,
+                        SignalSubscription.is_active,
                         SignalSubscription.min_confidence <= min_confidence,
                     )
                     .all()
@@ -96,7 +93,7 @@ class SignalDistributor:
     async def distribute_signal(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
         """Distribute signal to subscribed users."""
         try:
-            with get_db_session() as session:
+            with get_db_session():
                 symbol = signal_data.get("symbol")
                 confidence = signal_data.get("confidence", 0)
 
@@ -275,7 +272,7 @@ class SignalDistributor:
                 session.query(SignalSubscription)
                 .filter(
                     SignalSubscription.user_id == user.id,
-                    SignalSubscription.is_active == True,
+                    SignalSubscription.is_active,
                 )
                 .all()
             )

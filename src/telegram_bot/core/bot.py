@@ -2,13 +2,10 @@
 
 import asyncio
 import contextlib
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from telegram import Update
-from telegram.ext import Application, CallbackQueryHandler
-from telegram.ext import CommandHandler as TGCommandHandler
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes
 
 from src.core.config import TelegramConfig
 from src.core.logging import get_logger
@@ -147,7 +144,6 @@ class BaseTelegramBot:
 
             # Configure better error handling for network issues
             from telegram.error import NetworkError, TimedOut
-            from telegram.ext import ApplicationBuilder
 
             # Start polling with network error handling
             try:

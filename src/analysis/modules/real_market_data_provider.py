@@ -4,10 +4,9 @@ This replaces the fake data generation with real market information.
 """
 
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import aiohttp
 
@@ -285,7 +284,6 @@ class RealMarketDataProvider:
                         current_price = gold_data.get("usd", 0)
                         change_24h = gold_data.get("usd_24h_change", 0)
 
-                        change_symbol = "📈" if change_24h > 0 else "📉"
                         change_color = "🟢" if change_24h > 0 else "🔴"
 
                         return f"""

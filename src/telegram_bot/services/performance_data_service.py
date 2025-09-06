@@ -10,9 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.core.logging import get_logger
 from src.database.session import SessionLocal
-from src.models.orders import Order
 from src.models.positions import Position
-from src.models.signals import Signal
 from src.models.trades import Trade
 
 logger = get_logger(__name__)
@@ -141,7 +139,7 @@ class PerformanceDataService:
             session = SessionLocal()
 
             # Get current positions
-            positions_query = session.query(Position).filter(Position.is_active == True)
+            positions_query = session.query(Position).filter(Position.is_active)
             if user_id:
                 positions_query = positions_query.filter(Position.user_id == user_id)
             positions = positions_query.all()

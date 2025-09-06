@@ -3,17 +3,13 @@ EA Bridge service for MT5 platform integration with enhanced multi-user support.
 """
 
 import asyncio
-import json
 import logging
-import threading
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from aiohttp import ClientSession, ClientTimeout
-from sqlalchemy.orm import Session
 
-from src.core.exceptions import BridgeConnectionError, EABridgeError, UserIsolationError
 from src.database.session import SessionLocal
 from src.models.telegram_users import PlatformConnection, PlatformType, TelegramUser
 from src.services.config_manager import ConfigManager
@@ -50,7 +46,7 @@ class EABridge:
                     .filter(
                         PlatformConnection.user_id == user_id,
                         PlatformConnection.platform_type == PlatformType.MT5,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )
@@ -131,7 +127,7 @@ class EABridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.MT5,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )
@@ -189,7 +185,7 @@ class EABridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.MT5,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )
@@ -242,7 +238,7 @@ class EABridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.MT5,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )

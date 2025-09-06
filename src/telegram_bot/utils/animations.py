@@ -9,7 +9,7 @@ from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
 
-from .keyboards import create_animated_loading_keyboard, create_quick_actions_keyboard
+from .keyboards import create_animated_loading_keyboard
 
 logger = get_logger(__name__)
 

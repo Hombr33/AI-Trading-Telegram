@@ -5,7 +5,7 @@ Generates trading signals at configurable intervals using AI analysis.
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from src.analysis.openai_analyzer import OpenAIAnalyzer
@@ -879,7 +879,7 @@ class SignalGenerationService(ISignalGenerationService):
                         else:
                             signal["validation_issues"] = [validation_reason]
 
-                        signal["action"] = f"hold (manual_entry)"
+                        signal["action"] = "hold (manual_entry)"
                         logger.info(
                             f"Created signal with preserved data for manual trading for {symbol}"
                         )

@@ -1,10 +1,8 @@
 """User configuration service for managing user-specific trading settings."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from ..core.logging import get_logger
@@ -84,7 +82,7 @@ class UserConfigService:
                     session.query(UserConfiguration)
                     .filter(
                         UserConfiguration.user_id == user.id,
-                        UserConfiguration.is_active == True,
+                        UserConfiguration.is_active,
                     )
                     .all()
                 )
@@ -162,7 +160,7 @@ class UserConfigService:
                     .filter(
                         UserConfiguration.user_id == user.id,
                         UserConfiguration.config_type == config_section,
-                        UserConfiguration.is_active == True,
+                        UserConfiguration.is_active,
                     )
                     .first()
                 )

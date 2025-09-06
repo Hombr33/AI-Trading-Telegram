@@ -118,7 +118,7 @@ class PerformanceNotifications:
                 )
 
             if top_symbols:
-                message += f"🔝 **Top Performing Symbols**:\n"
+                message += "🔝 **Top Performing Symbols**:\n"
                 for symbol in top_symbols[:3]:  # Show top 3
                     message += f"  {symbol.get('symbol', 'N/A')}: ${symbol.get('profit', 0):.2f}\n"
                 message += "\n"
@@ -182,7 +182,7 @@ class PerformanceNotifications:
                 )
 
             if top_symbols:
-                message += f"🔝 **Top Performing Symbols**:\n"
+                message += "🔝 **Top Performing Symbols**:\n"
                 for symbol in top_symbols[:3]:  # Show top 3
                     message += f"  {symbol.get('symbol', 'N/A')}: ${symbol.get('profit', 0):.2f}\n"
                 message += "\n"

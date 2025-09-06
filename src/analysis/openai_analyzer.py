@@ -3,10 +3,9 @@ OpenAI-powered market analyzer for trading signals.
 Integrates real-time market data with AI analysis.
 """
 
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from ..common.interfaces import IAnalyzer
 from .modules.openai_client_wrapper import OpenAIClientWrapper

@@ -1,7 +1,6 @@
 """Formatting utilities for Telegram bot messages."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
 
 
 def format_timestamp(timestamp: datetime = None) -> str:

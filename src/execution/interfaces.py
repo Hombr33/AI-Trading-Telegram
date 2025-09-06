@@ -4,13 +4,12 @@ Production-grade interfaces and protocols for the execution module.
 
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 
 # Core Data Models

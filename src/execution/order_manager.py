@@ -2,21 +2,13 @@
 Order Manager for handling order lifecycle and signal execution.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 from ..common.interfaces import IOrderManager, OrderSide, OrderType
 from ..core.config import TradingConfig
-from ..core.error_handler import ErrorContext, with_error_handling
-from ..core.exceptions import OrderValidationError, RiskManagementError
-from ..core.logging import (
-    get_logger,
-    log_error_with_context,
-    log_operation_timing,
-    log_system_event,
-    log_trade_event,
-)
+from ..core.logging import get_logger, log_error_with_context, log_trade_event
 from ..models.instruments import Instrument
 
 # MT5Executor will be injected via platform manager
@@ -64,18 +56,6 @@ class OrderManager(IOrderManager):
 
             # Map interface order type and side to internal representation
             internal_order_type = self._map_order_type(order_type, side)
-
-            order = {
-                "order_id": order_id,
-                "symbol": symbol,
-                "type": internal_order_type,
-                "volume": volume,
-                "price": price,
-                "stop_loss": stop_loss,
-                "take_profit": take_profit,
-                "platform": platform,
-                **kwargs,
-            }
 
             # Create Order object from dictionary
             order_obj = Order(
@@ -430,7 +410,7 @@ class OrderManager(IOrderManager):
             risk_per_trade = self.config.risk_management["max_risk_per_trade_pct"] / 100
 
             # Calculate risk amount
-            risk_amount = balance * risk_per_trade
+            balance * risk_per_trade
 
             # For now, use a simple calculation
             # In production, this should consider stop loss distance and pip value

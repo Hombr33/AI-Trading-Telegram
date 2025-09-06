@@ -2,9 +2,7 @@
 Multi-user specific handlers for advanced user management and isolation.
 """
 
-import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -13,7 +11,6 @@ from telegram.ext import ContextTypes, ConversationHandler
 # from ...bridge.ea_bridge import EABridge
 # from ...bridge.signal_distributor import SignalDistributor
 from ...core.logging import get_logger
-from ...models.telegram_users import PlatformType, SubscriptionStatus, TelegramUser
 from ...services.config_manager import ConfigManager
 from ...services.user_manager import UserManager
 
@@ -273,8 +270,8 @@ class MultiUserHandlers:
             target_telegram_id
         )
 
-        message = f"👤 **Detailed User Information**\n\n"
-        message += f"**Basic Info:**\n"
+        message = "👤 **Detailed User Information**\n\n"
+        message += "**Basic Info:**\n"
         message += f"• ID: `{user.telegram_id}`\n"
         message += f"• Name: {user.first_name or 'N/A'} {user.last_name or ''}\n"
         message += f"• Username: @{user.username or 'N/A'}\n"
@@ -285,7 +282,7 @@ class MultiUserHandlers:
         message += f"• Last Activity: {user.last_activity.strftime('%Y-%m-%d %H:%M UTC') if user.last_activity else 'Never'}\n\n"
 
         if user.subscription_expires_at:
-            message += f"**Subscription:**\n"
+            message += "**Subscription:**\n"
             message += f"• Expires: {user.subscription_expires_at.strftime('%Y-%m-%d %H:%M UTC')}\n"
             days_left = (user.subscription_expires_at - datetime.utcnow()).days
             message += f"• Days Left: {max(0, days_left)}\n\n"
@@ -377,7 +374,7 @@ class MultiUserHandlers:
         )
 
         message = "📊 **System Monitor**\n\n"
-        message += f"**User Statistics:**\n"
+        message += "**User Statistics:**\n"
         message += f"• Total Users: {total_users}\n"
         message += f"• Active Subscriptions: {active_users}\n"
         message += f"• Administrators: {admin_users}\n"
@@ -385,17 +382,17 @@ class MultiUserHandlers:
         message += f"• Suspended Users: {suspended_users}\n"
         message += f"• Recent Activity (24h): {recent_activity}\n\n"
 
-        message += f"**System Health:**\n"
-        message += f"• Database: 🟢 Connected\n"
-        message += f"• EA Bridge: 🟢 Active\n"
-        message += f"• Signal Distributor: 🟢 Running\n"
-        message += f"• Notification System: 🟢 Operational\n\n"
+        message += "**System Health:**\n"
+        message += "• Database: 🟢 Connected\n"
+        message += "• EA Bridge: 🟢 Active\n"
+        message += "• Signal Distributor: 🟢 Running\n"
+        message += "• Notification System: 🟢 Operational\n\n"
 
-        message += f"**Quick Actions:**\n"
-        message += f"• View all users: /users\n"
-        message += f"• Search users: /search_users\n"
-        message += f"• Bulk operations: /bulk_ops\n"
-        message += f"• System logs: /logs"
+        message += "**Quick Actions:**\n"
+        message += "• View all users: /users\n"
+        message += "• Search users: /search_users\n"
+        message += "• Bulk operations: /bulk_ops\n"
+        message += "• System logs: /logs"
 
         # Add refresh button
         keyboard = [

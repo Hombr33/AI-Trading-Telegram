@@ -3,15 +3,11 @@ Socket.IO Bridge for real-time communication with MT5 EA.
 Provides fallback to long polling if Socket.IO fails.
 """
 
-import asyncio
-import json
-import logging
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 import aiohttp
 import socketio
-from fastapi import HTTPException
 
 from ..core.config import BridgeConfig
 from ..core.logging import get_logger

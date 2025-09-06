@@ -4,23 +4,17 @@ Main FastAPI application with Socket.IO, Telegram bot, and trading execution.
 """
 
 import asyncio
-import logging
-import signal as signal_module
-
-# Import MT5/AioMQL only on Windows
+import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 
 import socketio
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
+from fastapi.staticfiles import StaticFiles
 from socketio import AsyncServer
 
 from src.core.config import config
@@ -32,14 +26,11 @@ from src.core.logging import (
     print_status_table,
 )
 
+logger = get_logger(__name__)
+
 from .bridge.mt5_bridge_service import MT5BridgeService, shutdown_mt5_bridge_service
 from .bridge.socketio_bridge import SocketIOBridge
-from .common.interfaces import (
-    IOrderManager,
-    IPlatformManager,
-    IPositionManager,
-    ISignalGenerationService,
-)
+from .common.interfaces import IPlatformManager, ISignalGenerationService
 from .core.health_monitor import health_monitor
 from .core.workflow import performance_monitor
 from .execution.order_manager import OrderManager
@@ -80,6 +71,7 @@ logger = get_logger(__name__)
 
 # Global instances for API routes
 telegram_bot: TradingBot = None
+start_time: datetime = None
 socketio_bridge: SocketIOBridge = None
 platform_manager: IPlatformManager = None
 order_manager: OrderManager = None
@@ -124,7 +116,7 @@ async def shutdown_handler(sig, loop):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global telegram_bot, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service, user_manager, config_manager
+    global telegram_bot, start_time, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service, user_manager, config_manager
 
     # Let uvicorn handle signal processing - no custom signal handlers needed
 
@@ -498,10 +490,7 @@ app.include_router(multi_user.router, prefix="/api/v1/multi-user", tags=["multi-
 app.include_router(ea.router, prefix="/api/v1/ea", tags=["ea"])
 app.include_router(admin_router, tags=["admin-dashboard"])
 
-import os
-
 # Mount static files for admin dashboard
-from fastapi.staticfiles import StaticFiles
 
 admin_static_path = os.path.join(os.path.dirname(__file__), "admin_dashboard", "static")
 if os.path.exists(admin_static_path):

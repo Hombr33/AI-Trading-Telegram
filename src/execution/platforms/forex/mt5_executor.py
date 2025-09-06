@@ -2,7 +2,6 @@
 MT5 execution logic for trading operations.
 """
 
-import asyncio
 import glob
 import os
 import platform
@@ -11,15 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ....core.config import MT5Config
-from ....core.error_handler import ErrorContext, with_error_handling
-from ....core.exceptions import MT5ConnectionError, MT5ExecutionError
-from ....core.logging import (
-    get_logger,
-    log_error_with_context,
-    log_operation_timing,
-    log_system_event,
-    log_trade_event,
-)
+from ....core.logging import get_logger, log_error_with_context
 from ...base_executor import BaseExecutor
 from ...interfaces import PlatformType
 

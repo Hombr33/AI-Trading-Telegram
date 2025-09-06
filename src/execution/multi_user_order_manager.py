@@ -3,21 +3,16 @@ Multi-User Order Manager for enhanced user-specific order routing and management
 """
 
 import asyncio
-import json
-import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from ..bridge.ea_bridge import EABridge
 from ..common.interfaces import IOrderManager, OrderSide, OrderType
-from ..core.error_handler import ErrorContext, with_error_handling
-from ..core.exceptions import OrderManagerError, TradingBotException, UserIsolationError
+from ..core.error_handler import with_error_handling
 from ..core.logging import get_logger
-from ..core.workflow import Component, ComponentStatus
 from ..execution.multi_user_position_manager import MultiUserPositionManager
 from ..models.orders import Order
-from ..models.trades import Trade
 from ..services.config_manager import ConfigManager
 from ..services.user_manager import UserManager
 

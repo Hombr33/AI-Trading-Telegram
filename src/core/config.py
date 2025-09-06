@@ -7,10 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
-
-from .logging import get_logger
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / ".env"

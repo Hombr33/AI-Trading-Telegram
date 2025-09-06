@@ -5,10 +5,8 @@ Supports multiple exchanges with a consistent API.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
-from decimal import Decimal
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 try:
     import ccxt.pro as ccxt
@@ -23,9 +21,9 @@ except ImportError:
         CCXT_AVAILABLE = False
         ccxt = None
 
-from ....core.error_handler import ErrorContext, with_error_handling
+from ....core.error_handler import with_error_handling
 from ....core.exceptions import TradingBotException
-from ....core.logging import get_logger, log_error_with_context, log_trade_event
+from ....core.logging import get_logger, log_trade_event
 from ...base_executor import BaseExecutor
 from ...interfaces import OrderSide, OrderStatus, OrderType, PlatformType
 

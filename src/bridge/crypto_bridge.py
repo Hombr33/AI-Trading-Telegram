@@ -2,16 +2,13 @@
 Crypto exchange bridge service for multi-platform trading.
 """
 
-import asyncio
 import hashlib
 import hmac
 import logging
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from aiohttp import ClientSession, ClientTimeout
-from sqlalchemy.orm import Session
 
 from ..database.connection import get_db_session
 from ..models.telegram_users import PlatformConnection, PlatformType, TelegramUser
@@ -171,7 +168,7 @@ class CryptoBridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.CRYPTO,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )
@@ -343,7 +340,7 @@ class CryptoBridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.CRYPTO,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )
@@ -489,7 +486,7 @@ class CryptoBridge:
                     .filter(
                         PlatformConnection.user_id == user.id,
                         PlatformConnection.platform_type == PlatformType.CRYPTO,
-                        PlatformConnection.is_active == True,
+                        PlatformConnection.is_active,
                     )
                     .first()
                 )

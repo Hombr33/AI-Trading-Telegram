@@ -1,11 +1,8 @@
 """Trading commands for Telegram bot."""
 
-import json
-import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from telegram import InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.analysis.openai_analyzer import OpenAIAnalyzer
@@ -14,13 +11,7 @@ from src.core.logging import get_logger
 from src.database.session import SessionLocal
 from src.services.symbol_service import SymbolService
 from src.telegram_bot.services.trading_data_service import TradingDataService
-from src.telegram_bot.utils.keyboards import (
-    create_confirmation_keyboard,
-    create_keyboard,
-    create_paginated_keyboard,
-    create_progress_keyboard,
-    get_trading_menu_keyboard,
-)
+from src.telegram_bot.utils.keyboards import create_keyboard
 from src.telegram_bot.utils.visual_effects import VisualEffects
 
 # Lazy import to avoid circular imports - moved to method level
@@ -201,10 +192,10 @@ class TradingCommandHandler(BaseCommandHandler):
 
             if not positions:
                 message = (
-                    f"📈 **POSITIONS** 📈\n\n"
-                    f"No open positions at the moment.\n\n"
-                    f"Use /signals to view trading signals\n"
-                    f"Use /account to view account information"
+                    "📈 **POSITIONS** 📈\n\n"
+                    "No open positions at the moment.\n\n"
+                    "Use /signals to view trading signals\n"
+                    "Use /account to view account information"
                 )
 
                 keyboard = create_keyboard(
@@ -225,7 +216,7 @@ class TradingCommandHandler(BaseCommandHandler):
                 for pos in positions:
                     # Calculate profit percentage
                     profit = pos.get("profit", 0.0)
-                    profit_pct = (
+                    (
                         (profit / 10000) * 100 if profit != 0 else 0
                     )  # Assuming 10k account
 
@@ -284,9 +275,9 @@ class TradingCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in positions command: {e}")
             error_message = (
-                f"❌ **Error Loading Positions**\n\n"
-                f"There was an issue loading position data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Positions**\n\n"
+                "There was an issue loading position data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_positions"), ("📊 Status", "status")]]
@@ -320,14 +311,14 @@ class TradingCommandHandler(BaseCommandHandler):
 
             if not orders:
                 message = (
-                    f"📝 **ORDERS** 📝\n\n"
-                    f"No pending orders at the moment.\n\n"
-                    f"Use /signals to view trading signals\n"
-                    f"Use /positions to view open positions"
+                    "📝 **ORDERS** 📝\n\n"
+                    "No pending orders at the moment.\n\n"
+                    "Use /signals to view trading signals\n"
+                    "Use /positions to view open positions"
                 )
             else:
                 # Format the orders message
-                message = f"📝 **ORDERS** 📝\n\n"
+                message = "📝 **ORDERS** 📝\n\n"
 
                 for order in orders:
                     # Determine emoji based on order type
@@ -361,9 +352,9 @@ class TradingCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in orders command: {e}")
             error_message = (
-                f"❌ **Error Loading Orders**\n\n"
-                f"There was an issue loading order data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Orders**\n\n"
+                "There was an issue loading order data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_orders"), ("📊 Status", "status")]]
@@ -459,9 +450,9 @@ class TradingCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in account command: {e}")
             error_message = (
-                f"❌ **Error Loading Account**\n\n"
-                f"There was an issue loading account data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Account**\n\n"
+                "There was an issue loading account data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_account"), ("📊 Status", "status")]]
@@ -502,10 +493,10 @@ class TradingCommandHandler(BaseCommandHandler):
 
             if not signals:
                 message = (
-                    f"🎯 **TRADING SIGNALS** 🎯\n\n"
-                    f"No active trading signals at the moment.\n\n"
-                    f"Signals are generated by AI analysis and appear here when available.\n"
-                    f"Check back later for new opportunities."
+                    "🎯 **TRADING SIGNALS** 🎯\n\n"
+                    "No active trading signals at the moment.\n\n"
+                    "Signals are generated by AI analysis and appear here when available.\n"
+                    "Check back later for new opportunities."
                 )
 
                 keyboard = create_keyboard(
@@ -517,7 +508,7 @@ class TradingCommandHandler(BaseCommandHandler):
                 )
             else:
                 # Format the signals message
-                message = f"🎯 **TRADING SIGNALS** 🎯\n\n"
+                message = "🎯 **TRADING SIGNALS** 🎯\n\n"
 
                 for signal in signals:
                     # Determine emoji based on bias
@@ -565,9 +556,9 @@ class TradingCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in signals command: {e}")
             error_message = (
-                f"❌ **Error Loading Signals**\n\n"
-                f"There was an issue loading trading signals.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Signals**\n\n"
+                "There was an issue loading trading signals.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_signals"), ("📊 Status", "status")]]

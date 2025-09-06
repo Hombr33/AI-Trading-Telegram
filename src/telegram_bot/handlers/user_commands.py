@@ -2,9 +2,7 @@
 Telegram bot command handlers for user management and configuration.
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -371,7 +369,7 @@ Try again with /register_mt5"""
     ) -> None:
         """Handle /status command."""
         telegram_id = update.effective_user.id
-        is_admin = await self.user_manager.is_admin(telegram_id)
+        await self.user_manager.is_admin(telegram_id)
         is_authorized = await self.user_manager.is_user_authorized(telegram_id)
 
         if not is_authorized:
@@ -414,7 +412,7 @@ Subscription: {user.subscription_status.value.title()}
         else:
             status_msg += "- No platforms connected\n"
 
-        status_msg += f"\n📈 **Signal Subscriptions:**\n"
+        status_msg += "\n📈 **Signal Subscriptions:**\n"
         if subscriptions:
             for sub in subscriptions:
                 status_msg += f"- {sub['symbol']} (min {sub['min_confidence']}%)\n"
@@ -593,7 +591,6 @@ Select your preferred exchange to register:""",
         await query.answer()
 
         data = query.data
-        telegram_id = query.from_user.id
 
         if data == "crypto_cancel":
             await query.edit_message_text("❌ Crypto registration cancelled.")
@@ -615,7 +612,6 @@ Select your preferred exchange to register:""",
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
         """Handle crypto API key input."""
-        telegram_id = update.effective_user.id
         api_key = update.message.text.strip()
         exchange = context.user_data.get("selected_exchange")
 

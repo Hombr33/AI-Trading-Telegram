@@ -5,24 +5,20 @@ Position Manager for monitoring and managing open positions.
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from ..common.interfaces import IPositionManager
 from ..core.config import TradingConfig
 from ..core.error_handler import ErrorContext, with_error_handling
-from ..core.exceptions import MT5ExecutionError, RiskManagementError
 from ..core.logging import (
     get_logger,
     log_error_with_context,
     log_operation_timing,
     log_system_event,
-    log_trade_event,
 )
-from ..core.workflow import Component, ComponentStatus
 
 # MT5Executor will be injected via platform manager
 from ..models.positions import Position
-from ..models.trades import Trade
 
 logger = get_logger(__name__)
 
@@ -70,17 +66,17 @@ class PositionManager(IPositionManager):
                 # Update positions with timeout
                 async with ErrorContext(
                     "position_update", {"sync_failures": self.sync_failures}
-                ) as ctx:
+                ):
                     await asyncio.wait_for(self._update_positions(), timeout=30.0)
                     self.sync_failures = 0  # Reset on success
                     self.last_sync_time = time.time()
 
                 # Check risk limits
-                async with ErrorContext("risk_check") as ctx:
+                async with ErrorContext("risk_check"):
                     await self._check_risk_limits()
 
                 # Log performance
-                loop_time = time.time() - start_time
+                time.time() - start_time
                 log_operation_timing("position_manager_loop", start_time, time.time())
 
                 await asyncio.sleep(5)  # Check every 5 seconds

@@ -5,12 +5,11 @@ Cross-platform compatibility layer for the execution module.
 from __future__ import annotations
 
 import importlib
-import logging
 import platform
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from ..core.logging import get_logger
 

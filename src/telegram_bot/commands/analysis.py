@@ -1,9 +1,8 @@
 """Analysis commands for Telegram bot."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from telegram import InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
@@ -94,9 +93,9 @@ class AnalysisCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in risk command: {e}")
             error_message = (
-                f"❌ **Error Loading Risk Metrics**\n\n"
-                f"There was an issue loading risk data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Risk Metrics**\n\n"
+                "There was an issue loading risk data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_risk"), ("📊 Status", "status")]]
@@ -165,9 +164,9 @@ class AnalysisCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in performance command: {e}")
             error_message = (
-                f"❌ **Error Loading Performance**\n\n"
-                f"There was an issue loading performance data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Performance**\n\n"
+                "There was an issue loading performance data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_performance"), ("📊 Status", "status")]]
@@ -193,13 +192,13 @@ class AnalysisCommandHandler(BaseCommandHandler):
 
             if not journal_entries:
                 message = (
-                    f"📖 **TRADING JOURNAL** 📖\n\n"
-                    f"No trading history available at the moment.\n\n"
-                    f"Start trading to see your journal entries here."
+                    "📖 **TRADING JOURNAL** 📖\n\n"
+                    "No trading history available at the moment.\n\n"
+                    "Start trading to see your journal entries here."
                 )
             else:
                 # Format the journal message
-                message = f"📖 **TRADING JOURNAL** 📖\n\n"
+                message = "📖 **TRADING JOURNAL** 📖\n\n"
 
                 for entry in journal_entries:
                     # Determine emoji based on profit
@@ -233,9 +232,9 @@ class AnalysisCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in journal command: {e}")
             error_message = (
-                f"❌ **Error Loading Journal**\n\n"
-                f"There was an issue loading journal data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Journal**\n\n"
+                "There was an issue loading journal data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_journal"), ("📊 Status", "status")]]
@@ -292,9 +291,9 @@ class AnalysisCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in market analysis command: {e}")
             error_message = (
-                f"❌ **Error Loading Analysis**\n\n"
-                f"There was an issue loading analysis data.\n"
-                f"Please try again in a moment."
+                "❌ **Error Loading Analysis**\n\n"
+                "There was an issue loading analysis data.\n"
+                "Please try again in a moment."
             )
             keyboard = create_keyboard(
                 [[("🔄 Retry", "refresh_analysis"), ("📊 Status", "status")]]

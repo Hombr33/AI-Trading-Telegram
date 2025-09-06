@@ -4,6 +4,7 @@ Provides web-based administrative interface for the AI Trading Bot.
 """
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -347,7 +348,7 @@ async def configuration_management(
 ):
     """Configuration management page."""
     try:
-        service = get_multi_user_service()
+        get_multi_user_service()
 
         # Get system configuration
         system_config = {
@@ -432,7 +433,7 @@ async def update_user_status(
 ):
     """Update user status via AJAX."""
     try:
-        service = get_multi_user_service()
+        get_multi_user_service()
 
         if status == "activate":
             # Implementation would depend on user manager methods

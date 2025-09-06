@@ -3,10 +3,8 @@ Trailing Stop and Take Profit Manager for automated position management.
 """
 
 import asyncio
-import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from ..core.logging import get_logger
 

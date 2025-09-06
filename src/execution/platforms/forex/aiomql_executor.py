@@ -5,17 +5,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 from ....core.error_handler import CircuitBreaker, ErrorContext, with_error_handling
-from ....core.exceptions import AioMQLError, MT5ConnectionError, MT5ExecutionError
-from ....core.logging import (
-    get_logger,
-    log_error_with_context,
-    log_operation_timing,
-    log_performance_metric,
-    log_system_event,
-    log_trade_event,
-)
-from ...base_executor import BaseExecutor
-from ...interfaces import PlatformType
+from ....core.exceptions import AioMQLError
+from ....core.logging import get_logger, log_operation_timing, log_system_event
 from .mt5_executor import MT5Executor
 
 logger = get_logger(__name__)
@@ -64,7 +55,7 @@ class AioMQLExecutor(MT5Executor):
             async with ErrorContext(
                 "aiomql_connection",
                 {"login": self.config.login, "server": self.config.server},
-            ) as ctx:
+            ):
                 try:
                     # Check circuit breaker
                     if not self._connection_circuit_breaker.can_execute():

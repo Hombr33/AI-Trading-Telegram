@@ -321,7 +321,7 @@ class PlatformManager(IPlatformManager):
 
         for platform_name, executor in self.platforms.items():
             try:
-                async with ErrorContext(f"connect_{platform_name}") as ctx:
+                async with ErrorContext(f"connect_{platform_name}"):
                     success = await executor.connect()
                     results[platform_name] = success
 

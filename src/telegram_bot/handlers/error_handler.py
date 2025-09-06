@@ -1,6 +1,5 @@
 """Error handler for Telegram bot."""
 
-from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger

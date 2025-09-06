@@ -2,11 +2,11 @@
 V1 API routes for general functionality.
 """
 
-from typing import List, Optional
+from typing import List
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from ...core.config import config
 

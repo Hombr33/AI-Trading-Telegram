@@ -5,7 +5,6 @@ System management utilities for the AI Trading Bot.
 import asyncio
 import logging
 import os
-import signal
 import sys
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -142,10 +141,9 @@ class SystemManager:
     async def _save_system_state(self):
         """Save current system state before restart."""
         try:
-            from ..database.session import SessionLocal
 
             # Save restart timestamp
-            restart_info = {
+            {
                 "restart_time": datetime.utcnow().isoformat(),
                 "restart_reason": "Admin initiated restart",
                 "system_status": "restarting",

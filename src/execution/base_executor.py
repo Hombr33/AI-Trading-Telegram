@@ -8,21 +8,18 @@ import asyncio
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from ..core.error_handler import with_error_handling
-from ..core.exceptions import TradingBotException
 from ..core.logging import get_logger, log_trade_event
 from .interfaces import (
-    AccountInfo,
     HealthStatus,
-    IExecutor,
-    MarketData,
     OrderRequest,
     OrderResponse,
+    OrderSide,
     OrderStatus,
+    OrderType,
     PlatformType,
-    PositionData,
 )
 from .monitoring import get_executor_monitor
 

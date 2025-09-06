@@ -1,7 +1,7 @@
 """Callback handler for Telegram bot."""
 
 from telegram import Update
-from telegram.ext import CallbackQueryHandler, ContextTypes
+from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
 from src.telegram_bot.notifications.manager import NotificationManager
@@ -222,8 +222,8 @@ class CallbackRouter:
             await query.answer("Error processing request")
             try:
                 await query.edit_message_text(
-                    f"❌ Error Processing Request\n\n"
-                    f"Something went wrong. Please try again or use /help.",
+                    "❌ Error Processing Request\n\n"
+                    "Something went wrong. Please try again or use /help.",
                     parse_mode=None,  # Remove markdown to avoid parsing errors
                 )
             except:
@@ -253,8 +253,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Error handling callback query: {e}")
         try:
             await query.edit_message_text(
-                f"❌ **Error Processing Request**\n\n"
-                f"Something went wrong. Please try again or use /help.",
+                "❌ **Error Processing Request**\n\n"
+                "Something went wrong. Please try again or use /help.",
                 parse_mode="Markdown",
             )
         except:

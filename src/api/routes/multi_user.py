@@ -6,19 +6,16 @@ including user management, platform connections, configuration, signal distribut
 trading operations, admin functions, monitoring, and security.
 """
 
-import json
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
-from ...models.telegram_users import PlatformType, SubscriptionStatus, UserRole
-from ...services.config_manager import ConfigManager
+from ...models.telegram_users import PlatformType, SubscriptionStatus
 from ...services.multi_user_service import MultiUserService
-from ...services.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
@@ -1302,7 +1299,7 @@ async def distribute_signal_to_user(
     """Distribute signal to a specific user."""
     try:
         # This would use the signal distributor
-        result = await service.send_signal_to_users(request.signal_data)
+        await service.send_signal_to_users(request.signal_data)
 
         return {
             "status": "success",

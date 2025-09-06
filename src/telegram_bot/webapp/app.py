@@ -1,6 +1,5 @@
 """Telegram WebApp handler."""
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from telegram import Update, WebAppInfo
@@ -140,8 +139,8 @@ class WebAppHandler:
         settings = data.get("settings", {})
 
         message = (
-            f"⚙️ **Settings Updated** ⚙️\n\n"
-            f"✅ Settings have been updated from WebApp:\n\n"
+            "⚙️ **Settings Updated** ⚙️\n\n"
+            "✅ Settings have been updated from WebApp:\n\n"
         )
 
         for key, value in settings.items():

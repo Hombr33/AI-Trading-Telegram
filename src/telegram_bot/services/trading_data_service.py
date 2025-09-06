@@ -2,20 +2,15 @@
 Trading data service for Telegram bot - provides real trading data.
 """
 
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-
-from sqlalchemy.orm import Session
 
 from src.core.config import AppConfig
 from src.core.logging import get_logger
 from src.database.session import SessionLocal
 from src.execution.platforms.forex.mt5_executor import MT5Executor
-from src.models.instruments import Instrument
 from src.models.orders import Order
 from src.models.positions import Position
 from src.models.signals import Signal
-from src.models.trades import Trade
 
 logger = get_logger(__name__)
 
@@ -235,7 +230,7 @@ class TradingDataService:
         """Get positions from database as fallback."""
         try:
             session = SessionLocal()
-            query = session.query(Position).filter(Position.is_active == True)
+            query = session.query(Position).filter(Position.is_active)
 
             if user_id:
                 query = query.filter(Position.user_id == user_id)

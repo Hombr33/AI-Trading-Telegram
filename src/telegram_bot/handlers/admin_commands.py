@@ -4,7 +4,6 @@ Telegram bot command handlers for admin operations.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -167,7 +166,7 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                     )
                 else:
                     await update.message.reply_text(
-                        f"❌ Failed to remove admin privileges. User may not be admin or is the initial admin."
+                        "❌ Failed to remove admin privileges. User may not be admin or is the initial admin."
                     )
 
                 return ConversationHandler.END
@@ -196,7 +195,7 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                 )
             else:
                 await update.message.reply_text(
-                    f"❌ Failed to remove admin privileges. User may not be admin or is the initial admin."
+                    "❌ Failed to remove admin privileges. User may not be admin or is the initial admin."
                 )
 
         except ValueError:
@@ -244,7 +243,7 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                     )
                 else:
                     await update.message.reply_text(
-                        f"❌ Failed to update subscription. User may not exist."
+                        "❌ Failed to update subscription. User may not exist."
                     )
 
                 return ConversationHandler.END
@@ -591,7 +590,6 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
 
             try:
                 # Get multi-user service for position management
-                from ...services.multi_user_service import MultiUserService
 
                 # Initialize if not already available
                 if not hasattr(self, "multi_user_service"):
@@ -651,18 +649,18 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
 
                 # Send final report
                 if closed_positions > 0 or failed_closures > 0:
-                    message = f"🚨 *Emergency Position Closure Complete*\n\n"
-                    message += f"📊 **Summary:**\n"
+                    message = "🚨 *Emergency Position Closure Complete*\n\n"
+                    message += "📊 **Summary:**\n"
                     message += f"• Users processed: {processed_users}\n"
                     message += f"• Positions closed: {closed_positions}\n"
                     message += f"• Failed closures: {failed_closures}\n\n"
 
                     if failed_closures > 0:
-                        message += f"⚠️ Some positions could not be closed. Check logs for details.\n\n"
+                        message += "⚠️ Some positions could not be closed. Check logs for details.\n\n"
 
                     message += f"✅ Emergency procedure completed at {datetime.now().strftime('%H:%M:%S UTC')}"
                 else:
-                    message = f"ℹ️ *No Open Positions Found*\n\nNo positions were found to close across all users."
+                    message = "ℹ️ *No Open Positions Found*\n\nNo positions were found to close across all users."
 
                 await query.edit_message_text(message, parse_mode="Markdown")
 

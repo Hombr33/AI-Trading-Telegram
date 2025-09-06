@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ...common.interfaces import IOrderManager, IPositionManager
 from ...core.logging import get_logger
-from ...execution.order_manager import OrderManager
 
 # Import interface only, implementation will be injected
 

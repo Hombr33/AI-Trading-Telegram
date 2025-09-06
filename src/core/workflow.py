@@ -6,10 +6,9 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List
 
-from .error_handler import ErrorContext, with_error_handling
-from .exceptions import TradingBotException
+from .error_handler import with_error_handling
 from .logging import (
     get_logger,
     log_error_with_context,

@@ -5,7 +5,6 @@ Security utilities for the AI Trading Bot system.
 import hashlib
 import hmac
 import os
-from typing import Optional
 
 try:
     import bcrypt

@@ -4,11 +4,9 @@ Enhanced error handling framework for the AI Trading Bot.
 
 import asyncio
 import functools
-import traceback
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, TypeVar
 
-from .exceptions import TradingBotException
 from .logging import get_logger, log_error_with_context
 
 logger = get_logger(__name__)
@@ -36,7 +34,6 @@ def with_error_handling(
     def decorator(func: F) -> F:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            last_exception = None
 
             for attempt in range(max_retries + 1):
                 try:
@@ -46,7 +43,6 @@ def with_error_handling(
                         return func(*args, **kwargs)
 
                 except Exception as e:
-                    last_exception = e
 
                     # Log the error with context
                     context = {
@@ -252,7 +248,7 @@ class CircuitBreaker:
     async def call(self, func: Callable, *args, **kwargs):
         """Execute function with circuit breaker protection."""
         if not self.can_execute():
-            raise Exception(f"Circuit breaker is OPEN - service unavailable")
+            raise Exception("Circuit breaker is OPEN - service unavailable")
 
         try:
             if asyncio.iscoroutinefunction(func):

@@ -1,9 +1,6 @@
 """Auto trading commands for Telegram bot."""
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-
-from telegram import InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger

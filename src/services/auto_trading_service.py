@@ -5,7 +5,7 @@ Executes trades automatically when auto trading is enabled.
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.common.interfaces import IAutoTradingService, IOrderManager, IPlatformManager
