@@ -62,6 +62,7 @@ class CallbackRouter:
             "quick_actions",
             "risk_settings",
             "notification_settings",
+            "settings_notifications",  # Add the missing callback key
             "theme_settings",
             "sound_settings",
             "trading_guide",

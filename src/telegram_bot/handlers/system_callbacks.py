@@ -46,6 +46,7 @@ class SystemCallbackHandler:
             "roadmap": self._handle_roadmap_callback,
             "risk_settings": self._handle_risk_settings_callback,
             "notification_settings": self._handle_notification_settings_callback,
+            "settings_notifications": self._handle_notification_settings_callback,  # Alias for settings_notifications
             "theme_settings": self._handle_theme_settings_callback,
             "sound_settings": self._handle_sound_settings_callback,
         }
