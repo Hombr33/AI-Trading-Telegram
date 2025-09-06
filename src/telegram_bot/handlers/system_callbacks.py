@@ -47,6 +47,9 @@ class SystemCallbackHandler:
             "risk_settings": self._handle_risk_settings_callback,
             "notification_settings": self._handle_notification_settings_callback,
             "settings_notifications": self._handle_notification_settings_callback,  # Alias for settings_notifications
+            "settings_trading": self._handle_settings_trading_callback,
+            "settings_risk": self._handle_settings_risk_callback,
+            "settings_system": self._handle_settings_system_callback,
             "notif_critical": self._handle_notif_critical_callback,
             "notif_trading": self._handle_notif_trading_callback,
             "notif_reports": self._handle_notif_reports_callback,
@@ -1405,3 +1408,34 @@ class SystemCallbackHandler:
         await query.edit_message_text(
             message, reply_markup=keyboard, parse_mode="Markdown"
         )
+
+    # Settings callbacks
+    async def _handle_settings_trading_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle settings trading callback."""
+        query = update.callback_query
+        await query.answer("📊 Trading settings")
+
+        # Route to the system command handler's trading settings
+        await self.system_handler.settings_trading(update, context)
+
+    async def _handle_settings_risk_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle settings risk callback."""
+        query = update.callback_query
+        await query.answer("⚠️ Risk management settings")
+
+        # Route to the system command handler's risk settings
+        await self.system_handler.settings_risk(update, context)
+
+    async def _handle_settings_system_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle settings system callback."""
+        query = update.callback_query
+        await query.answer("🔧 System settings")
+
+        # Route to the system command handler's system settings
+        await self.system_handler.settings_system(update, context)
