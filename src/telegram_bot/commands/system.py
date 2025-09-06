@@ -115,7 +115,8 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"⚙️ `/settings` - Bot settings\n"
                 f"❓ `/help` - Help menu\n\n"
                 f"**System Uptime**: {system_status['uptime']}\n"
-                f"**Last Update**: {system_status['last_update']}"
+                f"**Last Update**: {system_status['last_update']}\n\n"
+                f"🕐 _Session started: {datetime.now().strftime('%H:%M:%S')}_"
             )
 
             # Create welcome keyboard
@@ -420,6 +421,8 @@ class SystemCommandHandler(BaseCommandHandler):
             notifications = config.get("notifications", {})
             active_notifications = sum(1 for v in notifications.values() if v)
 
+            from datetime import datetime
+
             message = (
                 f"⚙️ **USER SETTINGS** ⚙️\n\n"
                 f"**Current Configuration**:\n"
@@ -428,7 +431,8 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"🎯 Max Positions: {max_positions}\n"
                 f"🔔 Active Notifications: {active_notifications}/6\n\n"
                 f"**Configure Your Settings**:\n"
-                f"Select a category below to customize your trading bot experience."
+                f"Select a category below to customize your trading bot experience.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
             )
 
             # Create settings keyboard
@@ -502,7 +506,8 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"{status_icon(notifications.get('performance', True))} Performance Reports\n"
                 f"{status_icon(notifications.get('system', True))} System Alerts\n\n"
                 f"**Trading Pairs**: {len(allowed_symbols)} pairs configured\n"
-                f"**Configure**: Select options below to customize notifications."
+                f"**Configure**: Select options below to customize notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
             )
 
             keyboard = create_keyboard(
@@ -551,7 +556,8 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"💰 Max Daily Loss: ${trading.get('max_daily_loss_usd', 25.0)}\n"
                 f"📋 Allowed Symbols: {len(trading.get('allowed_symbols', []))}\n\n"
                 f"**Quick Actions**:\n"
-                f"Select a setting to modify:"
+                f"Select a setting to modify:\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
             )
 
             keyboard = create_keyboard(
@@ -796,7 +802,8 @@ class SystemCommandHandler(BaseCommandHandler):
             message += "**Available Actions**:\n"
             message += "• Add new trading pairs\n"
             message += "• Remove existing pairs\n"
-            message += "• Reset to default pairs"
+            message += "• Reset to default pairs\n\n"
+            message += f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
 
             keyboard = create_keyboard(
                 [

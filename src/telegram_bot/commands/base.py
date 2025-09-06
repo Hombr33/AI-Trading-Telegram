@@ -121,18 +121,25 @@ class BaseCommandHandler:
                 parse_mode=parse_mode,
             )
         except Exception as e:
-            logger.error(f"Error editing message: {e}")
-            # Try without parse mode if it fails
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=update.effective_chat.id,
-                    message_id=update.callback_query.message.message_id,
-                    text=f"Error: {e}\n\nOriginal message: {text}",
-                    reply_markup=keyboard,
-                    parse_mode=None,
-                )
-            except Exception as e2:
-                logger.error(f"Error sending error message: {e2}")
+            error_msg = str(e)
+            if "Message is not modified" in error_msg:
+                # Message content is the same, just answer the callback query
+                logger.debug("Message content unchanged, answering callback query")
+                await update.callback_query.answer()
+                return
+            else:
+                logger.error(f"Error editing message: {e}")
+                # Try without parse mode if it fails
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=update.effective_chat.id,
+                        message_id=update.callback_query.message.message_id,
+                        text=f"Error: {e}\n\nOriginal message: {text}",
+                        reply_markup=keyboard,
+                        parse_mode=None,
+                    )
+                except Exception as e2:
+                    logger.error(f"Error sending error message: {e2}")
 
     async def answer_callback_query(
         self,
