@@ -816,8 +816,8 @@ async def get_user_subscription(
         )
 
 
-@router.post("/users/subscription")
-async def set_user_subscription(
+@router.post("/users/subscription/update")
+async def update_user_subscription(
     request: UserSubscriptionRequest,
     admin_telegram_id: int,
     service: MultiUserService = Depends(get_multi_user_service),

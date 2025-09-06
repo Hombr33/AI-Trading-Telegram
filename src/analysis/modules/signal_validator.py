@@ -95,7 +95,7 @@ class SignalValidator:
             try:
                 temp_data = json.loads(signal_data)
                 self._current_symbol = temp_data.get("symbol", "UNKNOWN")
-            except:
+            except (json.JSONDecodeError, KeyError, TypeError):
                 self._current_symbol = "UNKNOWN"
         else:
             self._current_symbol = "UNKNOWN"

@@ -65,7 +65,7 @@ from .platform_compatibility import (
 from .platform_manager import PlatformManager as LegacyPlatformManager
 
 # Platform implementations (imported conditionally)
-from .platforms import *
+from .platforms import *  # noqa: F403, F405
 from .position_manager import PositionManager
 from .trailing_manager import TrailingManager
 
