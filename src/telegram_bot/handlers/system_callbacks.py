@@ -47,6 +47,10 @@ class SystemCallbackHandler:
             "risk_settings": self._handle_risk_settings_callback,
             "notification_settings": self._handle_notification_settings_callback,
             "settings_notifications": self._handle_notification_settings_callback,  # Alias for settings_notifications
+            "notif_critical": self._handle_notif_critical_callback,
+            "notif_trading": self._handle_notif_trading_callback,
+            "notif_reports": self._handle_notif_reports_callback,
+            "notif_general": self._handle_notif_general_callback,
             "theme_settings": self._handle_theme_settings_callback,
             "sound_settings": self._handle_sound_settings_callback,
         }

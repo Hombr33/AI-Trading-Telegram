@@ -350,7 +350,11 @@ class HealthMonitor:
         if component in self._check_tasks:
             self._check_tasks[component].cancel()
             del self._check_tasks[component]
-            logger.info(f"Stopped health monitoring for {component}")
+            try:
+                logger.info(f"Stopped health monitoring for {component}")
+            except RuntimeError:
+                # Avoid logging deadlock during shutdown
+                pass
 
     async def shutdown(self) -> None:
         """Shutdown health monitor."""
@@ -421,7 +425,11 @@ class ExecutorMonitor:
         self._health_monitor.unregister_component(platform)
         self._executor_refs.pop(platform, None)
 
-        logger.info(f"Unregistered executor from monitoring: {platform}")
+        try:
+            logger.info(f"Unregistered executor from monitoring: {platform}")
+        except RuntimeError:
+            # Avoid logging deadlock during shutdown
+            pass
 
     def record_order_placed(
         self, platform: str, response_time_ms: float, success: bool
