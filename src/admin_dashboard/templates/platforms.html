@@ -395,7 +395,99 @@ function testConnection(connectionId) {
 }
 
 function editConnection(connectionId) {
-    showToast('Edit connection functionality coming soon', 'info');
+    // Create edit connection modal
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editConnectionModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Platform Connection</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editConnectionForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editPlatformType" class="form-label">Platform Type</label>
+                                    <select class="form-select" id="editPlatformType" required>
+                                        <option value="mt5">MetaTrader 5</option>
+                                        <option value="mt4">MetaTrader 4</option>
+                                        <option value="api">Custom API</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editConnectionName" class="form-label">Connection Name</label>
+                                    <input type="text" class="form-control" id="editConnectionName" required
+                                           placeholder="Enter connection name">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editServerHost" class="form-label">Server/Host</label>
+                                    <input type="text" class="form-control" id="editServerHost" required
+                                           placeholder="Enter server address">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editServerPort" class="form-label">Port</label>
+                                    <input type="number" class="form-control" id="editServerPort"
+                                           placeholder="Enter port number">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editConnectionStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="editConnectionStatus">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="testing">Testing</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editConnectionPriority" class="form-label">Priority</label>
+                                    <select class="form-select" id="editConnectionPriority">
+                                        <option value="primary">Primary</option>
+                                        <option value="secondary">Secondary</option>
+                                        <option value="backup">Backup</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editConnectionNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="editConnectionNotes" rows="3"
+                                      placeholder="Add notes about this connection..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning me-2" onclick="testConnection('${connectionId}')">Test Connection</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConnectionChanges('${connectionId}')">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
 }
 
 function deleteConnection(connectionId) {
@@ -403,7 +495,103 @@ function deleteConnection(connectionId) {
         return;
     }
 
-    showToast('Delete connection functionality coming soon', 'info');
+    // Additional warning for active connections
+    if (!confirm('Deleting an active connection may disrupt trading operations. Continue?')) {
+        return;
+    }
+
+    fetch(`/admin/api/platforms/${connectionId}?admin_id={{ admin.telegram_id }}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Connection deleted successfully', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Failed to delete connection: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error deleting connection', 'error');
+    });
+}
+
+function saveConnectionChanges(connectionId) {
+    const platformType = document.getElementById('editPlatformType').value;
+    const connectionName = document.getElementById('editConnectionName').value;
+    const serverHost = document.getElementById('editServerHost').value;
+    const serverPort = document.getElementById('editServerPort').value;
+    const status = document.getElementById('editConnectionStatus').value;
+    const priority = document.getElementById('editConnectionPriority').value;
+    const notes = document.getElementById('editConnectionNotes').value;
+
+    fetch(`/admin/api/platforms/${connectionId}?admin_id={{ admin.telegram_id }}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            platform_type: platformType,
+            connection_name: connectionName,
+            server_host: serverHost,
+            server_port: serverPort ? parseInt(serverPort) : null,
+            status: status,
+            priority: priority,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Connection updated successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editConnectionModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Failed to update connection: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error updating connection', 'error');
+    });
+}
+
+function testConnection(connectionId) {
+    const testBtn = document.querySelector(`button[onclick="testConnection('${connectionId}')"]`);
+    if (testBtn) {
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    }
+
+    fetch(`/admin/api/platforms/${connectionId}/test?admin_id={{ admin.telegram_id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Connection test successful: ${data.message || 'Connected'}`, 'success');
+        } else {
+            showToast(`Connection test failed: ${data.error || 'Unknown error'}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error testing connection', 'error');
+    })
+    .finally(() => {
+        if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.innerHTML = 'Test Connection';
+        }
+    });
 }
 
 function showToast(message, type) {

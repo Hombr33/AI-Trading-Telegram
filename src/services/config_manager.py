@@ -138,7 +138,118 @@ class ConfigManager:
                 "atr_multiplier_threshold": 2.0,
             },
         },
+        "signals": {
+            "auto_signal_generation_enabled": True,
+            "receive_signals": True,
+            "signal_types": {
+                "trading_signals": True,
+                "position_signals": True,
+                "order_signals": True,
+                "risk_signals": True,
+            },
+            "notification_preferences": {
+                "immediate_notify": True,
+                "sound_enabled": True,
+                "vibration_enabled": True,
+            },
+            "signal_filtering": {
+                "min_confidence": 60,
+                "max_signals_per_day": 50,
+                "preferred_timeframes": ["H4", "H1", "M15"],
+            },
+        },
     }
+
+    # Global config refresh method
+    def refresh_global_config(self):
+        """Refresh global configuration from environment variables."""
+        try:
+            import os
+
+            from ..core.config import config
+
+            # Refresh auto trading settings
+            config.auto_trading.auto_signal_generation = (
+                os.getenv("AUTO_SIGNAL_GENERATION", "false").lower() == "true"
+            )
+            config.auto_trading.enabled = (
+                os.getenv("AUTO_TRADING_ENABLED", "false").lower() == "true"
+            )
+            config.auto_trading.signal_interval_minutes = int(
+                os.getenv("SIGNAL_INTERVAL_MINUTES", "15")
+            )
+            config.auto_trading.max_trades_per_day = int(
+                os.getenv("MAX_TRADES_PER_DAY", "10")
+            )
+
+            # Refresh logging settings
+            config.logging.level = os.getenv("LOG_LEVEL", "INFO")
+
+            # Refresh debug settings
+            config.debug = os.getenv("DEBUG", "false").lower() == "true"
+
+            logger.info("Global configuration refreshed from environment variables")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error refreshing global configuration: {e}")
+            return False
+
+    async def check_signal_permission(self, telegram_id: int) -> bool:
+        """Check if user should receive signals based on global and user settings."""
+        try:
+            from ..core.config import config
+
+            # First check global setting - if global is OFF, no signals for anyone
+            if not config.auto_trading.auto_signal_generation:
+                return False
+
+            # Get user signal settings
+            user_signal_config = await self.get_user_config(telegram_id, "signals")
+            if not user_signal_config:
+                # Use default config if user hasn't set preferences
+                user_signal_config = self.DEFAULT_CONFIGS["signals"]
+
+            # Check user's individual signal permission
+            user_enabled = user_signal_config.get(
+                "auto_signal_generation_enabled", True
+            )
+            receive_signals = user_signal_config.get("receive_signals", True)
+
+            # Both global AND user must be enabled
+            return user_enabled and receive_signals
+
+        except Exception as e:
+            logger.error(
+                f"Error checking signal permission for user {telegram_id}: {e}"
+            )
+            return False
+
+    async def get_user_signal_types(self, telegram_id: int) -> Dict[str, bool]:
+        """Get user's specific signal type preferences."""
+        try:
+            user_signal_config = await self.get_user_config(telegram_id, "signals")
+            if not user_signal_config:
+                user_signal_config = self.DEFAULT_CONFIGS["signals"]
+
+            return user_signal_config.get(
+                "signal_types",
+                {
+                    "trading_signals": True,
+                    "position_signals": True,
+                    "order_signals": True,
+                    "risk_signals": True,
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting signal types for user {telegram_id}: {e}")
+            return {
+                "trading_signals": True,
+                "position_signals": True,
+                "order_signals": True,
+                "risk_signals": True,
+            }
 
     async def get_user_config(
         self, telegram_id: int, config_type: str
@@ -253,6 +364,41 @@ class ConfigManager:
 
         except Exception as e:
             logger.error(f"Error setting user configuration: {e}")
+            return False
+
+    async def update_user_config(
+        self, telegram_id: int, config_section: str, key: str, value: Any
+    ) -> bool:
+        """Update a specific configuration value for a user.
+
+        Args:
+            telegram_id: Telegram user ID
+            config_section: Configuration section (risk, symbol, signal, model, trading, rules)
+            key: Configuration key
+            value: New value
+
+        Returns:
+            Success status
+        """
+        try:
+            # Get the current configuration
+            current_config = await self.get_user_config(telegram_id, config_section)
+            if current_config is None:
+                # Use default configuration if none exists
+                current_config = self.DEFAULT_CONFIGS.get(config_section, {}).copy()
+
+            # Update the specific key
+            current_config[key] = value
+
+            # Save the updated configuration with validation disabled for simple updates
+            # since we're only updating a single field, the overall config structure
+            # might not be complete enough to pass full validation
+            return await self.set_user_config(
+                telegram_id, config_section, current_config, validate=False
+            )
+
+        except Exception as e:
+            logger.error(f"Error updating user configuration for {telegram_id}: {e}")
             return False
 
     async def get_all_user_configs(self, telegram_id: int) -> Dict[str, Dict[str, Any]]:

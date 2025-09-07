@@ -18,6 +18,7 @@ class SystemManager:
     def __init__(self):
         self._shutdown_callbacks = []
         self._restart_requested = False
+        self._shutdown_event = asyncio.Event()
 
     def add_shutdown_callback(self, callback):
         """Add a callback to be called during shutdown."""
@@ -244,23 +245,37 @@ class SystemManager:
                 except Exception as e:
                     logger.error(f"Failed to send final restart notification: {e}")
 
-            # Start restart script in background
+            # Set restart flag for the lifespan to detect
+            self._restart_requested = True
+
+            # Start restart script in background with a delay
             if os.name == "nt":  # Windows
                 import subprocess
 
-                subprocess.Popen([restart_script], shell=True, cwd=os.getcwd())
+                # Use a delayed start to allow current process to shut down gracefully
+                delayed_script = (
+                    f'@echo off\nping 127.0.0.1 -n 5 > nul\n"{restart_script}"'
+                )
+                with open("delayed_restart.bat", "w") as f:
+                    f.write(delayed_script)
+                subprocess.Popen(["delayed_restart.bat"], shell=True, cwd=os.getcwd())
             else:  # Unix-like
                 import subprocess
 
-                subprocess.Popen([f"./{restart_script}"], shell=True, cwd=os.getcwd())
+                # Use a delayed start to allow current process to shut down gracefully
+                delayed_script = f"#!/bin/bash\nsleep 5\n./{restart_script}"
+                with open("delayed_restart.sh", "w") as f:
+                    f.write(delayed_script)
+                os.chmod("delayed_restart.sh", 0o755)
+                subprocess.Popen(["./delayed_restart.sh"], shell=True, cwd=os.getcwd())
 
-            logger.info("Restart scheduled, initiating shutdown...")
+            logger.info("Restart scheduled with delay, initiating graceful shutdown...")
 
-            # Short delay before exit
-            await asyncio.sleep(2)
+            # Signal the shutdown event to trigger FastAPI lifespan shutdown
+            self._shutdown_event.set()
 
-            # Exit current process
-            sys.exit(0)
+            # The restart script will start the new instance after this process shuts down
+            # The FastAPI lifespan will handle the shutdown gracefully
 
         except Exception as e:
             logger.error(f"Failed to schedule restart: {e}")
@@ -281,6 +296,18 @@ class SystemManager:
     def is_restart_requested(self) -> bool:
         """Check if restart was requested."""
         return self._restart_requested
+
+    def is_shutdown_requested(self) -> bool:
+        """Check if shutdown was requested."""
+        return self._shutdown_event.is_set()
+
+    async def wait_for_shutdown(self, timeout: float = None):
+        """Wait for shutdown event to be set."""
+        try:
+            await asyncio.wait_for(self._shutdown_event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            return False
+        return True
 
     def get_system_status(self) -> Dict[str, Any]:
         """Get current system status."""

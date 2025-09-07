@@ -1082,12 +1082,29 @@ class SignalGenerationService(ISignalGenerationService):
             return 0
 
     async def _send_signal_notification(self, signal: Dict[str, Any]):
-        """Send signal notification via Telegram."""
+        """Send signal notification via Telegram based on hierarchical permissions."""
         try:
             # Lazy import to avoid circular dependencies
+            from src.services.config_manager import ConfigManager
             from src.telegram_bot.notifications.trading import send_signal_notification
 
-            await send_signal_notification(signal)
+            config_manager = ConfigManager()
+
+            # Get all registered users
+            users = await config_manager.get_all_users()
+
+            # Check each user's permission to receive signals
+            for telegram_id in users:
+                can_receive = await config_manager.check_signal_permission(telegram_id)
+                if can_receive:
+                    # User can receive signals - send notification
+                    await send_signal_notification(signal, telegram_id=telegram_id)
+                    logger.debug(f"Signal sent to user {telegram_id}")
+                else:
+                    logger.debug(
+                        f"Signal blocked for user {telegram_id} (permission denied)"
+                    )
+
         except Exception as e:
             logger.error(f"Error sending signal notification: {e}")
 

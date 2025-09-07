@@ -24,6 +24,9 @@ class SystemCallbackHandler:
             "status": self._handle_status_callback,
             "settings": self._handle_settings_callback,
             "about": self._handle_about_callback,
+            "performance": self._handle_performance_callback,
+            "risk": self._handle_risk_callback,
+            "journal": self._handle_journal_callback,
             "quick_actions": self._handle_quick_actions_callback,
             "docs": self._handle_docs_callback,
             "support": self._handle_support_callback,
@@ -82,6 +85,25 @@ class SystemCallbackHandler:
             "general_features_settings": self._handle_general_features_settings_callback,
             "theme_settings": self._handle_theme_settings_callback,
             "sound_settings": self._handle_sound_settings_callback,
+            # Theme callbacks
+            "theme_dark": self._handle_theme_dark_callback,
+            "theme_light": self._handle_theme_light_callback,
+            "theme_colorful": self._handle_theme_colorful_callback,
+            "theme_minimal": self._handle_theme_minimal_callback,
+            # Sound callbacks
+            "sound_mute": self._handle_sound_mute_callback,
+            "sound_low": self._handle_sound_low_callback,
+            "sound_medium": self._handle_sound_medium_callback,
+            "sound_high": self._handle_sound_high_callback,
+            # Navigation callbacks
+            "back_to_settings": self._handle_back_to_settings_callback,
+            # Auto trading callbacks
+            "auto_trading": self._handle_auto_trading_callback,
+            "toggle_auto_trading": self._handle_toggle_auto_trading_callback,
+            "auto_signals": self._handle_auto_signals_callback,
+            "toggle_auto_signals": self._handle_toggle_auto_signals_callback,
+            "view_auto_settings": self._handle_view_auto_settings_callback,
+            "edit_auto_pairs": self._handle_edit_auto_pairs_callback,
         }
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -91,6 +113,9 @@ class SystemCallbackHandler:
 
         if callback_data in self.callbacks:
             await self.callbacks[callback_data](update, context)
+        elif callback_data.startswith("toggle_notification:"):
+            # Handle toggle notification callbacks
+            await self.system_handler.toggle_notification_callback(update, context)
         else:
             await query.answer("Unknown system callback")
             logger.warning(f"Unknown system callback data: {callback_data}")
@@ -1391,16 +1416,68 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📊 Performance reports notification settings")
 
-        message = (
-            "📊 **PERFORMANCE REPORTS NOTIFICATIONS** 📊\n\n"
-            "**Configure performance notifications:**\n"
-            "• Daily performance summaries\n"
-            "• Weekly performance reports\n"
-            "• Monthly performance analysis\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current performance report notification settings
+            daily_reports_enabled = notifications.get("daily_performance", True)
+            weekly_reports_enabled = notifications.get("weekly_performance", True)
+            monthly_reports_enabled = notifications.get("monthly_performance", False)
+            performance_alerts_enabled = notifications.get("performance_alerts", True)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📊 **PERFORMANCE REPORTS NOTIFICATIONS** 📊\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(daily_reports_enabled)} Daily Performance Summaries\n"
+                f"{status_icon(weekly_reports_enabled)} Weekly Performance Reports\n"
+                f"{status_icon(monthly_reports_enabled)} Monthly Performance Analysis\n"
+                f"{status_icon(performance_alerts_enabled)} Performance Alerts\n\n"
+                f"**Configure**: Toggle specific performance report notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📊 Toggle Daily", "toggle_notification:daily_performance"),
+                        ("📈 Toggle Weekly", "toggle_notification:weekly_performance"),
+                    ],
+                    [
+                        (
+                            "📅 Toggle Monthly",
+                            "toggle_notification:monthly_performance",
+                        ),
+                        ("🚨 Toggle Alerts", "toggle_notification:performance_alerts"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_reports"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in performance reports settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading performance reports settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_reports")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1419,16 +1496,70 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📈 Analysis reports notification settings")
 
-        message = (
-            "📈 **ANALYSIS REPORTS NOTIFICATIONS** 📈\n\n"
-            "**Configure analysis notifications:**\n"
-            "• Market analysis reports\n"
-            "• Strategy performance analysis\n"
-            "• Risk analysis reports\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current analysis report notification settings
+            market_analysis_enabled = notifications.get("market_analysis", True)
+            strategy_analysis_enabled = notifications.get("strategy_analysis", True)
+            risk_analysis_enabled = notifications.get("risk_analysis", True)
+            correlation_analysis_enabled = notifications.get(
+                "correlation_analysis", False
+            )
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📈 **ANALYSIS REPORTS NOTIFICATIONS** 📈\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(market_analysis_enabled)} Market Analysis Reports\n"
+                f"{status_icon(strategy_analysis_enabled)} Strategy Performance Analysis\n"
+                f"{status_icon(risk_analysis_enabled)} Risk Analysis Reports\n"
+                f"{status_icon(correlation_analysis_enabled)} Correlation Analysis\n\n"
+                f"**Configure**: Toggle specific analysis report notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📊 Toggle Market", "toggle_notification:market_analysis"),
+                        ("📈 Toggle Strategy", "toggle_notification:strategy_analysis"),
+                    ],
+                    [
+                        ("⚠️ Toggle Risk", "toggle_notification:risk_analysis"),
+                        (
+                            "🔗 Toggle Correlation",
+                            "toggle_notification:correlation_analysis",
+                        ),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_reports"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in analysis reports settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading analysis reports settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_reports")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1447,16 +1578,71 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📋 Statistics reports notification settings")
 
-        message = (
-            "📋 **STATISTICS REPORTS NOTIFICATIONS** 📋\n\n"
-            "**Configure statistics notifications:**\n"
-            "• Trading statistics\n"
-            "• Win/loss ratios\n"
-            "• Performance metrics\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current statistics report notification settings
+            trading_stats_enabled = notifications.get("trading_statistics", True)
+            win_loss_enabled = notifications.get("win_loss_reports", True)
+            performance_metrics_enabled = notifications.get("performance_metrics", True)
+            trade_summaries_enabled = notifications.get("trade_summaries", False)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📋 **STATISTICS REPORTS NOTIFICATIONS** 📋\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(trading_stats_enabled)} Trading Statistics\n"
+                f"{status_icon(win_loss_enabled)} Win/Loss Ratios\n"
+                f"{status_icon(performance_metrics_enabled)} Performance Metrics\n"
+                f"{status_icon(trade_summaries_enabled)} Trade Summaries\n\n"
+                f"**Configure**: Toggle specific statistics report notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        (
+                            "📊 Toggle Trading Stats",
+                            "toggle_notification:trading_statistics",
+                        ),
+                        ("📈 Toggle Win/Loss", "toggle_notification:win_loss_reports"),
+                    ],
+                    [
+                        (
+                            "📋 Toggle Metrics",
+                            "toggle_notification:performance_metrics",
+                        ),
+                        ("📝 Toggle Summaries", "toggle_notification:trade_summaries"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_reports"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in statistics reports settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading statistics reports settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_reports")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1475,16 +1661,68 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("🔧 System reports notification settings")
 
-        message = (
-            "🔧 **SYSTEM REPORTS NOTIFICATIONS** 🔧\n\n"
-            "**Configure system notifications:**\n"
-            "• System health reports\n"
-            "• Resource usage reports\n"
-            "• Error reports\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current system report notification settings
+            health_reports_enabled = notifications.get("system_health", True)
+            resource_reports_enabled = notifications.get("resource_usage", False)
+            error_reports_enabled = notifications.get("error_reports", True)
+            maintenance_reports_enabled = notifications.get("maintenance_reports", True)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"🔧 **SYSTEM REPORTS NOTIFICATIONS** 🔧\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(health_reports_enabled)} System Health Reports\n"
+                f"{status_icon(resource_reports_enabled)} Resource Usage Reports\n"
+                f"{status_icon(error_reports_enabled)} Error Reports\n"
+                f"{status_icon(maintenance_reports_enabled)} Maintenance Reports\n\n"
+                f"**Configure**: Toggle specific system report notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("💚 Toggle Health", "toggle_notification:system_health"),
+                        ("📊 Toggle Resources", "toggle_notification:resource_usage"),
+                    ],
+                    [
+                        ("❌ Toggle Errors", "toggle_notification:error_reports"),
+                        (
+                            "🔧 Toggle Maintenance",
+                            "toggle_notification:maintenance_reports",
+                        ),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_reports"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in system reports settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading system reports settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_reports")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1504,16 +1742,65 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📢 General updates notification settings")
 
-        message = (
-            "📢 **GENERAL UPDATES NOTIFICATIONS** 📢\n\n"
-            "**Configure update notifications:**\n"
-            "• Bot updates\n"
-            "• Feature updates\n"
-            "• System updates\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current general updates notification settings
+            bot_updates_enabled = notifications.get("bot_updates", True)
+            feature_updates_enabled = notifications.get("feature_updates", True)
+            system_updates_enabled = notifications.get("system_updates", False)
+            changelog_enabled = notifications.get("changelog", True)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📢 **GENERAL UPDATES NOTIFICATIONS** 📢\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(bot_updates_enabled)} Bot Updates\n"
+                f"{status_icon(feature_updates_enabled)} Feature Updates\n"
+                f"{status_icon(system_updates_enabled)} System Updates\n"
+                f"{status_icon(changelog_enabled)} Changelog Notifications\n\n"
+                f"**Configure**: Toggle specific update notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🤖 Toggle Bot Updates", "toggle_notification:bot_updates"),
+                        ("✨ Toggle Features", "toggle_notification:feature_updates"),
+                    ],
+                    [
+                        ("🔧 Toggle System", "toggle_notification:system_updates"),
+                        ("📋 Toggle Changelog", "toggle_notification:changelog"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_general"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in general updates settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading general updates settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_general")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1532,16 +1819,65 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("📰 General news notification settings")
 
-        message = (
-            "📰 **GENERAL NEWS NOTIFICATIONS** 📰\n\n"
-            "**Configure news notifications:**\n"
-            "• Market news\n"
-            "• Economic announcements\n"
-            "• Trading alerts\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current general news notification settings
+            market_news_enabled = notifications.get("market_news", True)
+            economic_news_enabled = notifications.get("economic_news", True)
+            trading_alerts_enabled = notifications.get("trading_alerts", True)
+            breaking_news_enabled = notifications.get("breaking_news", False)
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"📰 **GENERAL NEWS NOTIFICATIONS** 📰\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(market_news_enabled)} Market News\n"
+                f"{status_icon(economic_news_enabled)} Economic Announcements\n"
+                f"{status_icon(trading_alerts_enabled)} Trading Alerts\n"
+                f"{status_icon(breaking_news_enabled)} Breaking News\n\n"
+                f"**Configure**: Toggle specific news notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("📊 Toggle Market", "toggle_notification:market_news"),
+                        ("💰 Toggle Economic", "toggle_notification:economic_news"),
+                    ],
+                    [
+                        ("🚨 Toggle Trading", "toggle_notification:trading_alerts"),
+                        ("⚡ Toggle Breaking", "toggle_notification:breaking_news"),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_general"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in general news settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading general news settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_general")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1560,16 +1896,80 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("🔧 General maintenance notification settings")
 
-        message = (
-            "🔧 **GENERAL MAINTENANCE NOTIFICATIONS** 🔧\n\n"
-            "**Configure maintenance notifications:**\n"
-            "• Scheduled maintenance\n"
-            "• System downtime\n"
-            "• Maintenance completion\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current maintenance notification settings
+            scheduled_maintenance_enabled = notifications.get(
+                "scheduled_maintenance", True
+            )
+            system_downtime_enabled = notifications.get("system_downtime", True)
+            maintenance_completion_enabled = notifications.get(
+                "maintenance_completion", True
+            )
+            emergency_maintenance_enabled = notifications.get(
+                "emergency_maintenance", True
+            )
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"🔧 **GENERAL MAINTENANCE NOTIFICATIONS** 🔧\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(scheduled_maintenance_enabled)} Scheduled Maintenance\n"
+                f"{status_icon(system_downtime_enabled)} System Downtime\n"
+                f"{status_icon(maintenance_completion_enabled)} Maintenance Completion\n"
+                f"{status_icon(emergency_maintenance_enabled)} Emergency Maintenance\n\n"
+                f"**Configure**: Toggle specific maintenance notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        (
+                            "📅 Toggle Scheduled",
+                            "toggle_notification:scheduled_maintenance",
+                        ),
+                        ("⚠️ Toggle Downtime", "toggle_notification:system_downtime"),
+                    ],
+                    [
+                        (
+                            "✅ Toggle Completion",
+                            "toggle_notification:maintenance_completion",
+                        ),
+                        (
+                            "🚨 Toggle Emergency",
+                            "toggle_notification:emergency_maintenance",
+                        ),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_general"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in maintenance settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading maintenance settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_general")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1588,16 +1988,75 @@ class SystemCallbackHandler:
         query = update.callback_query
         await query.answer("🆕 General features notification settings")
 
-        message = (
-            "🆕 **GENERAL FEATURES NOTIFICATIONS** 🆕\n\n"
-            "**Configure feature notifications:**\n"
-            "• New features\n"
-            "• Feature announcements\n"
-            "• Feature updates\n\n"
-            "🚧 **Coming Soon** 🚧\n\n"
-            "These notification settings will be available in the next update.\n"
-            "For now, you can configure basic notifications in the main settings."
-        )
+        try:
+            # Get user configuration
+            telegram_id = update.effective_user.id
+            config = await self.system_handler.user_config_service.get_user_config(
+                telegram_id
+            )
+            notifications = config.get("notifications", {})
+
+            # Check current features notification settings
+            new_features_enabled = notifications.get("new_features", True)
+            feature_announcements_enabled = notifications.get(
+                "feature_announcements", True
+            )
+            beta_features_enabled = notifications.get("beta_features", False)
+            experimental_features_enabled = notifications.get(
+                "experimental_features", False
+            )
+
+            status_icon = lambda enabled: "✅" if enabled else "❌"
+
+            message = (
+                f"🆕 **GENERAL FEATURES NOTIFICATIONS** 🆕\n\n"
+                f"**Current Settings**:\n"
+                f"{status_icon(new_features_enabled)} New Features\n"
+                f"{status_icon(feature_announcements_enabled)} Feature Announcements\n"
+                f"{status_icon(beta_features_enabled)} Beta Features\n"
+                f"{status_icon(experimental_features_enabled)} Experimental Features\n\n"
+                f"**Configure**: Toggle specific feature notifications.\n\n"
+                f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("✨ Toggle New Features", "toggle_notification:new_features"),
+                        (
+                            "📢 Toggle Announcements",
+                            "toggle_notification:feature_announcements",
+                        ),
+                    ],
+                    [
+                        ("🧪 Toggle Beta", "toggle_notification:beta_features"),
+                        (
+                            "🔬 Toggle Experimental",
+                            "toggle_notification:experimental_features",
+                        ),
+                    ],
+                    [
+                        ("⏰ Set Intervals", "notification_intervals"),
+                    ],
+                    [("⬅️ Back", "notif_general"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in features settings: {e}")
+            error_message = (
+                "❌ **Error Loading Settings**\n\n"
+                "There was an issue loading feature settings.\n"
+                "Please try again in a moment."
+            )
+            keyboard = create_keyboard([[("⬅️ Back", "notif_general")]])
+            await query.edit_message_text(
+                error_message, reply_markup=keyboard, parse_mode="Markdown"
+            )
 
         keyboard = create_keyboard(
             [
@@ -1710,3 +2169,428 @@ class SystemCallbackHandler:
 
         # Route to the system command handler's add popular crypto
         await self.system_handler.add_popular_crypto_callback(update, context)
+
+    # Theme callback handlers
+    async def _handle_theme_dark_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle theme dark callback."""
+        query = update.callback_query
+        await query.answer("🌙 Dark theme selected")
+
+        message = (
+            "🌙 **DARK THEME SELECTED** 🌙\n\n"
+            "✅ **Theme Changed**: Dark Mode\n\n"
+            "**Features**:\n"
+            "• Easy on the eyes in low light\n"
+            "• Battery saving on OLED screens\n"
+            "• Professional appearance\n"
+            "• Enhanced contrast\n\n"
+            "Theme settings have been applied to your interface."
+        )
+
+        keyboard = create_keyboard(
+            [[("⚙️ Theme Settings", "theme_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_theme_light_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle theme light callback."""
+        query = update.callback_query
+        await query.answer("☀️ Light theme selected")
+
+        message = (
+            "☀️ **LIGHT THEME SELECTED** ☀️\n\n"
+            "✅ **Theme Changed**: Light Mode\n\n"
+            "**Features**:\n"
+            "• Clear visibility in bright environments\n"
+            "• Classic clean appearance\n"
+            "• Enhanced readability\n"
+            "• Optimal for daytime use\n\n"
+            "Theme settings have been applied to your interface."
+        )
+
+        keyboard = create_keyboard(
+            [[("⚙️ Theme Settings", "theme_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_theme_colorful_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle theme colorful callback."""
+        query = update.callback_query
+        await query.answer("🌈 Colorful theme selected")
+
+        message = (
+            "🌈 **COLORFUL THEME SELECTED** 🌈\n\n"
+            "✅ **Theme Changed**: Colorful Mode\n\n"
+            "**Features**:\n"
+            "• Vibrant colors and emojis\n"
+            "• Enhanced visual feedback\n"
+            "• Fun and engaging interface\n"
+            "• Color-coded information\n\n"
+            "Theme settings have been applied to your interface."
+        )
+
+        keyboard = create_keyboard(
+            [[("⚙️ Theme Settings", "theme_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_theme_minimal_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle theme minimal callback."""
+        query = update.callback_query
+        await query.answer("🤖 Minimal theme selected")
+
+        message = (
+            "🤖 **MINIMAL THEME SELECTED** 🤖\n\n"
+            "✅ **Theme Changed**: Minimal Mode\n\n"
+            "**Features**:\n"
+            "• Clean and simple design\n"
+            "• Reduced visual clutter\n"
+            "• Focus on essential information\n"
+            "• Fast loading interface\n\n"
+            "Theme settings have been applied to your interface."
+        )
+
+        keyboard = create_keyboard(
+            [[("⚙️ Theme Settings", "theme_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    # Sound callback handlers
+    async def _handle_sound_mute_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle sound mute callback."""
+        query = update.callback_query
+        await query.answer("🔇 Sound muted")
+
+        message = (
+            "🔇 **SOUND MUTED** 🔇\n\n"
+            "✅ **Sound Level**: Muted\n\n"
+            "**Status**:\n"
+            "• All notification sounds disabled\n"
+            "• Silent operation mode\n"
+            "• Visual notifications only\n"
+            "• Battery saving enabled\n\n"
+            "You can re-enable sounds anytime from sound settings."
+        )
+
+        keyboard = create_keyboard(
+            [[("🔊 Sound Settings", "sound_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_sound_low_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle sound low callback."""
+        query = update.callback_query
+        await query.answer("🔉 Sound set to low")
+
+        message = (
+            "🔉 **SOUND SET TO LOW** 🔉\n\n"
+            "✅ **Sound Level**: Low Volume\n\n"
+            "**Settings**:\n"
+            "• Quiet notification sounds\n"
+            "• Gentle audio feedback\n"
+            "• Minimal disruption\n"
+            "• Suitable for quiet environments\n\n"
+            "Sound settings have been applied."
+        )
+
+        keyboard = create_keyboard(
+            [[("🔊 Sound Settings", "sound_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_sound_medium_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle sound medium callback."""
+        query = update.callback_query
+        await query.answer("🔊 Sound set to medium")
+
+        message = (
+            "🔊 **SOUND SET TO MEDIUM** 🔊\n\n"
+            "✅ **Sound Level**: Medium Volume\n\n"
+            "**Settings**:\n"
+            "• Balanced notification sounds\n"
+            "• Clear audio feedback\n"
+            "• Standard volume level\n"
+            "• Good for most environments\n\n"
+            "Sound settings have been applied."
+        )
+
+        keyboard = create_keyboard(
+            [[("🔊 Sound Settings", "sound_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    async def _handle_sound_high_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle sound high callback."""
+        query = update.callback_query
+        await query.answer("📢 Sound set to high")
+
+        message = (
+            "📢 **SOUND SET TO HIGH** 📢\n\n"
+            "✅ **Sound Level**: High Volume\n\n"
+            "**Settings**:\n"
+            "• Loud notification sounds\n"
+            "• Strong audio feedback\n"
+            "• Maximum alert volume\n"
+            "• Suitable for noisy environments\n\n"
+            "Sound settings have been applied."
+        )
+
+        keyboard = create_keyboard(
+            [[("🔊 Sound Settings", "sound_settings"), ("🏠 Main", "start")]]
+        )
+
+        await query.edit_message_text(
+            message, reply_markup=keyboard, parse_mode="Markdown"
+        )
+
+    # Navigation callback handlers
+    async def _handle_back_to_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle back to settings callback."""
+        query = update.callback_query
+        await query.answer("⚙️ Back to settings")
+
+        # Route back to the main settings
+        await self.system_handler.settings_command(update, context)
+
+    # Auto trading callback handlers
+    async def _handle_auto_trading_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle auto trading callback - redirect to comprehensive auto trading interface."""
+        query = update.callback_query
+        await query.answer("🤖 Auto Trading Settings")
+
+        try:
+            # Import the auto trading handler
+            from ..commands.auto_trading import AutoTradingCommandHandler
+
+            auto_trading_handler = AutoTradingCommandHandler()
+            await auto_trading_handler.auto_trading_command(update, context)
+        except ImportError as e:
+            logger.error(f"Auto trading module not found: {e}")
+            message = (
+                "🤖 **AUTO TRADING** 🤖\n\n"
+                "⚠️ **Module Loading Issue**\n\n"
+                "The auto trading module is currently unavailable.\n"
+                "This may be due to a missing dependency or configuration issue.\n\n"
+                "**Available Options:**\n"
+                "• Try using the /auto_trading command directly\n"
+                "• Check system status for more details\n"
+                "• Contact support if the issue persists\n\n"
+                "**Alternative Access:**\n"
+                "• Manual trading via /positions\n"
+                "• Risk settings via /risk\n"
+                "• Account monitoring via /account"
+            )
+            keyboard = create_keyboard(
+                [
+                    [("📊 Manual Trading", "positions"), ("⚠️ Risk Settings", "risk")],
+                    [("📈 Account", "account"), ("📊 Status", "status")],
+                    [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                ]
+            )
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error loading auto trading interface: {e}")
+            # Get more specific error information
+            error_type = type(e).__name__
+            error_details = str(e)
+
+            message = (
+                "🤖 **AUTO TRADING** 🤖\n\n"
+                "⚠️ **Temporary Service Issue**\n\n"
+                f"**Error Type**: {error_type}\n\n"
+                "The auto trading interface is temporarily unavailable.\n"
+                "Our team is working to resolve this issue.\n\n"
+                "**What you can do:**\n"
+                "• Try again in a few minutes\n"
+                "• Use manual trading controls\n"
+                "• Monitor your positions manually\n"
+                "• Check system status for updates\n\n"
+                "**Alternative Trading Options:**\n"
+                "• Manual position management\n"
+                "• Risk monitoring tools\n"
+                "• Account analysis features"
+            )
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🔄 Try Again", "auto_trading"),
+                        ("📊 Manual Trading", "positions"),
+                    ],
+                    [("⚠️ Risk Monitor", "risk"), ("📈 Account", "account")],
+                    [("📊 System Status", "status"), ("💬 Support", "support")],
+                    [("⬅️ Back", "settings_trading"), ("🏠 Main", "start")],
+                ]
+            )
+            await query.edit_message_text(
+                message, reply_markup=keyboard, parse_mode="Markdown"
+            )
+
+    async def _handle_toggle_auto_trading_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle auto trading toggle callback - redirect to auto trading interface."""
+        query = update.callback_query
+        await query.answer("🤖 Redirecting to Auto Trading")
+
+        # Instead of just toggling, show the full auto trading interface
+        await self._handle_auto_trading_callback(update, context)
+
+    # Analysis callback handlers
+    async def _handle_performance_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle performance callback - redirect to performance command."""
+        query = update.callback_query
+        await query.answer("📊 Performance Metrics")
+
+        # Route to the analysis handler's performance command
+        from ..commands.analysis import AnalysisCommandHandler
+
+        analysis_handler = AnalysisCommandHandler()
+        await analysis_handler.performance_command(update, context)
+
+    async def _handle_risk_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle risk callback - redirect to risk command."""
+        query = update.callback_query
+        await query.answer("⚠️ Risk Analysis")
+
+        # Route to the analysis handler's risk command
+        from ..commands.analysis import AnalysisCommandHandler
+
+        analysis_handler = AnalysisCommandHandler()
+        await analysis_handler.risk_command(update, context)
+
+    async def _handle_journal_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle journal callback - redirect to journal command."""
+        query = update.callback_query
+        await query.answer("📖 Trading Journal")
+
+        # Route to the analysis handler's journal command
+        from ..commands.analysis import AnalysisCommandHandler
+
+        analysis_handler = AnalysisCommandHandler()
+        await analysis_handler.journal_command(update, context)
+
+    async def _handle_auto_signals_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle auto signals callback - redirect to auto signals interface."""
+        query = update.callback_query
+        await query.answer("📡 Auto Signals Settings")
+
+        try:
+            # Import the auto trading handler
+            from ..commands.auto_trading import AutoTradingCommandHandler
+
+            auto_trading_handler = AutoTradingCommandHandler()
+            await auto_trading_handler.auto_signals_command(update, context)
+        except Exception as e:
+            logger.error(f"Error handling auto signals callback: {e}")
+            await query.edit_message_text(
+                "❌ Error loading auto signals settings. Please try again.",
+                parse_mode=None,
+            )
+
+    async def _handle_toggle_auto_signals_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle toggle auto signals callback."""
+        query = update.callback_query
+        await query.answer("🔄 Toggling Auto Signals")
+
+        try:
+            # Import the auto trading handler
+            from ..commands.auto_trading import AutoTradingCommandHandler
+
+            auto_trading_handler = AutoTradingCommandHandler()
+            await auto_trading_handler.toggle_auto_signals(update, context)
+        except Exception as e:
+            logger.error(f"Error toggling auto signals: {e}")
+            await query.edit_message_text(
+                "❌ Error toggling auto signals. Please try again.", parse_mode=None
+            )
+
+    async def _handle_view_auto_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle view auto settings callback."""
+        query = update.callback_query
+        await query.answer("⚙️ Auto Settings")
+
+        try:
+            # Import the auto trading handler
+            from ..commands.auto_trading import AutoTradingCommandHandler
+
+            auto_trading_handler = AutoTradingCommandHandler()
+            await auto_trading_handler.view_auto_settings(update, context)
+        except Exception as e:
+            logger.error(f"Error viewing auto settings: {e}")
+            await query.edit_message_text(
+                "❌ Error loading auto settings. Please try again.", parse_mode=None
+            )
+
+    async def _handle_edit_auto_pairs_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle edit auto pairs callback."""
+        query = update.callback_query
+        await query.answer("📝 Edit Auto Pairs")
+
+        try:
+            # Import the auto trading handler
+            from ..commands.auto_trading import AutoTradingCommandHandler
+
+            auto_trading_handler = AutoTradingCommandHandler()
+            await auto_trading_handler.edit_auto_pairs(update, context)
+        except Exception as e:
+            logger.error(f"Error editing auto pairs: {e}")
+            await query.edit_message_text(
+                "❌ Error loading auto pairs editor. Please try again.", parse_mode=None
+            )

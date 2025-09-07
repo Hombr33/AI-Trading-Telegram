@@ -1145,22 +1145,35 @@ No trading history found.
                 await query.answer(f"❌ Error updating {interval_type} interval")
 
         elif data.startswith("add_pair:"):
-            symbol = data.split(":")[1]
-            # Get current allowed symbols
-            config = await self.config_manager.get_user_config(telegram_id, "trading")
-            allowed_symbols = config.get("allowed_symbols", [])
+            try:
+                symbol = data.split(":")[1]
+                logger.info(f"Adding trading pair: {symbol} for user {telegram_id}")
 
-            if symbol not in allowed_symbols:
-                allowed_symbols.append(symbol)
-                success = await self.config_manager.update_user_config(
-                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                # Get current allowed symbols
+                config = await self.config_manager.get_user_config(
+                    telegram_id, "trading"
                 )
-                if success:
-                    await query.answer(f"✅ Added {symbol} to trading pairs")
-                else:
-                    await query.answer("❌ Error adding trading pair")
-            else:
-                await query.answer(f"❌ {symbol} already in trading pairs")
+                if config is None:
+                    config = {}
+
+                allowed_symbols = config.get("allowed_symbols", [])
+
+                if symbol not in allowed_symbols:
+                    allowed_symbols.append(symbol)
+                    success = await self.config_manager.update_user_config(
+                        telegram_id, "trading", "allowed_symbols", allowed_symbols
+                    )
+                    if success:
+                        await query.answer(f"✅ Added {symbol} to trading pairs")
+                        # Refresh the manage symbols interface to show the update
+                        await self._redirect_to_manage_symbols(update, context)
+                    else:
+                        await query.answer("❌ Error adding trading pair")
+                        logger.error(f"Failed to update config for user {telegram_id}")
+                # Note: This case should rarely happen now since we filter available pairs
+            except Exception as e:
+                logger.error(f"Error in add_pair callback: {e}")
+                await query.answer("❌ Error processing request")
 
         elif data.startswith("remove_pair:"):
             symbol = data.split(":")[1]
@@ -1175,10 +1188,37 @@ No trading history found.
                 )
                 if success:
                     await query.answer(f"✅ Removed {symbol} from trading pairs")
+                    # Refresh the manage symbols interface to show the update
+                    await self._redirect_to_manage_symbols(update, context)
                 else:
                     await query.answer("❌ Error removing trading pair")
             else:
                 await query.answer(f"❌ {symbol} not in trading pairs")
+
+        elif data == "manage_symbols":
+            # Direct call to manage symbols interface
+            await self._redirect_to_manage_symbols(update, context)
+
+    async def _redirect_to_manage_symbols(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Redirect to the manage symbols interface after pair changes."""
+        try:
+            # Import here to avoid circular import
+            from ..commands.system import SystemCommandHandler
+
+            system_handler = SystemCommandHandler()
+            await system_handler.manage_symbols_callback(update, context)
+        except Exception as e:
+            logger.error(f"Error redirecting to manage symbols: {e}")
+            # Fallback: at least show a message
+            message = (
+                "✅ **Trading pairs updated!**\n\n"
+                "Use /settings → Trading to view your updated pairs list."
+            )
+            await update.callback_query.edit_message_text(
+                message, parse_mode="Markdown"
+            )
 
     async def cancel_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

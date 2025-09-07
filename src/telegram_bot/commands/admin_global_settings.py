@@ -548,6 +548,9 @@ class AdminGlobalSettingsHandler(BaseCommandHandler):
         elif data.startswith("remove_global_pair:"):
             symbol = data.split(":")[1]
             await self._remove_global_pair(update, context, symbol)
+        elif data.startswith("set_global_interval:"):
+            interval_type = data.split(":")[1]
+            await self._set_global_interval_callback(update, context)
         elif data.startswith("update_global_interval:"):
             parts = data.split(":")
             interval_type = parts[1]

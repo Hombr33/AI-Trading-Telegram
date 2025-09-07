@@ -89,6 +89,24 @@ config_manager: ConfigManager = None
 shutdown_event = asyncio.Event()
 
 
+async def monitor_shutdown_request():
+    """Monitor for shutdown requests from system manager."""
+    from src.core.system_manager import system_manager
+
+    try:
+        while True:
+            # Check for shutdown request every second
+            if await system_manager.wait_for_shutdown(timeout=1.0):
+                logger.info("Shutdown requested by system manager")
+                # Set the global shutdown event to trigger FastAPI shutdown
+                shutdown_event.set()
+                break
+    except asyncio.CancelledError:
+        logger.info("Shutdown monitor cancelled")
+    except Exception as e:
+        logger.error(f"Error in shutdown monitor: {e}")
+
+
 async def shutdown_handler(sig, loop):
     """Graceful shutdown handler for signals."""
     logger.info(f"Received exit signal {sig.name}...")
@@ -234,6 +252,11 @@ async def lifespan(app: FastAPI):
         # 1. Start FastAPI first (happens automatically with the lifespan context)
         logger.info("FastAPI application initialized")
 
+        # Start shutdown monitor task
+        shutdown_monitor_task = asyncio.create_task(
+            monitor_shutdown_request(), name="shutdown_monitor"
+        )
+
         # 2. Start Socket.IO bridge
         await socketio_bridge.connect()
         logger.info("Socket.IO bridge connected successfully")
@@ -325,6 +348,12 @@ async def lifespan(app: FastAPI):
         }
         print_status_table(status_data)
 
+        # Wait for shutdown event
+        try:
+            await shutdown_event.wait()
+        except asyncio.CancelledError:
+            logger.info("Lifespan cancelled")
+
         yield
 
     except Exception as e:
@@ -332,9 +361,22 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         # Enhanced shutdown sequence
-        logger.info("Shutting down AI Trading Bot...")
+        from src.core.system_manager import system_manager
+
+        is_restart = system_manager.is_restart_requested()
+        shutdown_reason = "restart" if is_restart else "shutdown"
+
+        logger.info(f"Shutting down AI Trading Bot... (reason: {shutdown_reason})")
 
         try:
+            # Cancel shutdown monitor task
+            if "shutdown_monitor_task" in locals():
+                shutdown_monitor_task.cancel()
+                try:
+                    await shutdown_monitor_task
+                except asyncio.CancelledError:
+                    pass
+
             # Stop health monitoring
             await health_monitor.stop_monitoring()
 
@@ -400,11 +442,15 @@ async def lifespan(app: FastAPI):
                 await platform_manager.disconnect_all()
 
             log_system_event(
-                "main", "shutdown", "AI Trading Bot application shut down successfully"
+                "main",
+                shutdown_reason,
+                f"AI Trading Bot application {shutdown_reason} completed successfully",
             )
 
         except Exception as e:
-            log_error_with_context(e, {"component": "shutdown", "action": "cleanup"})
+            log_error_with_context(
+                e, {"component": shutdown_reason, "action": "cleanup"}
+            )
 
 
 # Create FastAPI app

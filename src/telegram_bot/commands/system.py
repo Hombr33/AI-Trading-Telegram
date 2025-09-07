@@ -72,6 +72,7 @@ class SystemCommandHandler(BaseCommandHandler):
             "system_info": self.info_command,
             "notification_intervals": self.notification_intervals_callback,
             "notification_trading_pairs": self.notification_trading_pairs_callback,
+            "user_signal_settings": self.user_signal_settings_callback,
             "set_interval": self.set_interval_callback,
             "trading_pairs": self.trading_pairs_callback,
             "add_trading_pair": self.add_trading_pair_callback,
@@ -80,6 +81,8 @@ class SystemCommandHandler(BaseCommandHandler):
             "view_all_symbols": self.view_all_symbols_callback,
             "add_popular_forex": self.add_popular_forex_callback,
             "add_popular_crypto": self.add_popular_crypto_callback,
+            "reset_trading_pairs": self.reset_symbols_callback,
+            "view_all_pairs": self.view_all_symbols_callback,
         }
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -417,9 +420,17 @@ class SystemCommandHandler(BaseCommandHandler):
             risk_per_trade = config.get("trading", {}).get("risk_per_trade_pct", 2.0)
             max_positions = config.get("trading", {}).get("max_open_positions", 5)
 
-            # Count active notifications
+            # Count active trading pairs (with notifications enabled)
+            trading_config = config.get("trading", {})
+            allowed_symbols = trading_config.get("allowed_symbols", [])
             notifications = config.get("notifications", {})
-            active_notifications = sum(1 for v in notifications.values() if v)
+
+            # Check if trading signals are enabled (main notification type)
+            signals_enabled = notifications.get("trading_signals", True)  # Default True
+            active_notifications = len(allowed_symbols) if signals_enabled else 0
+            total_possible = max(
+                len(allowed_symbols), 1
+            )  # Avoid 0/0, show at least 0/1
 
             from datetime import datetime
 
@@ -429,7 +440,7 @@ class SystemCommandHandler(BaseCommandHandler):
                 f"🤖 Auto Trading: {'✅ Enabled' if auto_trading else '❌ Disabled'}\n"
                 f"📊 Risk per Trade: {risk_per_trade}%\n"
                 f"🎯 Max Positions: {max_positions}\n"
-                f"🔔 Active Notifications: {active_notifications}/6\n\n"
+                f"🔔 Active Notifications: {active_notifications}/{total_possible}\n\n"
                 f"**Configure Your Settings**:\n"
                 f"Select a category below to customize your trading bot experience.\n\n"
                 f"🕐 _Last updated: {datetime.now().strftime('%H:%M:%S')}_"
@@ -526,6 +537,9 @@ class SystemCommandHandler(BaseCommandHandler):
                     ],
                     [
                         ("📋 Trading Pairs", "notification_trading_pairs"),
+                        ("⚙️ Signal Settings", "user_signal_settings"),
+                    ],
+                    [
                         ("⏰ Intervals", "notification_intervals"),
                     ],
                     [("⬅️ Back", "back_to_settings"), ("🏠 Main", "start")],
@@ -563,7 +577,7 @@ class SystemCommandHandler(BaseCommandHandler):
             keyboard = create_keyboard(
                 [
                     [
-                        ("🤖 Auto Trading", "toggle_auto_trading"),
+                        ("🤖 Auto Trading", "auto_trading"),
                         ("📈 Risk %", "edit_risk_percent"),
                     ],
                     [
@@ -1610,54 +1624,127 @@ class SystemCommandHandler(BaseCommandHandler):
     async def add_trading_pair_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """Handle add trading pair callback."""
+        """Handle add trading pair callback - only show pairs that haven't been added yet."""
         try:
-            message = (
-                f"➕ **ADD TRADING PAIR** ➕\n\n"
-                f"**Popular Trading Pairs**:\n\n"
-                f"**Forex Major Pairs**:\n"
-                f"• EURUSD - Euro/US Dollar\n"
-                f"• GBPUSD - British Pound/US Dollar\n"
-                f"• USDJPY - US Dollar/Japanese Yen\n"
-                f"• USDCAD - US Dollar/Canadian Dollar\n\n"
-                f"**Crypto Pairs**:\n"
-                f"• BTCUSD - Bitcoin/US Dollar\n"
-                f"• ETHUSD - Ethereum/US Dollar\n"
-                f"• XRPUSD - Ripple/US Dollar\n\n"
-                f"**Metals**:\n"
-                f"• XAUUSD - Gold/US Dollar\n"
-                f"• XAGUSD - Silver/US Dollar\n\n"
-                f"**Indices**:\n"
-                f"• SPX500 - S&P 500\n"
-                f"• NAS100 - NASDAQ 100\n"
-                f"• GER30 - German DAX"
-            )
+            # Get user's current trading pairs
+            telegram_id = update.effective_user.id
+            config = await self.user_config_service.get_user_config(telegram_id)
+            current_pairs = config.get("trading", {}).get("allowed_symbols", [])
 
-            keyboard = create_keyboard(
-                [
+            # Define all available trading pairs
+            all_pairs = {
+                "EURUSD": "Euro/US Dollar",
+                "GBPUSD": "British Pound/US Dollar",
+                "USDJPY": "US Dollar/Japanese Yen",
+                "USDCAD": "US Dollar/Canadian Dollar",
+                "AUDUSD": "Australian Dollar/US Dollar",
+                "NZDUSD": "New Zealand Dollar/US Dollar",
+                "BTCUSD": "Bitcoin/US Dollar",
+                "ETHUSD": "Ethereum/US Dollar",
+                "XRPUSD": "Ripple/US Dollar",
+                "XAUUSD": "Gold/US Dollar",
+                "XAGUSD": "Silver/US Dollar",
+                "SPX500": "S&P 500",
+                "NAS100": "NASDAQ 100",
+                "GER30": "German DAX",
+            }
+
+            # Filter out already added pairs
+            available_pairs = {
+                symbol: desc
+                for symbol, desc in all_pairs.items()
+                if symbol not in current_pairs
+            }
+
+            if not available_pairs:
+                # All pairs are already added
+                message = (
+                    f"✅ **ALL PAIRS ADDED** ✅\n\n"
+                    f"🎉 You have already added all available trading pairs!\n\n"
+                    f"**Current pairs**: {len(current_pairs)}\n"
+                    f"**Available pairs**: {len(all_pairs)}\n\n"
+                    f"Use **Remove Trading Pair** if you want to remove some pairs first."
+                )
+                keyboard = create_keyboard(
                     [
-                        ("EURUSD", "add_pair:EURUSD"),
-                        ("GBPUSD", "add_pair:GBPUSD"),
-                        ("USDJPY", "add_pair:USDJPY"),
-                    ],
-                    [
-                        ("USDCAD", "add_pair:USDCAD"),
-                        ("AUDUSD", "add_pair:AUDUSD"),
-                        ("NZDUSD", "add_pair:NZDUSD"),
-                    ],
-                    [
-                        ("BTCUSD", "add_pair:BTCUSD"),
-                        ("ETHUSD", "add_pair:ETHUSD"),
-                        ("XRPUSD", "add_pair:XRPUSD"),
-                    ],
-                    [
-                        ("XAUUSD", "add_pair:XAUUSD"),
-                        ("XAGUSD", "add_pair:XAGUSD"),
-                        ("SPX500", "add_pair:SPX500"),
-                    ],
-                    [("Custom", "custom_add_pair"), ("⬅️ Back", "trading_pairs")],
-                ]
-            )
+                        [
+                            ("➖ Remove Pairs", "remove_trading_pair"),
+                            ("⬅️ Back", "trading_pairs"),
+                        ]
+                    ]
+                )
+            else:
+                # Build message with available pairs only
+                message = f"➕ **ADD TRADING PAIR** ➕\n\n"
+                message += (
+                    f"📊 **Available pairs** ({len(available_pairs)} remaining):\n\n"
+                )
+
+                # Group by category
+                forex_pairs = {
+                    k: v
+                    for k, v in available_pairs.items()
+                    if k in ["EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD"]
+                }
+                crypto_pairs = {
+                    k: v
+                    for k, v in available_pairs.items()
+                    if k in ["BTCUSD", "ETHUSD", "XRPUSD"]
+                }
+                metals_pairs = {
+                    k: v
+                    for k, v in available_pairs.items()
+                    if k in ["XAUUSD", "XAGUSD"]
+                }
+                indices_pairs = {
+                    k: v
+                    for k, v in available_pairs.items()
+                    if k in ["SPX500", "NAS100", "GER30"]
+                }
+
+                if forex_pairs:
+                    message += "**Forex Major Pairs:**\n"
+                    for symbol, desc in forex_pairs.items():
+                        message += f"• {symbol} - {desc}\n"
+                    message += "\n"
+
+                if crypto_pairs:
+                    message += "**Crypto Pairs:**\n"
+                    for symbol, desc in crypto_pairs.items():
+                        message += f"• {symbol} - {desc}\n"
+                    message += "\n"
+
+                if metals_pairs:
+                    message += "**Metals:**\n"
+                    for symbol, desc in metals_pairs.items():
+                        message += f"• {symbol} - {desc}\n"
+                    message += "\n"
+
+                if indices_pairs:
+                    message += "**Indices:**\n"
+                    for symbol, desc in indices_pairs.items():
+                        message += f"• {symbol} - {desc}\n"
+                    message += "\n"
+
+                # Build dynamic keyboard with only available pairs
+                keyboard_rows = []
+                available_symbols = list(available_pairs.keys())
+
+                # Create rows of 3 buttons each
+                for i in range(0, len(available_symbols), 3):
+                    row = []
+                    for j in range(3):
+                        if i + j < len(available_symbols):
+                            symbol = available_symbols[i + j]
+                            row.append((symbol, f"add_pair:{symbol}"))
+                    if row:  # Only add non-empty rows
+                        keyboard_rows.append(row)
+
+                # Add custom and back buttons
+                keyboard_rows.append(
+                    [("Custom", "custom_add_pair"), ("⬅️ Back", "trading_pairs")]
+                )
+                keyboard = create_keyboard(keyboard_rows)
 
             await self.edit_message(update, context, message, keyboard)
 
@@ -2008,3 +2095,134 @@ class SystemCommandHandler(BaseCommandHandler):
         except Exception as e:
             logger.error(f"Error in add_popular_crypto_callback: {e}")
             await self._handle_settings_error(update, context, "add_crypto")
+
+    async def user_signal_settings_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle user signal settings callback."""
+        try:
+            telegram_id = update.effective_user.id
+
+            # Get global signal setting
+            from src.core.config import config
+
+            global_signal_enabled = config.auto_trading.auto_signal_generation
+
+            # Get user signal settings from config manager
+            from src.services.config_manager import ConfigManager
+
+            config_manager = ConfigManager()
+            user_signal_config = await config_manager.get_user_config(
+                telegram_id, "signals"
+            )
+
+            if not user_signal_config:
+                # Use default config
+                user_signal_config = config_manager.DEFAULT_CONFIGS["signals"]
+
+            # Check permission using the hierarchical system
+            can_receive_signals = await config_manager.check_signal_permission(
+                telegram_id
+            )
+            signal_types = await config_manager.get_user_signal_types(telegram_id)
+
+            message = (
+                f"⚙️ **SIGNAL SETTINGS** ⚙️\n\n"
+                f"**Global Settings** (Admin controlled):\n"
+                f"🌍 Global Signal Generation: {'✅ ON' if global_signal_enabled else '❌ OFF'}\n\n"
+                f"**Your Personal Settings**:\n"
+                f"🔔 Receive Signals: {'✅ ON' if user_signal_config.get('receive_signals', True) else '❌ OFF'}\n"
+                f"⚡ Auto Generation: {'✅ ON' if user_signal_config.get('auto_signal_generation_enabled', True) else '❌ OFF'}\n\n"
+                f"**Signal Types**:\n"
+                f"📈 Trading Signals: {'✅' if signal_types.get('trading_signals', True) else '❌'}\n"
+                f"📊 Position Signals: {'✅' if signal_types.get('position_signals', True) else '❌'}\n"
+                f"📋 Order Signals: {'✅' if signal_types.get('order_signals', True) else '❌'}\n"
+                f"⚠️ Risk Signals: {'✅' if signal_types.get('risk_signals', True) else '❌'}\n\n"
+                f"**Overall Status**:\n"
+                f"{'✅ You WILL receive signals' if can_receive_signals else '❌ You will NOT receive signals'}\n\n"
+                f"💡 *Note: Both global AND your personal settings must be ON to receive signals.*"
+            )
+
+            keyboard = create_keyboard(
+                [
+                    [
+                        ("🔔 Toggle Receive", "toggle_signal_setting:receive_signals"),
+                        (
+                            "⚡ Toggle Auto Gen",
+                            "toggle_signal_setting:auto_signal_generation_enabled",
+                        ),
+                    ],
+                    [
+                        ("📈 Trading", "toggle_signal_setting:trading_signals"),
+                        ("📊 Position", "toggle_signal_setting:position_signals"),
+                    ],
+                    [
+                        ("📋 Order", "toggle_signal_setting:order_signals"),
+                        ("⚠️ Risk", "toggle_signal_setting:risk_signals"),
+                    ],
+                    [("⬅️ Back", "settings_notifications"), ("🏠 Main", "start")],
+                ]
+            )
+
+            await self.edit_message(update, context, message, keyboard)
+
+        except Exception as e:
+            logger.error(f"Error in user_signal_settings_callback: {e}")
+            await self._handle_settings_error(update, context, "signal_settings")
+
+    async def toggle_signal_setting_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle toggle signal setting callback."""
+        try:
+            query = update.callback_query
+            setting_key = query.data.split(":")[1]
+            telegram_id = update.effective_user.id
+
+            from src.services.config_manager import ConfigManager
+
+            config_manager = ConfigManager()
+
+            # Get current signal config
+            user_signal_config = await config_manager.get_user_config(
+                telegram_id, "signals"
+            )
+            if not user_signal_config:
+                user_signal_config = config_manager.DEFAULT_CONFIGS["signals"].copy()
+
+            # Handle signal type toggles (nested in signal_types)
+            if setting_key in [
+                "trading_signals",
+                "position_signals",
+                "order_signals",
+                "risk_signals",
+            ]:
+                signal_types = user_signal_config.get("signal_types", {})
+                current_value = signal_types.get(setting_key, True)
+                new_value = not current_value
+                signal_types[setting_key] = new_value
+                user_signal_config["signal_types"] = signal_types
+            else:
+                # Handle top-level settings
+                current_value = user_signal_config.get(setting_key, True)
+                new_value = not current_value
+                user_signal_config[setting_key] = new_value
+
+            # Save updated config
+            success = await config_manager.set_user_config(
+                telegram_id, "signals", user_signal_config, validate=False
+            )
+
+            if success:
+                state_text = "enabled" if new_value else "disabled"
+                await query.answer(
+                    f"✅ {setting_key.replace('_', ' ').title()} {state_text}"
+                )
+                # Refresh the signal settings page
+                await self.user_signal_settings_callback(update, context)
+            else:
+                await query.answer("❌ Error updating signal setting")
+
+        except Exception as e:
+            logger.error(f"Error in toggle_signal_setting_callback: {e}")
+            await query.answer("❌ Error updating signal setting")

@@ -319,11 +319,14 @@ class TradingNotifications:
 
 
 # Global notification functions for backward compatibility
-async def send_signal_notification(signal_data: Dict[str, Any]):
+async def send_signal_notification(
+    signal_data: Dict[str, Any], telegram_id: int = None
+):
     """Send trading signal notification (global function).
 
     Args:
         signal_data: The signal data to send.
+        telegram_id: Optional specific user ID to send to. If None, sends to all users.
     """
     try:
         # Format the signal for Telegram
@@ -854,23 +857,26 @@ Use /risk to monitor risk levels""".strip()
             from ..core.trading_bot import TradingBot
 
             bot = TradingBot.get_instance()
-            if bot and bot.config.chat_id:
-                try:
-                    # Try with HTML first (more reliable than Markdown)
-                    await bot.send_message(
-                        bot.config.chat_id, telegram_message, parse_mode="HTML"
-                    )
-                except Exception as html_error:
-                    logger.warning(
-                        f"HTML parsing failed: {html_error}, trying without parse_mode"
-                    )
-                    # If HTML fails, send as plain text
-                    plain_message = telegram_message.replace("<b>", "").replace(
-                        "</b>", ""
-                    )
-                    await bot.send_message(bot.config.chat_id, plain_message)
+            if bot:
+                # Send to specific user if telegram_id provided, otherwise use default chat_id
+                chat_id = telegram_id if telegram_id else bot.config.chat_id
+                if chat_id:
+                    try:
+                        # Try with HTML first (more reliable than Markdown)
+                        await bot.send_message(
+                            chat_id, telegram_message, parse_mode="HTML"
+                        )
+                    except Exception as html_error:
+                        logger.warning(
+                            f"HTML parsing failed: {html_error}, trying without parse_mode"
+                        )
+                        # If HTML fails, send as plain text
+                        plain_message = telegram_message.replace("<b>", "").replace(
+                            "</b>", ""
+                        )
+                        await bot.send_message(chat_id, plain_message)
 
-                logger.info(f"✅ Signal sent to Telegram chat {bot.config.chat_id}")
+                logger.info(f"✅ Signal sent to Telegram chat {chat_id}")
             else:
                 logger.warning(
                     "❌ Telegram bot not available or chat_id not configured"

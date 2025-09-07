@@ -3,7 +3,9 @@ Telegram bot command handlers for admin operations.
 """
 
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -690,13 +692,7 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                 # Refresh server config display
                 await self.server_config_command(update, context)
             elif action == "edit":
-                await query.edit_message_text(
-                    "🔧 *Edit Server Configuration*\n\n"
-                    "*Feature not yet implemented.*\n\n"
-                    "This will allow you to modify existing server configurations.\n"
-                    "Use `/server_config` to view current configurations.",
-                    parse_mode="Markdown",
-                )
+                await self.show_environment_variables(update, context)
             elif action == "add":
                 await query.edit_message_text(
                     "➕ *Add Server Configuration*\n\n"
@@ -705,6 +701,19 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                     "Use `/server_config` to view current configurations.",
                     parse_mode="Markdown",
                 )
+
+        elif data.startswith("env_edit_"):
+            env_var = data.replace("env_edit_", "")
+            await self.show_env_edit_options(update, context, env_var)
+
+        elif data.startswith("env_set_"):
+            # Handle environment variable value setting
+            parts = data.replace("env_set_", "").split(":")
+            if len(parts) == 2:
+                env_var, new_value = parts
+                await self.set_environment_variable(update, context, env_var, new_value)
+            else:
+                await query.answer("Invalid callback format")
 
         elif data.startswith("logs_"):
             log_type = data.replace("logs_", "")
@@ -724,6 +733,247 @@ Joined: {user['created_at'].strftime('%Y-%m-%d')}
                         f"*Note*: This feature will be implemented in a future update."
                     )
                     await query.edit_message_text(message_text, parse_mode="Markdown")
+
+    async def show_environment_variables(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Show environment variables that can be edited."""
+        query = update.callback_query
+
+        # Define editable environment variables with descriptions
+        editable_env_vars = {
+            "AUTO_SIGNAL_GENERATION": {
+                "current": os.getenv("AUTO_SIGNAL_GENERATION", "false"),
+                "description": "Enable/disable automatic signal generation",
+                "type": "boolean",
+            },
+            "AUTO_TRADING_ENABLED": {
+                "current": os.getenv("AUTO_TRADING_ENABLED", "false"),
+                "description": "Enable/disable auto trading",
+                "type": "boolean",
+            },
+            "SIGNAL_INTERVAL_MINUTES": {
+                "current": os.getenv("SIGNAL_INTERVAL_MINUTES", "15"),
+                "description": "Interval between signals in minutes",
+                "type": "integer",
+            },
+            "MAX_TRADES_PER_DAY": {
+                "current": os.getenv("MAX_TRADES_PER_DAY", "10"),
+                "description": "Maximum trades per day",
+                "type": "integer",
+            },
+            "LOG_LEVEL": {
+                "current": os.getenv("LOG_LEVEL", "INFO"),
+                "description": "Logging level (DEBUG/INFO/WARNING/ERROR)",
+                "type": "string",
+            },
+            "DEBUG": {
+                "current": os.getenv("DEBUG", "false"),
+                "description": "Enable/disable debug mode",
+                "type": "boolean",
+            },
+        }
+
+        message = "🔧 **Environment Variables**\n\n"
+        message += "Select a variable to edit:\n\n"
+
+        keyboard = []
+
+        for var_name, var_info in editable_env_vars.items():
+            current_value = var_info["current"]
+            description = var_info["description"]
+
+            # Add status indicator
+            if var_info["type"] == "boolean":
+                status = "✅ ON" if current_value.lower() == "true" else "❌ OFF"
+            else:
+                status = f"📝 {current_value}"
+
+            message += f"**{var_name}**\n"
+            message += f"*{description}*\n"
+            message += f"Current: {status}\n\n"
+
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        f"✏️ Edit {var_name}", callback_data=f"env_edit_{var_name}"
+                    )
+                ]
+            )
+
+        keyboard.append(
+            [InlineKeyboardButton("🔙 Back", callback_data="server_config_refresh")]
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
+
+    async def show_env_edit_options(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE, env_var: str
+    ) -> None:
+        """Show edit options for a specific environment variable."""
+        query = update.callback_query
+
+        # Get current value
+        current_value = os.getenv(env_var, "")
+
+        # Define options based on variable type
+        options = {
+            "AUTO_SIGNAL_GENERATION": [("Enable", "true"), ("Disable", "false")],
+            "AUTO_TRADING_ENABLED": [("Enable", "true"), ("Disable", "false")],
+            "DEBUG": [("Enable", "true"), ("Disable", "false")],
+            "SIGNAL_INTERVAL_MINUTES": [
+                ("5 min", "5"),
+                ("15 min", "15"),
+                ("30 min", "30"),
+                ("60 min", "60"),
+            ],
+            "MAX_TRADES_PER_DAY": [
+                ("5 trades", "5"),
+                ("10 trades", "10"),
+                ("20 trades", "20"),
+                ("50 trades", "50"),
+            ],
+            "LOG_LEVEL": [
+                ("DEBUG", "DEBUG"),
+                ("INFO", "INFO"),
+                ("WARNING", "WARNING"),
+                ("ERROR", "ERROR"),
+            ],
+        }
+
+        if env_var not in options:
+            await query.answer("Variable not supported for editing")
+            return
+
+        message = f"🔧 **Edit {env_var}**\n\n"
+        message += f"Current value: `{current_value}`\n\n"
+        message += "Select new value:\n"
+
+        keyboard = []
+
+        for option_name, option_value in options[env_var]:
+            # Mark current value
+            prefix = "✅ " if option_value == current_value else "⚪ "
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        f"{prefix}{option_name}",
+                        callback_data=f"env_set_{env_var}:{option_value}",
+                    )
+                ]
+            )
+
+        keyboard.append(
+            [InlineKeyboardButton("🔙 Back", callback_data="server_config_edit")]
+        )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
+
+    async def set_environment_variable(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        env_var: str,
+        new_value: str,
+    ) -> None:
+        """Set environment variable value."""
+        query = update.callback_query
+
+        try:
+            # Update environment variable
+            os.environ[env_var] = new_value
+
+            # Also try to update .env file if it exists
+            env_path = Path(__file__).parent.parent.parent.parent / ".env"
+            if env_path.exists():
+                self._update_env_file(env_path, env_var, new_value)
+
+            # Refresh global configuration to apply changes immediately
+            self.config_manager.refresh_global_config()
+            message = f"✅ **Environment Variable Updated**\n\n"
+            message += f"**Variable:** `{env_var}`\n"
+            message += f"**New Value:** `{new_value}`\n\n"
+            message += "⚠️ *Note: Some changes may require a system restart to take full effect.*\n\n"
+
+            # Add restart recommendation for critical variables
+            if env_var in [
+                "AUTO_SIGNAL_GENERATION",
+                "AUTO_TRADING_ENABLED",
+                "LOG_LEVEL",
+                "DEBUG",
+            ]:
+                message += "🔄 *Restart recommended for this variable.*"
+
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        "🔙 Back to Variables", callback_data="server_config_edit"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🔄 Restart System", callback_data="confirm_restart"
+                    )
+                ],
+            ]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await query.edit_message_text(
+                message, reply_markup=reply_markup, parse_mode="Markdown"
+            )
+
+            # Log the change
+            logger.info(
+                f"Admin {query.from_user.id} updated environment variable {env_var} to {new_value}"
+            )
+
+        except Exception as e:
+            logger.error(f"Error updating environment variable {env_var}: {e}")
+            await query.edit_message_text(
+                f"❌ **Error Updating Variable**\n\n"
+                f"Failed to update `{env_var}`.\n"
+                f"Error: {str(e)}",
+                parse_mode="Markdown",
+            )
+
+    def _update_env_file(self, env_path: Path, env_var: str, new_value: str) -> None:
+        """Update .env file with new environment variable value."""
+        try:
+            # Read existing .env file
+            if env_path.exists():
+                with open(env_path, "r") as f:
+                    lines = f.readlines()
+            else:
+                lines = []
+
+            # Find and update the variable, or add it
+            updated = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f"{env_var}="):
+                    lines[i] = f"{env_var}={new_value}\n"
+                    updated = True
+                    break
+
+            # Add the variable if it wasn't found
+            if not updated:
+                lines.append(f"{env_var}={new_value}\n")
+
+            # Write back to file
+            with open(env_path, "w") as f:
+                f.writelines(lines)
+
+        except Exception as e:
+            logger.error(f"Error updating .env file: {e}")
+            # Don't raise the error, just log it since the in-memory update succeeded
 
     async def cancel_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

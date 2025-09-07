@@ -57,6 +57,9 @@ class CallbackRouter:
             "status",
             "settings",
             "about",
+            "performance",
+            "risk",
+            "journal",
             "docs",
             "support",
             "rate",
@@ -90,6 +93,25 @@ class CallbackRouter:
             "general_features_settings",
             "theme_settings",
             "sound_settings",
+            # Theme callbacks
+            "theme_dark",
+            "theme_light",
+            "theme_colorful",
+            "theme_minimal",
+            # Sound callbacks
+            "sound_mute",
+            "sound_low",
+            "sound_medium",
+            "sound_high",
+            # Navigation callbacks
+            "back_to_settings",
+            # Auto trading callbacks
+            "auto_trading",
+            "toggle_auto_trading",
+            "auto_signals",
+            "toggle_auto_signals",
+            "view_auto_settings",
+            "edit_auto_pairs",
             # Trading pairs management callbacks
             "add_trading_pair",
             "remove_trading_pair",
@@ -155,6 +177,13 @@ class CallbackRouter:
             "custom_global_interval",
             "global_system",
             "global_stats",
+            # Environment variable editing callbacks
+            "env_edit_AUTO_SIGNAL_GENERATION",
+            "env_edit_AUTO_TRADING_ENABLED",
+            "env_edit_SIGNAL_INTERVAL_MINUTES",
+            "env_edit_MAX_TRADES_PER_DAY",
+            "env_edit_LOG_LEVEL",
+            "env_edit_DEBUG",
         }
 
         # Multi-user callback keys
@@ -212,8 +241,6 @@ class CallbackRouter:
             "notification_intervals",
             "set_interval",
             "trading_pairs",
-            "add_trading_pair",
-            "remove_trading_pair",
             # Value setting callbacks
             "set_risk",
             "set_max_pos",
@@ -229,12 +256,8 @@ class CallbackRouter:
             "update_interval",
             "add_pair",
             "remove_pair",
-            "add_popular_forex",
-            "add_popular_crypto",
             "reset_trading_pairs",
             "view_all_pairs",
-            "reset_symbols",
-            "view_all_symbols",
             "reset_intervals",
             "custom_risk",
             "custom_max_pos",
@@ -302,6 +325,19 @@ class CallbackRouter:
                 await self.multi_user_callbacks.handle_multi_user_callback(
                     update, context
                 )
+            # Handle notification toggle callbacks
+            elif callback_data.startswith("toggle_notification:"):
+                await self.system_callbacks.handle_callback(update, context)
+            # Handle environment variable callbacks
+            elif callback_data.startswith("env_edit_") or callback_data.startswith(
+                "env_set_"
+            ):
+                await self.admin_callbacks.handle_admin_callback(update, context)
+            # Handle admin global interval and pair callbacks
+            elif callback_data.startswith(
+                "set_global_interval:"
+            ) or callback_data.startswith("add_global_pair:"):
+                await self.admin_global_callbacks.handle_callback(update, context)
             # Handle admin global callbacks with pattern matching
             elif (
                 callback_data.startswith("add_global_")
@@ -310,6 +346,26 @@ class CallbackRouter:
                 or callback_data.startswith("custom_global_")
             ):
                 await self.admin_callbacks.handle_admin_callback(update, context)
+            # Handle user settings value callbacks with colons (set_risk:, set_max_pos:, etc.)
+            elif ":" in callback_data and (
+                callback_data.startswith("set_risk:")
+                or callback_data.startswith("set_max_pos:")
+                or callback_data.startswith("set_daily_loss:")
+                or callback_data.startswith("set_drawdown:")
+                or callback_data.startswith("set_daily_loss_pct:")
+                or callback_data.startswith("set_position_size:")
+                or callback_data.startswith("set_stop_losses:")
+                or callback_data.startswith("set_timezone:")
+                or callback_data.startswith("set_update_freq:")
+                or callback_data.startswith("set_log_level:")
+                or callback_data.startswith("set_timeframe:")
+                or callback_data.startswith("update_interval:")
+                or callback_data.startswith("add_pair:")
+                or callback_data.startswith("remove_pair:")
+            ):
+                await self.user_callbacks.handle_user_callback(update, context)
+            elif callback_data in self.system_callback_keys:
+                await self.system_callbacks.handle_callback(update, context)
             # Handle settings value callbacks with pattern matching
             elif (
                 callback_data.startswith("set_")
@@ -319,8 +375,6 @@ class CallbackRouter:
                 or callback_data.startswith("custom_")
             ):
                 await self.user_callbacks.handle_user_callback(update, context)
-            elif callback_data in self.system_callback_keys:
-                await self.system_callbacks.handle_callback(update, context)
             elif callback_data in self.trading_callback_keys:
                 await self.trading_callbacks.handle_callback(update, context)
             elif callback_data in self.admin_callback_keys:
@@ -356,8 +410,19 @@ class CallbackRouter:
                     "Something went wrong. Please try again or use /help.",
                     parse_mode=None,  # Remove markdown to avoid parsing errors
                 )
-            except:
-                pass
+            except Exception as edit_error:
+                logger.error(
+                    f"Error editing message after callback error: {edit_error}"
+                )
+                # If edit fails, try to send a new message
+                try:
+                    await query.message.reply_text(
+                        "❌ Error Processing Request\n\n"
+                        "Something went wrong. Please try again or use /help.",
+                        parse_mode=None,
+                    )
+                except:
+                    pass
 
 
 # Global callback router instance
@@ -382,13 +447,28 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Error handling callback query: {e}")
         try:
-            await query.edit_message_text(
-                "❌ **Error Processing Request**\n\n"
-                "Something went wrong. Please try again or use /help.",
-                parse_mode="Markdown",
-            )
-        except:
-            pass
+            query = update.callback_query
+            if query:
+                await query.answer("Error processing request")
+                try:
+                    await query.edit_message_text(
+                        "❌ Error Processing Request\n\n"
+                        "Something went wrong. Please try again or use /help.",
+                        parse_mode=None,
+                    )
+                except Exception as edit_error:
+                    logger.error(f"Error editing message in main handler: {edit_error}")
+                    # If edit fails, try to send a new message
+                    try:
+                        await query.message.reply_text(
+                            "❌ Error Processing Request\n\n"
+                            "Something went wrong. Please try again or use /help.",
+                            parse_mode=None,
+                        )
+                    except:
+                        pass
+        except Exception as outer_error:
+            logger.error(f"Error in error handler: {outer_error}")
 
 
 def setup_callback_handler(notification_manager: NotificationManager):
