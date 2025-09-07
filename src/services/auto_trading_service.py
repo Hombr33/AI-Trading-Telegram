@@ -167,34 +167,83 @@ class AutoTradingService(IAutoTradingService):
                     if signal.get("auto_execute", False):
                         await self._execute_signal(signal)
             else:
-                # Fallback: check for signals in database
-                from sqlalchemy import desc
-
-                from src.database.session import get_db_session
-                from src.models import Signal
-
-                with get_db_session() as db:
-                    # Get latest active signals
-                    latest_signals = (
-                        db.query(Signal)
-                        .filter(Signal.is_active == True)
-                        .order_by(desc(Signal.created_at))
-                        .limit(5)
-                        .all()
-                    )
-
-                    for signal in latest_signals:
-                        signal_data = {
-                            "symbol": signal.symbol,
-                            "bias": signal.bias,
-                            "setups": signal.setups or [],
-                            "confidence": signal.confidence,
-                            "auto_execute": True,
-                        }
-                        await self._execute_signal(signal_data)
+                # Fallback: check for signals in database with retry logic
+                await self._process_database_signals_with_retry()
 
         except Exception as e:
             logger.error(f"Error processing automatic signals: {e}")
+
+    async def _process_database_signals_with_retry(self, max_retries: int = 3):
+        """Process database signals with retry logic for SQLite I/O errors."""
+        import asyncio
+
+        from sqlalchemy import desc
+        from sqlalchemy.exc import DisconnectionError, OperationalError
+
+        try:
+            from src.database.session import get_db_session_with_retry
+            from src.models import Signal
+
+            # Use the retry-enabled session manager
+            with get_db_session_with_retry(max_retries=max_retries) as db:
+                # Get latest active signals
+                latest_signals = (
+                    db.query(Signal)
+                    .filter(Signal.is_active == True)
+                    .order_by(desc(Signal.created_at))
+                    .limit(5)
+                    .all()
+                )
+
+                for signal in latest_signals:
+                    signal_data = {
+                        "symbol": signal.symbol,
+                        "bias": signal.bias,
+                        "setups": signal.setups or [],
+                        "confidence": signal.confidence,
+                        "auto_execute": True,
+                    }
+                    await self._execute_signal(signal_data)
+
+                logger.info(
+                    f"Successfully processed {len(latest_signals)} database signals"
+                )
+
+        except (OperationalError, DisconnectionError) as e:
+            error_msg = str(e).lower()
+            if "disk i/o error" in error_msg or "database is locked" in error_msg:
+                logger.error(f"SQLite I/O error after {max_retries} attempts: {e}")
+
+                # Attempt database recovery
+                try:
+                    from src.database.health_check import recover_database_from_io_error
+
+                    recovery_success = await recover_database_from_io_error()
+                    if recovery_success:
+                        logger.info(
+                            "Database recovery successful, retrying signal processing"
+                        )
+                        # Retry once after recovery
+                        return await self._process_database_signals_with_retry(
+                            max_retries=1
+                        )
+                except Exception as recovery_error:
+                    logger.error(f"Database recovery failed: {recovery_error}")
+
+                # Log system event for monitoring
+                log_system_event(
+                    "auto_trading_service",
+                    "database_io_error",
+                    f"SQLite I/O error after {max_retries} attempts: {e}",
+                )
+            else:
+                # Re-raise non-I/O related database errors
+                logger.error(f"Database error in signal processing: {e}")
+                raise
+
+        except Exception as e:
+            logger.error(f"Unexpected error processing database signals: {e}")
+            raise
 
     async def _execute_signal(self, signal: Dict[str, Any]) -> bool:
         """Execute a trading signal."""

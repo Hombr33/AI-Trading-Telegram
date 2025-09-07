@@ -32,24 +32,49 @@ class DatabaseConnection:
     def connect(self) -> None:
         """Create database engine and session factory."""
         try:
-            # Create engine with SQLite-specific configuration
+            # Create engine with SQLite-specific configuration for better I/O handling
             self.engine = create_engine(
                 self.config.url,
                 echo=self.config.echo,
                 pool_pre_ping=True,
                 pool_recycle=3600,
+                # SQLite-specific connection arguments for better I/O handling
+                connect_args={
+                    "timeout": 30,  # 30 second timeout for database operations
+                    "check_same_thread": False,  # Allow multiple threads
+                    "isolation_level": None,  # Use autocommit mode
+                },
+                # Connection pool settings for better reliability
+                pool_size=1,  # Single connection for SQLite
+                max_overflow=0,  # No overflow for SQLite
+                pool_timeout=30,  # 30 second timeout for getting connection
             )
 
-            # Configure SQLite pragmas
+            # Configure SQLite pragmas for better I/O handling
             @event.listens_for(self.engine, "connect")
             def set_sqlite_pragma(dbapi_connection, connection_record):
                 cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.execute("PRAGMA cache_size=10000")
-                cursor.execute("PRAGMA temp_store=MEMORY")
-                cursor.close()
+                try:
+                    # WAL mode for better concurrency and I/O
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    # NORMAL synchronous mode for better performance
+                    cursor.execute("PRAGMA synchronous=NORMAL")
+                    # Enable foreign keys
+                    cursor.execute("PRAGMA foreign_keys=ON")
+                    # Increase cache size for better performance
+                    cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
+                    # Store temp tables in memory
+                    cursor.execute("PRAGMA temp_store=MEMORY")
+                    # Set busy timeout to handle locked database
+                    cursor.execute("PRAGMA busy_timeout=30000")  # 30 seconds
+                    # Optimize for better I/O performance
+                    cursor.execute("PRAGMA optimize")
+                    # Set WAL autocheckpoint for better performance
+                    cursor.execute("PRAGMA wal_autocheckpoint=1000")
+                except Exception as pragma_error:
+                    logger.warning(f"Failed to set some SQLite pragmas: {pragma_error}")
+                finally:
+                    cursor.close()
 
             # Create session factory
             self.session_factory = sessionmaker(
