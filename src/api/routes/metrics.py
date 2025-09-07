@@ -2,10 +2,11 @@
 Metrics API routes.
 """
 
+from typing import Any, Dict
+
+import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Dict, Any
-import structlog
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()

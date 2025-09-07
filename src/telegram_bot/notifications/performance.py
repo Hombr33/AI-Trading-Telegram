@@ -1,11 +1,12 @@
 """Performance notifications for Telegram bot."""
 
-from typing import Dict, Any
 from datetime import datetime, timezone
+from typing import Any, Dict
 
 from src.core.logging import get_logger
-from .manager import NotificationManager
+
 from ..utils.constants import NotificationPriority
+from .manager import NotificationManager
 
 logger = get_logger(__name__)
 
@@ -15,7 +16,7 @@ class PerformanceNotifications:
 
     def __init__(self, notification_manager: NotificationManager):
         """Initialize performance notifications.
-        
+
         Args:
             notification_manager: The notification manager to use.
         """
@@ -23,7 +24,7 @@ class PerformanceNotifications:
 
     async def send_daily_summary(self, performance_data: Dict[str, Any]):
         """Send daily performance summary notification.
-        
+
         Args:
             performance_data: The performance data to send.
         """
@@ -67,10 +68,10 @@ class PerformanceNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, 
-                notification_type="performance", 
-                priority=NotificationPriority.MEDIUM, 
-                parse_mode="Markdown"
+                message,
+                notification_type="performance",
+                priority=NotificationPriority.MEDIUM,
+                parse_mode="Markdown",
             )
 
         except Exception as e:
@@ -78,7 +79,7 @@ class PerformanceNotifications:
 
     async def send_weekly_summary(self, performance_data: Dict[str, Any]):
         """Send weekly performance summary notification.
-        
+
         Args:
             performance_data: The performance data to send.
         """
@@ -117,7 +118,7 @@ class PerformanceNotifications:
                 )
 
             if top_symbols:
-                message += f"🔝 **Top Performing Symbols**:\n"
+                message += "🔝 **Top Performing Symbols**:\n"
                 for symbol in top_symbols[:3]:  # Show top 3
                     message += f"  {symbol.get('symbol', 'N/A')}: ${symbol.get('profit', 0):.2f}\n"
                 message += "\n"
@@ -129,7 +130,10 @@ class PerformanceNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="performance", priority="medium", parse_mode="Markdown"
+                message,
+                notification_type="performance",
+                priority="medium",
+                parse_mode="Markdown",
             )
 
         except Exception as e:
@@ -137,7 +141,7 @@ class PerformanceNotifications:
 
     async def send_monthly_summary(self, performance_data: Dict[str, Any]):
         """Send monthly performance summary notification.
-        
+
         Args:
             performance_data: The performance data to send.
         """
@@ -178,7 +182,7 @@ class PerformanceNotifications:
                 )
 
             if top_symbols:
-                message += f"🔝 **Top Performing Symbols**:\n"
+                message += "🔝 **Top Performing Symbols**:\n"
                 for symbol in top_symbols[:3]:  # Show top 3
                     message += f"  {symbol.get('symbol', 'N/A')}: ${symbol.get('profit', 0):.2f}\n"
                 message += "\n"
@@ -190,7 +194,10 @@ class PerformanceNotifications:
             )
 
             await self.notification_manager.send_notification(
-                message, notification_type="performance", priority="high", parse_mode="Markdown"
+                message,
+                notification_type="performance",
+                priority="high",
+                parse_mode="Markdown",
             )
 
         except Exception as e:
@@ -198,7 +205,7 @@ class PerformanceNotifications:
 
     async def send_milestone_notification(self, milestone_type: str, value: float):
         """Send milestone notification.
-        
+
         Args:
             milestone_type: The type of milestone (profit, trades, etc.).
             value: The milestone value.
@@ -219,7 +226,9 @@ class PerformanceNotifications:
             else:
                 emoji = "🏆"
                 title = "MILESTONE REACHED"
-                message = f"A new milestone has been reached: {milestone_type} - {value}"
+                message = (
+                    f"A new milestone has been reached: {milestone_type} - {value}"
+                )
 
             notification_message = (
                 f"{emoji} **{title}** {emoji}\n\n"
@@ -230,7 +239,10 @@ class PerformanceNotifications:
             )
 
             await self.notification_manager.send_notification(
-                notification_message, notification_type="performance", priority="medium", parse_mode="Markdown"
+                notification_message,
+                notification_type="performance",
+                priority="medium",
+                parse_mode="Markdown",
             )
 
         except Exception as e:

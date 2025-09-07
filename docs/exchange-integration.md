@@ -10,16 +10,16 @@ This document details the integration with various trading platforms and exchang
 ```python
 class MT4Bridge:
     """Bridge for MT4/MT5 communication via ZeroMQ."""
-    
+
     def __init__(self):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.connected = False
-    
+
     async def connect(self, endpoint: str = "tcp://localhost:5555"):
         """Establish connection with MT4/MT5 terminal."""
         pass
-    
+
     async def place_order(self, order: Order) -> OrderResult:
         """Send order to MT4/MT5 terminal."""
         pass
@@ -49,16 +49,16 @@ class MT4Bridge:
 ```python
 class ExchangeClient:
     """Base class for crypto exchange integration."""
-    
+
     def __init__(self, config: ExchangeConfig):
         self.api_key = config.api_key
         self.secret = config.secret
         self.endpoint = config.endpoint
-    
+
     async def get_market_data(self, symbol: str) -> MarketData:
         """Fetch real-time market data."""
         pass
-    
+
     async def place_order(self, order: Order) -> OrderResult:
         """Place order on exchange."""
         pass
@@ -74,15 +74,15 @@ class ExchangeClient:
 ```python
 class MarketDataStream:
     """Real-time market data streaming."""
-    
+
     def __init__(self):
         self.subscriptions = set()
         self.callbacks = defaultdict(list)
-    
+
     async def subscribe(self, symbol: str, callback: Callable):
         """Subscribe to market data updates."""
         pass
-    
+
     async def process_updates(self, data: Dict):
         """Process incoming market data."""
         pass
@@ -101,15 +101,15 @@ class MarketDataStream:
 ```python
 class OrderManager:
     """Manages order lifecycle across platforms."""
-    
+
     def __init__(self):
         self.active_orders = {}
         self.position_tracker = PositionTracker()
-    
+
     async def submit_order(self, order: Order) -> OrderResult:
         """Submit and track order execution."""
         pass
-    
+
     async def monitor_execution(self, order_id: str) -> None:
         """Monitor order execution status."""
         pass
@@ -121,15 +121,15 @@ class OrderManager:
 ```python
 class PositionTracker:
     """Track open positions across platforms."""
-    
+
     def __init__(self):
         self.positions = defaultdict(Position)
         self.total_exposure = 0.0
-    
+
     def update_position(self, trade: Trade) -> None:
         """Update position tracking on new trade."""
         pass
-    
+
     def calculate_exposure(self) -> float:
         """Calculate total position exposure."""
         pass
@@ -147,11 +147,11 @@ class PositionTracker:
 ```python
 class ErrorRecovery:
     """Handle and recover from trading errors."""
-    
+
     async def handle_disconnect(self) -> None:
         """Handle connection loss."""
         pass
-    
+
     async def reconcile_positions(self) -> None:
         """Reconcile local and exchange positions."""
         pass

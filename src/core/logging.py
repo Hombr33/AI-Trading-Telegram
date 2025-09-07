@@ -2,25 +2,26 @@
 Logging configuration using loguru and rich for better output formatting.
 """
 
-
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from loguru import logger
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.traceback import install as install_rich_traceback
 from rich.panel import Panel
 from rich.text import Text
+from rich.traceback import install as install_rich_traceback
 
 # Colorama for Windows color support detection
 try:
     import colorama
+
     colorama.init()
 except ImportError:
     colorama = None
+
 
 def terminal_supports_color() -> bool:
     """Check if the terminal supports color output."""
@@ -29,6 +30,7 @@ def terminal_supports_color() -> bool:
         return colorama is not None and sys.stdout.isatty()
     # Other: check if stdout is a tty
     return sys.stdout.isatty()
+
 
 # Install rich traceback handler
 install_rich_traceback()
@@ -130,7 +132,9 @@ def setup_logging(
             existing_levels = logger._core.min_levels
             if level_config["name"] not in existing_levels:
                 logger.level(
-                    level_config["name"], level_config["no"], color=level_config["color"]
+                    level_config["name"],
+                    level_config["no"],
+                    color=level_config["color"],
                 )
         except (ValueError, AttributeError):
             # Level already exists or logger not properly initialized, skip
@@ -214,7 +218,7 @@ def log_performance_metric(metric_name: str, value: float, unit: str = "", **kwa
 
 def log_operation_timing(operation: str, start_time: float, end_time: float, **context):
     """Log operation timing for performance monitoring."""
-    duration_ms = (end_time - start_time) * 1000
+    (end_time - start_time) * 1000
     # log_performance_metric(
     #     f"{operation}_duration",
     #     duration_ms,

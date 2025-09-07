@@ -12,37 +12,37 @@ jobs:
     strategy:
       matrix:
         python-version: [3.11, 3.12]
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-cov pytest-asyncio black ruff mypy
-    
+
     - name: Lint with Black
       run: |
         black --check --diff src/
-    
+
     - name: Lint with Ruff
       run: |
         ruff check src/
-    
+
     - name: Type check with mypy
       run: |
         mypy src/
-    
+
     - name: Run tests with pytest
       run: |
         pytest . --cov=src --cov-report=xml --cov-report=html
-    
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -53,20 +53,20 @@ jobs:
   windows-ea-compile:
     runs-on: windows-latest
     continue-on-error: true  # Don't fail the entire workflow if EA compilation fails
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Check EA files exist
       run: |
         echo "Checking EA source files..."
@@ -80,7 +80,7 @@ jobs:
         } else {
           echo "❌ BridgeEA.mq4 not found"
         }
-    
+
     - name: Check MetaTrader installation paths
       run: |
         echo "Checking MetaTrader installation paths..."
@@ -94,7 +94,7 @@ jobs:
           "C:\Program Files (x86)\MetaTrader 4\metaeditor.exe",
           "$env:LOCALAPPDATA\Programs\MetaTrader 4\metaeditor.exe"
         )
-        
+
         echo "MT5 MetaEditor paths:"
         foreach ($path in $mt5Paths) {
           if (Test-Path $path) {
@@ -103,7 +103,7 @@ jobs:
             echo "❌ Not found: $path"
           }
         }
-        
+
         echo "MT4 MetaEditor paths:"
         foreach ($path in $mt4Paths) {
           if (Test-Path $path) {
@@ -112,20 +112,20 @@ jobs:
             echo "❌ Not found: $path"
           }
         }
-    
+
     - name: Attempt MT5 EA compilation
       id: mt5_compile
       run: |
         echo "Attempting MT5 EA compilation..."
         $mt5Editor = $null
-        
+
         # Check multiple possible MT5 installation paths
         $mt5Paths = @(
           "C:\Program Files\MetaTrader 5\metaeditor64.exe",
           "C:\Program Files (x86)\MetaTrader 5\metaeditor64.exe",
           "$env:LOCALAPPDATA\Programs\MetaTrader 5\metaeditor64.exe"
         )
-        
+
         foreach ($path in $mt5Paths) {
           if (Test-Path $path) {
             $mt5Editor = $path
@@ -133,7 +133,7 @@ jobs:
             break
           }
         }
-        
+
         if ($mt5Editor) {
           try {
             echo "Compiling BridgeEA.mq5..."
@@ -153,20 +153,20 @@ jobs:
           echo "⚠️ MetaTrader 5 not found - skipping compilation"
           echo "mt5_status=skipped" >> $env:GITHUB_OUTPUT
         }
-    
+
     - name: Attempt MT4 EA compilation
       id: mt4_compile
       run: |
         echo "Attempting MT4 EA compilation..."
         $mt4Editor = $null
-        
+
         # Check multiple possible MT4 installation paths
         $mt4Paths = @(
           "C:\Program Files\MetaTrader 4\metaeditor.exe",
           "C:\Program Files (x86)\MetaTrader 4\metaeditor.exe",
           "$env:LOCALAPPDATA\Programs\MetaTrader 4\metaeditor.exe"
         )
-        
+
         foreach ($path in $mt4Paths) {
           if (Test-Path $path) {
             $mt4Editor = $path
@@ -174,7 +174,7 @@ jobs:
             break
           }
         }
-        
+
         if ($mt4Editor) {
           try {
             echo "Compiling BridgeEA.mq4..."
@@ -194,13 +194,13 @@ jobs:
           echo "⚠️ MetaTrader 4 not found - skipping compilation"
           echo "mt4_status=skipped" >> $env:GITHUB_OUTPUT
         }
-    
+
     - name: Compilation Summary
       run: |
         echo "=== EA Compilation Summary ==="
         echo "MT5 Status: ${{ steps.mt5_compile.outputs.mt5_status }}"
         echo "MT4 Status: ${{ steps.mt4_compile.outputs.mt4_status }}"
-        
+
         if ("${{ steps.mt5_compile.outputs.mt5_status }}" -eq "skipped" -and "${{ steps.mt4_compile.outputs.mt4_status }}" -eq "skipped") {
           echo "⚠️ Both MT4 and MT5 compilation skipped - MetaTrader not found"
           echo "This is expected in CI environment without MetaTrader installed"
@@ -214,20 +214,20 @@ jobs:
     needs: [test, windows-ea-compile]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Create package
       run: |
         mkdir -p dist
@@ -238,7 +238,7 @@ jobs:
           --exclude='__pycache__' \
           --exclude='*.pyc' \
           .
-    
+
     - name: Upload package artifact
       uses: actions/upload-artifact@v3
       with:
@@ -249,16 +249,16 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Download package artifact
       uses: actions/download-artifact@v3
       with:
         name: telegram-ai-trade-package
         path: dist/
-    
+
     - name: Create Release
       uses: actions/create-release@v1
       env:
@@ -268,18 +268,18 @@ jobs:
         release_name: Release v${{ github.run_number }}
         body: |
           Automated release from CI/CD pipeline
-          
+
           ## Changes
           - Automated build and test
           - EA compilation verification
           - Package creation
-          
+
           ## Artifacts
           - Source code package
           - Compiled EAs
         draft: false
         prerelease: false
-    
+
     - name: Upload Release Assets
       uses: actions/upload-release-asset@v1
       env:

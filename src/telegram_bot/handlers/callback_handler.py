@@ -1,7 +1,7 @@
 """Callback handler for Telegram bot."""
 
 from telegram import Update
-from telegram.ext import CallbackQueryHandler, ContextTypes
+from telegram.ext import ContextTypes
 
 from src.core.logging import get_logger
 from src.telegram_bot.notifications.manager import NotificationManager
@@ -11,77 +11,388 @@ logger = get_logger(__name__)
 
 class CallbackRouter:
     """Routes callbacks to appropriate handlers."""
-    
+
     def __init__(self):
         """Initialize callback router."""
         self.handlers = {}
         self._setup_handlers()
-    
+
     def _setup_handlers(self):
         """Setup callback handlers."""
         # Import handlers
-        from .system_callbacks import SystemCallbackHandler
-        from .trading_callbacks import TradingCallbackHandler
         from ..commands.system import SystemCommandHandler
         from ..commands.trading import TradingCommandHandler
-        
+        from .system_callbacks import SystemCallbackHandler
+        from .trading_callbacks import TradingCallbackHandler
+
         # Initialize command handlers
         system_handler = SystemCommandHandler()
         trading_handler = TradingCommandHandler()
-        
+
         # Initialize callback handlers
         self.system_callbacks = SystemCallbackHandler(system_handler)
         self.trading_callbacks = TradingCallbackHandler(trading_handler)
-        
+
         # Initialize admin callback handler
+        from ..commands.admin_global_settings import AdminGlobalSettingsHandler
         from .admin_commands import AdminCommandHandlers
+
         self.admin_callbacks = AdminCommandHandlers()
-        
+        self.admin_global_callbacks = AdminGlobalSettingsHandler()
+
+        # Initialize multi-user callback handler
+        from .multi_user_handlers import MultiUserHandlers
+
+        self.multi_user_callbacks = MultiUserHandlers()
+
+        # Initialize user callback handler
+        from .user_commands import UserCommandHandlers
+
+        self.user_callbacks = UserCommandHandlers()
+
         # Define callback routing
         self.system_callback_keys = {
-            "start", "help", "status", "settings", "about", 
-            "docs", "support", "rate", "updates", "quick_actions",
-            "risk_settings", "notification_settings", 
-            "theme_settings", "sound_settings", "trading_guide",
-            "risk_guide", "ta_guide", "setup_guide", "email_support",
-            "live_chat", "faq", "rate_5", "rate_4", "leave_review",
-            "feedback", "changelog", "update_alerts", "roadmap",
-            "monitor", "system_monitor", "health_monitor"
+            "start",
+            "help",
+            "status",
+            "settings",
+            "about",
+            "performance",
+            "risk",
+            "journal",
+            "docs",
+            "support",
+            "rate",
+            "updates",
+            "quick_actions",
+            "risk_settings",
+            "notification_settings",
+            "settings_notifications",  # Add the missing callback key
+            "notification_trading_pairs",  # Add notification trading pairs callback
+            "settings_trading",  # Add trading settings callback
+            "settings_risk",  # Add risk settings callback
+            "settings_system",  # Add system settings callback
+            "notif_critical",
+            "notif_trading",
+            "notif_reports",
+            "notif_general",
+            # Trading notification settings
+            "trading_signals_settings",
+            "trading_positions_settings",
+            "trading_orders_settings",
+            "trading_risk_settings",
+            # Reports notification settings
+            "reports_performance_settings",
+            "reports_analysis_settings",
+            "reports_statistics_settings",
+            "reports_system_settings",
+            # General notification settings
+            "general_updates_settings",
+            "general_news_settings",
+            "general_maintenance_settings",
+            "general_features_settings",
+            "theme_settings",
+            "sound_settings",
+            # Theme callbacks
+            "theme_dark",
+            "theme_light",
+            "theme_colorful",
+            "theme_minimal",
+            # Sound callbacks
+            "sound_mute",
+            "sound_low",
+            "sound_medium",
+            "sound_high",
+            # Navigation callbacks
+            "back_to_settings",
+            # Auto trading callbacks
+            "auto_trading",
+            "toggle_auto_trading",
+            "auto_signals",
+            "toggle_auto_signals",
+            "view_auto_settings",
+            "edit_auto_pairs",
+            # Trading pairs management callbacks
+            "add_trading_pair",
+            "remove_trading_pair",
+            "reset_symbols",
+            "view_all_symbols",
+            "add_popular_forex",
+            "add_popular_crypto",
+            "trading_guide",
+            "risk_guide",
+            "ta_guide",
+            "setup_guide",
+            "email_support",
+            "live_chat",
+            "faq",
+            "rate_5",
+            "rate_4",
+            "leave_review",
+            "feedback",
+            "changelog",
+            "update_alerts",
+            "roadmap",
+            "monitor",
+            "system_monitor",
+            "health_monitor",
         }
-        
+
         # Admin callback keys
         self.admin_callback_keys = {
-            "users", "add_admin", "remove_admin", "set_subscription",
-            "server_config", "restart", "logs", "close_all",
-            "logs_system", "logs_trading", "logs_error", "logs_refresh",
-            "server_config_edit", "server_config_add", "server_config_refresh",
-            "confirm_restart", "cancel_restart", "confirm_close_all", "cancel_close_all"
+            "users",
+            "add_admin",
+            "remove_admin",
+            "set_subscription",
+            "server_config",
+            "restart",
+            "logs",
+            "close_all",
+            "logs_system",
+            "logs_trading",
+            "logs_error",
+            "logs_refresh",
+            "server_config_edit",
+            "server_config_add",
+            "server_config_refresh",
+            "confirm_restart",
+            "cancel_restart",
+            "confirm_close_all",
+            "cancel_close_all",
+            # Admin global settings callbacks
+            "admin_global",
+            "global_pairs",
+            "global_intervals",
+            "set_global_pairs",
+            "set_global_intervals",
+            "add_global_pair",
+            "remove_global_pair",
+            "reset_global_pairs",
+            "set_global_interval",
+            "reset_global_intervals",
+            "add_global_forex",
+            "add_global_crypto",
+            "view_global_pairs",
+            "update_global_interval",
+            "custom_global_interval",
+            "global_system",
+            "global_stats",
+            # Environment variable editing callbacks
+            "env_edit_AUTO_SIGNAL_GENERATION",
+            "env_edit_AUTO_TRADING_ENABLED",
+            "env_edit_SIGNAL_INTERVAL_MINUTES",
+            "env_edit_MAX_TRADES_PER_DAY",
+            "env_edit_LOG_LEVEL",
+            "env_edit_DEBUG",
         }
-        
+
+        # Multi-user callback keys
+        self.multi_user_callback_keys = {
+            "new_search",
+            "bulk_notify",
+            "bulk_subscribe",
+            "bulk_export",
+            "bulk_cleanup",
+            "bulk_cancel",
+            "refresh_monitor",
+        }
+
+        # User callback keys
+        self.user_callback_keys = {
+            "register_mt5",
+            "register_crypto",
+            "add_mt5",
+            "add_crypto",
+            "test_connections",
+            "symbol_settings",
+            "config_risk",
+            "config_symbol",
+            "config_signal",
+            "config_model",
+            "config_trading",
+            "config_rules",
+            "config_reset_all",
+            "config_view_all",
+            "edit_config",
+            "reset_config",
+            "config_back",
+            "crypto_binance",
+            "crypto_bybit",
+            "crypto_kucoin",
+            "crypto_cancel",
+            # Trading settings callbacks
+            "manage_symbols",
+            "custom_add_pair",
+            "enter_custom_symbol",
+            "edit_risk_percent",
+            "edit_max_positions",
+            "edit_daily_loss",
+            "reset_trading",
+            "edit_max_drawdown",
+            "edit_daily_loss_pct",
+            "edit_position_size",
+            "edit_stop_losses",
+            "reset_risk",
+            "risk_report",
+            "edit_timezone",
+            "edit_update_freq",
+            "edit_log_level",
+            "edit_timeframe",
+            "reset_system",
+            "system_info",
+            "notification_intervals",
+            "set_interval",
+            "trading_pairs",
+            # Value setting callbacks
+            "set_risk",
+            "set_max_pos",
+            "set_daily_loss",
+            "set_drawdown",
+            "set_daily_loss_pct",
+            "set_position_size",
+            "set_stop_losses",
+            "set_timezone",
+            "set_update_freq",
+            "set_log_level",
+            "set_timeframe",
+            "update_interval",
+            "add_pair",
+            "remove_pair",
+            "reset_trading_pairs",
+            "view_all_pairs",
+            "reset_intervals",
+            "custom_risk",
+            "custom_max_pos",
+            "custom_daily_loss",
+            "custom_drawdown",
+            "custom_daily_loss_pct",
+            "custom_position_size",
+            "custom_stop_losses",
+            "custom_timezone",
+            "custom_update_freq",
+            "custom_interval",
+            "custom_add_pair",
+        }
+
         self.trading_callback_keys = {
-            "positions", "refresh_positions", "position_details", "quick_close",
-            "orders", "refresh_orders", "account", "refresh_account", 
-            "account_history", "export_history", "symbols", "refresh_symbols",
-            "signals", "refresh_signals", "live_dashboard", "webapp",
-            "webapp_open", "webapp_mobile", "webapp_desktop", "add_symbol", 
-            "delete_symbol"
+            "positions",
+            "refresh_positions",
+            "position_details",
+            "quick_close",
+            "orders",
+            "refresh_orders",
+            "account",
+            "refresh_account",
+            "account_history",
+            "export_history",
+            "symbols",
+            "refresh_symbols",
+            "signals",
+            "refresh_signals",
+            "live_dashboard",
+            "webapp",
+            "webapp_open",
+            "webapp_mobile",
+            "webapp_desktop",
+            "add_symbol",
+            "delete_symbol",
         }
-    
+
     async def route_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Route callback to appropriate handler."""
         query = update.callback_query
         callback_data = query.data
-        
+
         try:
             # Handle signal callbacks with pattern matching
             if callback_data.startswith("signal_"):
                 await self.trading_callbacks.handle_callback(update, context)
+            elif callback_data.startswith("symbol_"):
+                await self.user_callbacks.handle_user_callback(update, context)
+            elif callback_data.startswith("user_details_") or callback_data.startswith(
+                "manage_user_"
+            ):
+                await self.multi_user_callbacks.handle_multi_user_callback(
+                    update, context
+                )
+            elif callback_data.startswith("edit_user_") or callback_data.startswith(
+                "user_performance_"
+            ):
+                await self.multi_user_callbacks.handle_multi_user_callback(
+                    update, context
+                )
+            elif callback_data.startswith("isolate_user_") or callback_data.startswith(
+                "refresh_user_"
+            ):
+                await self.multi_user_callbacks.handle_multi_user_callback(
+                    update, context
+                )
+            # Handle notification toggle callbacks
+            elif callback_data.startswith("toggle_notification:"):
+                await self.system_callbacks.handle_callback(update, context)
+            # Handle environment variable callbacks
+            elif callback_data.startswith("env_edit_") or callback_data.startswith(
+                "env_set_"
+            ):
+                await self.admin_callbacks.handle_admin_callback(update, context)
+            # Handle admin global interval and pair callbacks
+            elif callback_data.startswith(
+                "set_global_interval:"
+            ) or callback_data.startswith("add_global_pair:"):
+                await self.admin_global_callbacks.handle_callback(update, context)
+            # Handle admin global callbacks with pattern matching
+            elif (
+                callback_data.startswith("add_global_")
+                or callback_data.startswith("remove_global_")
+                or callback_data.startswith("update_global_")
+                or callback_data.startswith("custom_global_")
+            ):
+                await self.admin_callbacks.handle_admin_callback(update, context)
+            # Handle user settings value callbacks with colons (set_risk:, set_max_pos:, etc.)
+            elif ":" in callback_data and (
+                callback_data.startswith("set_risk:")
+                or callback_data.startswith("set_max_pos:")
+                or callback_data.startswith("set_daily_loss:")
+                or callback_data.startswith("set_drawdown:")
+                or callback_data.startswith("set_daily_loss_pct:")
+                or callback_data.startswith("set_position_size:")
+                or callback_data.startswith("set_stop_losses:")
+                or callback_data.startswith("set_timezone:")
+                or callback_data.startswith("set_update_freq:")
+                or callback_data.startswith("set_log_level:")
+                or callback_data.startswith("set_timeframe:")
+                or callback_data.startswith("update_interval:")
+                or callback_data.startswith("add_pair:")
+                or callback_data.startswith("remove_pair:")
+            ):
+                await self.user_callbacks.handle_user_callback(update, context)
             elif callback_data in self.system_callback_keys:
                 await self.system_callbacks.handle_callback(update, context)
+            # Handle settings value callbacks with pattern matching
+            elif (
+                callback_data.startswith("set_")
+                or callback_data.startswith("update_")
+                or callback_data.startswith("add_")
+                or callback_data.startswith("remove_")
+                or callback_data.startswith("custom_")
+            ):
+                await self.user_callbacks.handle_user_callback(update, context)
             elif callback_data in self.trading_callback_keys:
                 await self.trading_callbacks.handle_callback(update, context)
             elif callback_data in self.admin_callback_keys:
-                await self.admin_callbacks.handle_admin_callback(update, context)
+                # Route to appropriate admin handler
+                if callback_data.startswith("global_") or callback_data.startswith(
+                    "admin_global"
+                ):
+                    await self.admin_global_callbacks.handle_callback(update, context)
+                else:
+                    await self.admin_callbacks.handle_admin_callback(update, context)
+            elif callback_data in self.multi_user_callback_keys:
+                await self.multi_user_callbacks.handle_multi_user_callback(
+                    update, context
+                )
+            elif callback_data in self.user_callback_keys:
+                await self.user_callbacks.handle_user_callback(update, context)
             else:
                 logger.warning(f"Unknown callback data: {callback_data}")
                 await query.answer("Unknown callback")
@@ -89,20 +400,31 @@ class CallbackRouter:
                     f"❌ **Unknown Command**\n\n"
                     f"Callback '{callback_data}' not recognized.\n"
                     f"Use /help to see available commands.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
                 )
-                
+
         except Exception as e:
             logger.error(f"Error routing callback {callback_data}: {e}")
             await query.answer("Error processing request")
             try:
                 await query.edit_message_text(
-                    f"❌ Error Processing Request\n\n"
-                    f"Something went wrong. Please try again or use /help.",
-                    parse_mode=None  # Remove markdown to avoid parsing errors
+                    "❌ Error Processing Request\n\n"
+                    "Something went wrong. Please try again or use /help.",
+                    parse_mode=None,  # Remove markdown to avoid parsing errors
                 )
-            except:
-                pass
+            except Exception as edit_error:
+                logger.error(
+                    f"Error editing message after callback error: {edit_error}"
+                )
+                # If edit fails, try to send a new message
+                try:
+                    await query.message.reply_text(
+                        "❌ Error Processing Request\n\n"
+                        "Something went wrong. Please try again or use /help.",
+                        parse_mode=None,
+                    )
+                except:
+                    pass
 
 
 # Global callback router instance
@@ -114,26 +436,41 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         query = update.callback_query
         await query.answer("⚡ Processing...")
-        
+
         data = query.data
         logger.info(f"Callback query received: {data}")
-        
+
         # Create fresh router instance to ensure latest configuration
         router = CallbackRouter()
-        
+
         # Route callback to appropriate handler
         await router.route_callback(update, context)
-            
+
     except Exception as e:
         logger.error(f"Error handling callback query: {e}")
         try:
-            await query.edit_message_text(
-                f"❌ **Error Processing Request**\n\n"
-                f"Something went wrong. Please try again or use /help.",
-                parse_mode="Markdown"
-            )
-        except:
-            pass
+            query = update.callback_query
+            if query:
+                await query.answer("Error processing request")
+                try:
+                    await query.edit_message_text(
+                        "❌ Error Processing Request\n\n"
+                        "Something went wrong. Please try again or use /help.",
+                        parse_mode=None,
+                    )
+                except Exception as edit_error:
+                    logger.error(f"Error editing message in main handler: {edit_error}")
+                    # If edit fails, try to send a new message
+                    try:
+                        await query.message.reply_text(
+                            "❌ Error Processing Request\n\n"
+                            "Something went wrong. Please try again or use /help.",
+                            parse_mode=None,
+                        )
+                    except:
+                        pass
+        except Exception as outer_error:
+            logger.error(f"Error in error handler: {outer_error}")
 
 
 def setup_callback_handler(notification_manager: NotificationManager):

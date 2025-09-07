@@ -1,15 +1,16 @@
 """Symbol management commands for Telegram bot."""
 
-from typing import Dict, Any, List, Optional
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from src.core.logging import get_logger
-from src.services.symbol_service import SymbolService
-from src.telegram_bot.utils.keyboards import create_keyboard
-from src.telegram_bot.commands.base import BaseCommandHandler
 from src.database.session import SessionLocal
+from src.services.symbol_service import SymbolService
+from src.telegram_bot.commands.base import BaseCommandHandler
+from src.telegram_bot.utils.keyboards import create_keyboard
 
 logger = get_logger(__name__)
+
 
 class SymbolCommandHandler(BaseCommandHandler):
     """Handler for symbol management commands."""
@@ -39,11 +40,13 @@ class SymbolCommandHandler(BaseCommandHandler):
 
     async def symbol_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle the /symbol command."""
-        keyboard = create_keyboard([
-            [("List Symbols", "refresh_symbols")],
-            [("Add Symbol", "add_symbol"), ("Delete Symbol", "delete_symbol")],
-            [("Back to Menu", "menu")]
-        ])
+        keyboard = create_keyboard(
+            [
+                [("List Symbols", "refresh_symbols")],
+                [("Add Symbol", "add_symbol"), ("Delete Symbol", "delete_symbol")],
+                [("Back to Menu", "menu")],
+            ]
+        )
 
         await update.message.reply_text(
             "🔄 Symbol Management\n\n"
@@ -52,10 +55,12 @@ class SymbolCommandHandler(BaseCommandHandler):
             "/addsymbol <standard> <broker> <broker_name> [description] - Add a new symbol mapping\n"
             "/delsymbol <standard> - Delete a symbol mapping\n"
             "/listsymbols - List all symbol mappings\n",
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
 
-    async def add_symbol_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def add_symbol_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /addsymbol command."""
         try:
             args = context.args
@@ -74,7 +79,7 @@ class SymbolCommandHandler(BaseCommandHandler):
             session = SessionLocal()
             try:
                 service = SymbolService(session)
-                
+
                 # Check if mapping already exists
                 existing = service.get_mapping(standard, broker_name)
                 if existing:
@@ -87,10 +92,7 @@ class SymbolCommandHandler(BaseCommandHandler):
 
                 # Create new mapping
                 mapping = service.create_mapping(
-                    standard,
-                    broker,
-                    broker_name,
-                    description
+                    standard, broker, broker_name, description
                 )
 
                 await update.message.reply_text(
@@ -109,7 +111,9 @@ class SymbolCommandHandler(BaseCommandHandler):
                 "❌ Failed to add symbol mapping. Please try again."
             )
 
-    async def delete_symbol_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def delete_symbol_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /delsymbol command."""
         try:
             if len(context.args) < 2:
@@ -121,22 +125,29 @@ class SymbolCommandHandler(BaseCommandHandler):
 
             standard = context.args[0].upper()
             broker_name = context.args[1]
-            
+
             session = SessionLocal()
             try:
                 service = SymbolService(session)
                 mapping = service.get_mapping(standard, broker_name)
-                
+
                 if not mapping:
                     await update.message.reply_text(
                         f"❌ No mapping found for {standard} on {broker_name}"
                     )
                     return
 
-                keyboard = create_keyboard([
-                    [(f"Delete {standard}", f"confirm_delete:{standard}:{broker_name}")],
-                    [("Cancel", "refresh_symbols")]
-                ])
+                keyboard = create_keyboard(
+                    [
+                        [
+                            (
+                                f"Delete {standard}",
+                                f"confirm_delete:{standard}:{broker_name}",
+                            )
+                        ],
+                        [("Cancel", "refresh_symbols")],
+                    ]
+                )
 
                 await update.message.reply_text(
                     f"🗑️ Delete symbol mapping?\n\n"
@@ -145,7 +156,7 @@ class SymbolCommandHandler(BaseCommandHandler):
                     f"Broker Name: {mapping.broker_name}\n"
                     f"Description: {mapping.description or 'N/A'}\n\n"
                     f"Are you sure you want to delete this mapping?",
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
                 )
             finally:
                 session.close()
@@ -156,24 +167,25 @@ class SymbolCommandHandler(BaseCommandHandler):
                 "❌ Failed to process delete command. Please try again."
             )
 
-    async def list_symbols_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def list_symbols_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle the /listsymbols command."""
         try:
             session = SessionLocal()
             try:
                 service = SymbolService(session)
                 mappings = service.get_all_mappings()
-                
+
                 if not mappings:
                     message = (
                         "📊 **Symbol Mappings**\n\n"
                         "No symbol mappings configured.\n\n"
                         "Use /addsymbol to add a new mapping."
                     )
-                    keyboard = create_keyboard([
-                        [("Add Symbol", "add_symbol")],
-                        [("Back to Menu", "start")]
-                    ])
+                    keyboard = create_keyboard(
+                        [[("Add Symbol", "add_symbol")], [("Back to Menu", "start")]]
+                    )
                 else:
                     message = "📊 **Symbol Mappings**\n\n"
                     for mapping in mappings:
@@ -185,10 +197,9 @@ class SymbolCommandHandler(BaseCommandHandler):
                             message += f"Description: {mapping.description}\n"
                         message += "\n"
 
-                    keyboard = create_keyboard([
-                        [("Refresh", "refresh_symbols")],
-                        [("Back to Menu", "start")]
-                    ])
+                    keyboard = create_keyboard(
+                        [[("Refresh", "refresh_symbols")], [("Back to Menu", "start")]]
+                    )
 
                 if update.callback_query:
                     await self.edit_message(update, context, message, keyboard)
@@ -204,13 +215,15 @@ class SymbolCommandHandler(BaseCommandHandler):
                 "Failed to retrieve symbol mappings. Please try again."
             )
             keyboard = create_keyboard([[("Back to Menu", "start")]])
-            
+
             if update.callback_query:
                 await self.edit_message(update, context, error_message, keyboard)
             else:
                 await self.send_message(update, context, error_message, keyboard)
 
-    async def confirm_delete_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def confirm_delete_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Handle symbol deletion confirmation."""
         try:
             query = update.callback_query
@@ -221,7 +234,7 @@ class SymbolCommandHandler(BaseCommandHandler):
 
             standard = data[1].upper()
             broker_name = data[2]
-            
+
             session = SessionLocal()
             try:
                 service = SymbolService(session)
@@ -230,17 +243,24 @@ class SymbolCommandHandler(BaseCommandHandler):
                 if success:
                     await query.edit_message_text(
                         f"✅ Deleted symbol mapping for {standard} on {broker_name}",
-                        reply_markup=create_keyboard([
-                            [("Back to Symbols", "refresh_symbols")]
-                        ])
+                        reply_markup=create_keyboard(
+                            [[("Back to Symbols", "refresh_symbols")]]
+                        ),
                     )
                 else:
                     await query.edit_message_text(
                         f"❌ Failed to delete mapping for {standard} on {broker_name}",
-                        reply_markup=create_keyboard([
-                            [("Try Again", f"confirm_delete:{standard}:{broker_name}")],
-                            [("Back to Symbols", "refresh_symbols")]
-                        ])
+                        reply_markup=create_keyboard(
+                            [
+                                [
+                                    (
+                                        "Try Again",
+                                        f"confirm_delete:{standard}:{broker_name}",
+                                    )
+                                ],
+                                [("Back to Symbols", "refresh_symbols")],
+                            ]
+                        ),
                     )
             finally:
                 session.close()

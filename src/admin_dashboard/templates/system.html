@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}System Monitoring - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-server me-2"></i>
+        System Monitoring
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshSystemStats()">
+            <i class="fas fa-sync-alt me-1"></i>
+            Refresh
+        </button>
+        <button class="btn btn-sm btn-outline-info" onclick="viewSystemLogs()">
+            <i class="fas fa-file-alt me-1"></i>
+            View Logs
+        </button>
+    </div>
+</div>
+
+<!-- System Health Overview -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Health Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fas fa-database text-primary me-2"></i>Database</span>
+                            <span class="badge bg-success">Connected</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fab fa-telegram text-info me-2"></i>Telegram Bot</span>
+                            <span class="badge bg-success">Running</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fas fa-plug text-warning me-2"></i>MT5 Bridge</span>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fas fa-chart-line text-success me-2"></i>Signal Service</span>
+                            <span class="badge bg-success">Running</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fas fa-robot text-secondary me-2"></i>Auto Trading</span>
+                            <span class="badge bg-success">Enabled</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span><i class="fas fa-clock text-info me-2"></i>System Uptime</span>
+                            <span class="badge bg-info">Running</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Performance Metrics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>CPU Usage</small>
+                        <small>45%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-success" style="width: 45%"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>Memory Usage</small>
+                        <small>62%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-info" style="width: 62%"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>Disk Usage</small>
+                        <small>28%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-warning" style="width: 28%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Service Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Service Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ stats.bot_stats.active_users if stats.bot_stats else 0 }}</h4>
+                        <small class="text-muted">Active Users</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info">{{ stats.signal_stats.total_processed if stats.signal_stats else 0 }}</h4>
+                        <small class="text-muted">Signals Today</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">{{ stats.signal_stats.auto_trades_executed if stats.signal_stats else 0 }}</h4>
+                        <small class="text-muted">Trades Today</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-warning">{{ stats.queue_stats.total_queued if stats.queue_stats else 0 }}</h4>
+                        <small class="text-muted">Queued Tasks</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area me-2"></i>
+                    Queue Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="queueChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Platform Connections -->
+<div class="row mb-4">
+    <div class="col-12 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plug me-2"></i>
+                    Platform Connections
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="text-center">
+                            <div class="mb-2">
+                                <i class="fas fa-chart-line fa-3x text-primary"></i>
+                            </div>
+                            <h5>MT5</h5>
+                            <span class="badge bg-success">Connected</span>
+                            <p class="text-muted small mt-1">Primary trading platform</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="text-center">
+                            <div class="mb-2">
+                                <i class="fab fa-bitcoin fa-3x text-warning"></i>
+                            </div>
+                            <h5>Crypto</h5>
+                            <span class="badge bg-success">Connected</span>
+                            <p class="text-muted small mt-1">Exchange integrations</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="text-center">
+                            <div class="mb-2">
+                                <i class="fas fa-flask fa-3x text-info"></i>
+                            </div>
+                            <h5>Demo</h5>
+                            <span class="badge bg-secondary">Available</span>
+                            <p class="text-muted small mt-1">Paper trading mode</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Logs -->
+<div class="row">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal me-2"></i>
+                    Recent System Logs
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewSystemLogs()">
+                    View All Logs
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.875rem;">
+                    <div class="mb-2">
+                        <span class="text-info">[INFO]</span>
+                        <span class="text-muted">2024-01-15 10:30:15</span>
+                        <span class="ms-2">AI Trading Bot application started successfully</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="text-success">[INFO]</span>
+                        <span class="text-muted">2024-01-15 10:30:16</span>
+                        <span class="ms-2">Connected to MT5 platform</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="text-success">[INFO]</span>
+                        <span class="text-muted">2024-01-15 10:30:17</span>
+                        <span class="ms-2">Telegram bot initialized</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="text-warning">[WARN]</span>
+                        <span class="text-muted">2024-01-15 10:45:22</span>
+                        <span class="ms-2">High trading volume detected</span>
+                    </div>
+                    <div class="mb-2">
+                        <span class="text-info">[INFO]</span>
+                        <span class="text-muted">2024-01-15 11:00:00</span>
+                        <span class="ms-2">Signal processing completed for 5 users</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let queueChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    // Auto-refresh every 30 seconds
+    setInterval(refreshSystemStats, 30000);
+});
+
+function initializeCharts() {
+    const ctx = document.getElementById('queueChart').getContext('2d');
+    queueChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Signal Queue', 'Order Queue', 'Message Queue'],
+            datasets: [{
+                data: [12, 8, 5],
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+async function refreshSystemStats() {
+    try {
+        const response = await fetch('/admin/api/stats/realtime?admin_id={{ admin.telegram_id }}');
+        const data = await response.json();
+
+        if (data.success) {
+            updateSystemStats(data.stats);
+            showToast('System stats refreshed', 'success');
+        }
+    } catch (error) {
+        console.error('Error refreshing system stats:', error);
+        showToast('Failed to refresh system stats', 'error');
+    }
+}
+
+function updateSystemStats(stats) {
+    // Update the UI with new stats
+    // Implementation would update DOM elements
+}
+
+function viewSystemLogs() {
+    window.open('/admin/audit?admin_id={{ admin.telegram_id }}', '_blank');
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -2,14 +2,15 @@
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from src.core.logging import get_logger
 from src.core.config import TelegramConfig
 from src.core.exceptions import TelegramBotError
-from ..utils.constants import NotificationType, NotificationPriority, NotificationStatus
+from src.core.logging import get_logger
+
+from ..utils.constants import NotificationPriority, NotificationStatus
 
 logger = get_logger(__name__)
 
@@ -17,6 +18,7 @@ logger = get_logger(__name__)
 @dataclass
 class Notification:
     """Notification data structure."""
+
     id: str
     message: str
     notification_type: str
@@ -35,7 +37,7 @@ class NotificationManager:
 
     def __init__(self, config: TelegramConfig):
         """Initialize the notification manager.
-        
+
         Args:
             config: Telegram bot configuration.
         """
@@ -44,11 +46,7 @@ class NotificationManager:
         self.notification_preferences: Dict[str, Dict] = {}
         self.notification_queue: List[Notification] = []
         self.failed_notifications: List[Notification] = []
-        self.delivery_stats = {
-            "total_sent": 0,
-            "total_failed": 0,
-            "total_retries": 0
-        }
+        self.delivery_stats = {"total_sent": 0, "total_failed": 0, "total_retries": 0}
         self.running = False
         self._processing_task = None
         self._retry_task = None
@@ -97,7 +95,7 @@ class NotificationManager:
 
     async def add_chat_id(self, chat_id: int):
         """Add a chat ID for notifications.
-        
+
         Args:
             chat_id: The chat ID to add.
         """
@@ -107,7 +105,7 @@ class NotificationManager:
 
     async def remove_chat_id(self, chat_id: int):
         """Remove a chat ID from notifications.
-        
+
         Args:
             chat_id: The chat ID to remove.
         """
@@ -117,10 +115,10 @@ class NotificationManager:
 
     def _is_notification_enabled(self, notification_type: str) -> bool:
         """Check if a notification type is enabled.
-        
+
         Args:
             notification_type: The notification type to check.
-            
+
         Returns:
             bool: True if the notification type is enabled, False otherwise.
         """
@@ -151,8 +149,11 @@ class NotificationManager:
                 if self.notification_queue:
                     notification = self.notification_queue.pop(0)
                     success = await self._send_notification(notification)
-                    
-                    if not success and notification.attempts < notification.max_attempts:
+
+                    if (
+                        not success
+                        and notification.attempts < notification.max_attempts
+                    ):
                         self.failed_notifications.append(notification)
                 else:
                     await asyncio.sleep(0.5)  # No notifications to process
@@ -168,24 +169,33 @@ class NotificationManager:
         while self.running:
             try:
                 await asyncio.sleep(30)  # Retry every 30 seconds
-                
+
                 if self.failed_notifications:
                     # Process oldest failed notifications first
                     notification = self.failed_notifications.pop(0)
-                    
+
                     # Check if we should still retry (max 1 hour)
-                    age_seconds = (datetime.now(timezone.utc) - notification.created_at).total_seconds()
+                    age_seconds = (
+                        datetime.now(timezone.utc) - notification.created_at
+                    ).total_seconds()
                     if age_seconds > 3600:
-                        logger.warning(f"Dropping expired notification: {notification.id}")
+                        logger.warning(
+                            f"Dropping expired notification: {notification.id}"
+                        )
                         continue
-                    
+
                     notification.status = NotificationStatus.RETRYING
                     self.delivery_stats["total_retries"] += 1
-                    
+
                     success = await self._send_notification(notification)
-                    if not success and notification.attempts < notification.max_attempts:
-                        self.failed_notifications.append(notification)  # Re-queue for retry
-                        
+                    if (
+                        not success
+                        and notification.attempts < notification.max_attempts
+                    ):
+                        self.failed_notifications.append(
+                            notification
+                        )  # Re-queue for retry
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -194,10 +204,10 @@ class NotificationManager:
     async def _flush_queue(self):
         """Process remaining notifications in queue."""
         logger.info(f"Flushing {len(self.notification_queue)} pending notifications")
-        
+
         for notification in self.notification_queue[:]:
             await self._send_notification(notification)
-        
+
         self.notification_queue.clear()
 
     async def send_notification(
@@ -209,7 +219,7 @@ class NotificationManager:
         **kwargs,
     ):
         """Send a notification with enhanced reliability.
-        
+
         Args:
             message: The message to send.
             notification_type: The type of notification.
@@ -230,7 +240,7 @@ class NotificationManager:
             # Use default chat IDs if none provided
             if chat_ids is None:
                 chat_ids = self.chat_ids.copy()
-            
+
             if not chat_ids:
                 logger.warning("No chat IDs configured for notification")
                 return False
@@ -247,7 +257,7 @@ class NotificationManager:
                 notification_type=notification_type,
                 priority=priority,
                 chat_ids=chat_ids,
-                metadata=kwargs
+                metadata=kwargs,
             )
 
             # Send immediately if critical, otherwise queue
@@ -270,53 +280,58 @@ class NotificationManager:
                 self.notification_queue.insert(i, notification)
                 inserted = True
                 break
-        
+
         if not inserted:
             self.notification_queue.append(notification)
-        
-        logger.debug(f"Queued notification {notification.id} (queue size: {len(self.notification_queue)})")
+
+        logger.debug(
+            f"Queued notification {notification.id} (queue size: {len(self.notification_queue)})"
+        )
 
     async def _send_notification(self, notification: Notification) -> bool:
         """Send individual notification with error handling."""
         notification.attempts += 1
-        
+
         try:
             start_time = time.time()
-            
+
             for chat_id in notification.chat_ids:
                 try:
                     # Import here to avoid circular imports
                     from ..core.trading_bot import TradingBot
+
                     bot = TradingBot.get_instance()
                     if bot:
                         await bot.send_message(
-                            chat_id, 
-                            notification.message, 
-                            **notification.metadata
+                            chat_id, notification.message, **notification.metadata
                         )
                     else:
                         raise TelegramBotError("Bot instance not available")
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to send notification to chat {chat_id}: {e}")
                     notification.last_error = str(e)
                     raise TelegramBotError(f"Failed to send to chat {chat_id}: {e}")
-            
+
             # Record successful delivery
             notification.status = NotificationStatus.SENT
             self.delivery_stats["total_sent"] += 1
-            
+
             duration_ms = (time.time() - start_time) * 1000
-            logger.debug(f"Notification sent successfully: {notification.id} ({duration_ms:.1f}ms)")
-            
+            logger.debug(
+                f"Notification sent successfully: {notification.id} ({duration_ms:.1f}ms)"
+            )
+
             return True
-            
+
         except Exception as e:
             notification.status = NotificationStatus.FAILED
             notification.last_error = str(e)
             self.delivery_stats["total_failed"] += 1
-            
-            logger.error(f"Failed to send notification {notification.id} (attempt {notification.attempts}): {e}")
+
+            logger.error(
+                f"Failed to send notification {notification.id} (attempt {notification.attempts}): {e}"
+            )
             return False
 
     async def send_startup_notification(self):
@@ -331,14 +346,14 @@ class NotificationManager:
         await self.send_notification(
             message, notification_type="system", parse_mode="Markdown"
         )
-        
+
     async def send_signal_notification(self, signal_data: Dict[str, Any]):
         """Send signal notification."""
         try:
             symbol = signal_data.get("symbol", "Unknown")
             bias = signal_data.get("bias", "Unknown")
             confidence = signal_data.get("confidence", 0)
-            
+
             message = (
                 f"📊 *Trading Signal*\n\n"
                 f"Symbol: `{symbol}`\n"
@@ -346,28 +361,30 @@ class NotificationManager:
                 f"Confidence: `{confidence}%`\n"
                 f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
             )
-            
+
             await self.send_notification(
                 message, notification_type="signal", parse_mode="Markdown"
             )
         except Exception as e:
             logger.error(f"Error sending signal notification: {e}")
-            
-    async def send_position_notification(self, position_data: Dict[str, Any], action: str):
+
+    async def send_position_notification(
+        self, position_data: Dict[str, Any], action: str
+    ):
         """Send position notification."""
         try:
             symbol = position_data.get("symbol", "Unknown")
             position_type = position_data.get("type", "Unknown")
             volume = position_data.get("volume", 0)
             profit = position_data.get("profit", 0)
-            
+
             action_emoji = {
                 "opened": "🟢",
-                "closed": "🔴", 
+                "closed": "🔴",
                 "modified": "🔄",
-                "snapshot": "📊"
+                "snapshot": "📊",
             }.get(action, "📍")
-            
+
             message = (
                 f"{action_emoji} *Position {action.title()}*\n\n"
                 f"Symbol: `{symbol}`\n"
@@ -376,13 +393,13 @@ class NotificationManager:
                 f"Profit: `${profit:.2f}`\n"
                 f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
             )
-            
+
             await self.send_notification(
                 message, notification_type="position", parse_mode="Markdown"
             )
         except Exception as e:
             logger.error(f"Error sending position notification: {e}")
-            
+
     async def send_order_notification(self, order_data: Dict[str, Any]):
         """Send order notification."""
         try:
@@ -390,13 +407,11 @@ class NotificationManager:
             order_type = order_data.get("order_type", "Unknown")
             volume = order_data.get("volume", 0)
             status = order_data.get("status", "Unknown")
-            
-            status_emoji = {
-                "EXECUTED": "✅",
-                "FAILED": "❌",
-                "PENDING": "⏳"
-            }.get(status, "📋")
-            
+
+            status_emoji = {"EXECUTED": "✅", "FAILED": "❌", "PENDING": "⏳"}.get(
+                status, "📋"
+            )
+
             message = (
                 f"{status_emoji} *Order {status}*\n\n"
                 f"Symbol: `{symbol}`\n"
@@ -404,71 +419,79 @@ class NotificationManager:
                 f"Volume: `{volume}`\n"
                 f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
             )
-            
+
             await self.send_notification(
                 message, notification_type="order", parse_mode="Markdown"
             )
         except Exception as e:
             logger.error(f"Error sending order notification: {e}")
-            
-    async def send_risk_alert(self, alert_type: str, message: str, data: Dict[str, Any] = None):
+
+    async def send_risk_alert(
+        self, alert_type: str, message: str, data: Dict[str, Any] = None
+    ):
         """Send risk alert notification."""
         try:
             alert_emoji = {
                 "drawdown": "🚨",
                 "margin": "⚠️",
                 "exposure": "📊",
-                "loss": "🔻"
+                "loss": "🔻",
             }.get(alert_type, "🚨")
-            
+
             notification_message = (
                 f"{alert_emoji} *Risk Alert: {alert_type.title()}*\n\n"
                 f"{message}\n\n"
                 f"Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
             )
-            
+
             if data:
                 notification_message += f"\nDetails: `{data}`"
-            
+
             await self.send_notification(
-                notification_message, 
-                notification_type="risk", 
+                notification_message,
+                notification_type="risk",
                 priority=NotificationPriority.HIGH,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
         except Exception as e:
             logger.error(f"Error sending risk alert: {e}")
 
-    async def send_critical_alert(self, message: str, error: Optional[Exception] = None):
+    async def send_critical_alert(
+        self, message: str, error: Optional[Exception] = None
+    ):
         """Send critical alert notification."""
         try:
             error_detail = f"\nError: {str(error)}" if error else ""
             critical_message = f"🚨 *CRITICAL ALERT*\n\n{message}{error_detail}"
-            
+
             await self.send_notification(
                 critical_message,
                 notification_type="critical",
                 priority=NotificationPriority.CRITICAL,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
         except Exception as e:
             logger.error(f"Error sending critical alert: {e}")
 
-    async def send_trade_notification(self, symbol: str, action: str, details: Dict[str, Any]):
+    async def send_trade_notification(
+        self, symbol: str, action: str, details: Dict[str, Any]
+    ):
         """Send standardized trade notification."""
         try:
             message = self._format_trade_message(symbol, action, details)
-            
+
             await self.send_notification(
                 message,
                 notification_type="trade",
                 priority=NotificationPriority.HIGH,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
         except Exception as e:
             logger.error(f"Error sending trade notification: {e}")
 
-    def _format_trade_message(self, symbol: str, action: str, details: Dict[str, Any]) -> str:
+    def _format_trade_message(
+        self, symbol: str, action: str, details: Dict[str, Any]
+    ) -> str:
         """Format trade message with emojis and formatting."""
         action_emojis = {
             "order_placed": "📝",
@@ -476,20 +499,20 @@ class NotificationManager:
             "order_cancelled": "❌",
             "position_opened": "🟢",
             "position_closed": "🔴",
-            "position_modified": "🔄"
+            "position_modified": "🔄",
         }
-        
+
         emoji = action_emojis.get(action, "📊")
-        
+
         message = f"{emoji} *{action.replace('_', ' ').title()}*\n\n"
         message += f"Symbol: `{symbol}`\n"
-        
+
         for key, value in details.items():
-            if key in ['volume', 'price', 'profit', 'sl', 'tp']:
+            if key in ["volume", "price", "profit", "sl", "tp"]:
                 message += f"{key.replace('_', ' ').title()}: `{value}`\n"
-        
+
         message += f"\nTime: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
-        
+
         return message
 
     def get_stats(self) -> Dict[str, Any]:
@@ -501,10 +524,11 @@ class NotificationManager:
             "chat_ids_count": len(self.chat_ids),
             "is_running": self.running,
             "enabled_types": [
-                ntype for ntype, prefs in self.notification_preferences.items()
+                ntype
+                for ntype, prefs in self.notification_preferences.items()
                 if prefs["enabled"]
             ],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def update_preferences(

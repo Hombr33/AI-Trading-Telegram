@@ -18,6 +18,7 @@ class NotificationType(Enum):
 
 class NotificationPriority(Enum):
     """Notification priority levels."""
+
     LOW = 1
     MEDIUM = 2
     HIGH = 3
@@ -26,6 +27,7 @@ class NotificationPriority(Enum):
 
 class NotificationStatus(Enum):
     """Notification delivery status."""
+
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"

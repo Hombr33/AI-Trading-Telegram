@@ -3,9 +3,10 @@ Health check API routes.
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+
 import structlog
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 from ...core.config import config
 
@@ -50,8 +51,20 @@ async def detailed_health_check():
     # Check other components
     components = {"api": "healthy", "logging": "healthy"}
 
-    # Calculate uptime (placeholder)
-    uptime = "0:00:00"  # Implement actual uptime calculation
+    # Calculate uptime from health monitor
+    try:
+        from ...core.health_monitor import health_monitor
+
+        current_health = health_monitor.get_current_health()
+        uptime_seconds = current_health.uptime_seconds
+
+        # Format uptime as HH:MM:SS
+        hours = int(uptime_seconds // 3600)
+        minutes = int((uptime_seconds % 3600) // 60)
+        seconds = int(uptime_seconds % 60)
+        uptime = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    except Exception:
+        uptime = "0:00:00"  # Fallback if health monitor not available
 
     return DetailedHealthResponse(
         status=(

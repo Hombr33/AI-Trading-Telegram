@@ -2,8 +2,9 @@
 Order model for trading orders.
 """
 
-from sqlalchemy import Column, String, Boolean, Integer, Float, Text, ForeignKey, JSON
+from sqlalchemy import JSON, Column, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from .base import Base
 
 

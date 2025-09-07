@@ -2,7 +2,7 @@
 
 ## Test Commands
 - `pytest` - Run all tests
-- `pytest tests/unit/` - Run unit tests only  
+- `pytest tests/unit/` - Run unit tests only
 - `pytest tests/integration/` - Run integration tests
 - `pytest tests/unit/test_analysis/test_market_analyzer.py::test_specific_function` - Run single test
 - `pytest --cov=src --cov-report=html` - Run tests with coverage
@@ -12,7 +12,7 @@
 ## Architecture
 Institutional-grade AI trading bot with 2-way MT5 communication:
 - `src/core/` - Configuration, logging, security framework
-- `src/execution/` - MT5Executor (base), AioMQLExecutor (async), OrderManager, PositionManager, TrailingManager 
+- `src/execution/` - MT5Executor (base), AioMQLExecutor (async), OrderManager, PositionManager, TrailingManager
 - `src/bridge/` - Socket.IO bridge + HTTP fallback for EA communication
 - `src/telegram_bot/` - Telegram bot with handlers, notifications, commands
 - `src/analysis/` - AI market analysis using OpenAI GPT-5

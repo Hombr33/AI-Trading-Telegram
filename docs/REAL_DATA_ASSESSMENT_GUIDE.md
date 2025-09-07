@@ -124,17 +124,17 @@ Look at the generated signal and ask:
 ### **What You Should See (Real Data)**
 ```
 Signal Content Example:
-"EURUSD is currently trading at 1.0850 in the London session. 
-Recent price action shows increased volatility following today's 
-ECB announcement. Current support at 1.0820 and resistance at 1.0880. 
+"EURUSD is currently trading at 1.0850 in the London session.
+Recent price action shows increased volatility following today's
+ECB announcement. Current support at 1.0820 and resistance at 1.0880.
 Market sentiment is bearish due to today's economic data release."
 ```
 
 ### **What You Might See (No Real Data)**
 ```
 Signal Content Example:
-"EURUSD shows typical forex market behavior. 
-Support and resistance levels are important for trading decisions. 
+"EURUSD shows typical forex market behavior.
+Support and resistance levels are important for trading decisions.
 Use proper risk management and follow market trends."
 ```
 

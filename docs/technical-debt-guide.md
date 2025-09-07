@@ -18,7 +18,7 @@ This guide outlines our comprehensive approach to preventing and managing techni
 ```python
 class ReviewChecklist:
     """Standard review checklist implementation."""
-    
+
     @staticmethod
     def style_check(pr: PullRequest) -> bool:
         """Verify code style compliance."""
@@ -28,7 +28,7 @@ class ReviewChecklist:
             "Clear variable naming",
             "Appropriate comments"
         ])
-    
+
     @staticmethod
     def test_check(pr: PullRequest) -> bool:
         """Verify test coverage and quality."""
@@ -45,7 +45,7 @@ class ReviewChecklist:
 ```python
 class QualityTools:
     """Integration with quality assurance tools."""
-    
+
     def __init__(self):
         self.tools = {
             "static_analysis": "SonarQube",
@@ -53,7 +53,7 @@ class QualityTools:
             "coverage": "pytest-cov",
             "performance": "locust"
         }
-    
+
     async def run_checks(self, code: CodeBase) -> Report:
         """Run all automated quality checks."""
         pass
@@ -71,25 +71,25 @@ class QualityTools:
 ```python
 class RefactoringSchedule:
     """Systematic refactoring schedule."""
-    
+
     daily = {
         "scope": "Small improvements",
         "target": "Individual functions",
         "time_box": "1 hour"
     }
-    
+
     weekly = {
         "scope": "Module-level refactoring",
         "target": "Single component",
         "time_box": "4 hours"
     }
-    
+
     monthly = {
         "scope": "System-wide reviews",
         "target": "Cross-component",
         "time_box": "2 days"
     }
-    
+
     quarterly = {
         "scope": "Major refactoring",
         "target": "Architecture level",
@@ -103,7 +103,7 @@ class RefactoringSchedule:
 ```python
 class QualityMetrics:
     """Quality metric tracking and reporting."""
-    
+
     def __init__(self):
         self.metrics = {
             "test_coverage": {
@@ -121,7 +121,7 @@ class QualityMetrics:
                 "min_lines": 5
             }
         }
-    
+
     async def generate_report(self) -> Report:
         """Generate quality metrics report."""
         pass
@@ -131,7 +131,7 @@ class QualityMetrics:
 ```python
 class PerformanceMetrics:
     """Performance metric monitoring."""
-    
+
     def __init__(self):
         self.thresholds = {
             "response_time": {
@@ -154,18 +154,18 @@ class PerformanceMetrics:
 ```python
 def example_function(param1: str, param2: int) -> Result:
     """Example of required documentation format.
-    
+
     Args:
         param1: Description of first parameter
         param2: Description of second parameter
-    
+
     Returns:
         Result object containing processed data
-        
+
     Raises:
         ValueError: If parameters are invalid
         ProcessingError: If operation fails
-        
+
     Example:
         >>> result = example_function("test", 42)
         >>> print(result.status)

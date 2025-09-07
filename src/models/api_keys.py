@@ -2,9 +2,11 @@
 API Key model for API authentication.
 """
 
-from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
 from .base import Base
 
 

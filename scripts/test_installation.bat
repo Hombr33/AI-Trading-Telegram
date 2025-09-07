@@ -182,15 +182,15 @@ try:
     # Test basic imports
     from core.config import get_settings
     print('Core config import successful')
-    
+
     # Test models
     from models.base import Base
     print('Models import successful')
-    
+
     # Test API
     from api.routes import health
     print('API routes import successful')
-    
+
     print('All module imports successful')
 except ImportError as e:
     print(f'Import error: {e}')

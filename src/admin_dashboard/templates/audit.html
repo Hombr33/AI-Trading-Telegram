@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-history me-2"></i>
+        Audit Logs
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshLogs()">
+            <i class="fas fa-sync-alt me-1"></i>
+            Refresh
+        </button>
+        <button class="btn btn-sm btn-outline-info" onclick="exportLogs()">
+            <i class="fas fa-download me-1"></i>
+            Export
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()">
+            <i class="fas fa-trash me-1"></i>
+            Clear Logs
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="stats-card card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <input type="hidden" name="admin_id" value="{{ admin.telegram_id }}">
+
+            <div class="col-md-3">
+                <label class="form-label">User ID</label>
+                <input type="number" class="form-control" name="user_filter"
+                       value="{{ user_filter or '' }}" placeholder="Filter by user ID">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Action</label>
+                <select class="form-select" name="action_filter">
+                    <option value="">All Actions</option>
+                    <option value="login" {% if action_filter == 'login' %}selected{% endif %}>Login</option>
+                    <option value="logout" {% if action_filter == 'logout' %}selected{% endif %}>Logout</option>
+                    <option value="create_user" {% if action_filter == 'create_user' %}selected{% endif %}>Create User</option>
+                    <option value="update_user" {% if action_filter == 'update_user' %}selected{% endif %}>Update User</option>
+                    <option value="delete_user" {% if action_filter == 'delete_user' %}selected{% endif %}>Delete User</option>
+                    <option value="signal_process" {% if action_filter == 'signal_process' %}selected{% endif %}>Signal Process</option>
+                    <option value="trade_execute" {% if action_filter == 'trade_execute' %}selected{% endif %}>Trade Execute</option>
+                    <option value="config_change" {% if action_filter == 'config_change' %}selected{% endif %}>Config Change</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Date From</label>
+                <input type="date" class="form-control" name="date_from">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Date To</label>
+                <input type="date" class="form-control" name="date_to">
+            </div>
+
+            <div class="col-12">
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary me-2" onclick="clearFilters()">
+                        Clear Filters
+                    </button>
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-1"></i>
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-info card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Total Logs</h6>
+                        <h3 class="mb-0">{{ total_entries }}</h3>
+                        <small class="text-info">
+                            <i class="fas fa-file-alt me-1"></i>
+                            All time
+                        </small>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-warning card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Today's Logs</h6>
+                        <h3 class="mb-0">24</h3>
+                        <small class="text-warning">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            Last 24h
+                        </small>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-error card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Error Logs</h6>
+                        <h3 class="mb-0">3</h3>
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            This week
+                        </small>
+                    </div>
+                    <div class="text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-success card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Security Events</h6>
+                        <h3 class="mb-0">8</h3>
+                        <small class="text-success">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            This month
+                        </small>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Audit Logs Table -->
+<div class="stats-card card">
+    <div class="card-header">
+        <h5 class="mb-0">Audit Log Entries ({{ total_entries }} total)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Resource</th>
+                        <th>Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in audit_entries %}
+                    <tr>
+                        <td>
+                            <small class="text-muted">{{ entry.timestamp[:19] }}</small>
+                        </td>
+                        <td>
+                            {% if entry.user_id %}
+                                <span class="badge bg-secondary">{{ entry.user_id }}</span>
+                            {% else %}
+                                <span class="text-muted">System</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.action == 'login' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-sign-in-alt me-1"></i>
+                                    Login
+                                </span>
+                            {% elif entry.action == 'create_user' %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-user-plus me-1"></i>
+                                    Create User
+                                </span>
+                            {% elif entry.action == 'signal_process' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    Signal Process
+                                </span>
+                            {% elif entry.action == 'trade_execute' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exchange-alt me-1"></i>
+                                    Trade Execute
+                                </span>
+                            {% elif entry.action == 'config_change' %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-cogs me-1"></i>
+                                    Config Change
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ entry.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <code class="small">{{ entry.resource }}</code>
+                        </td>
+                        <td>
+                            {% if entry.details %}
+                                <button class="btn btn-sm btn-outline-info"
+                                        onclick="showDetails('{{ entry.details | tojson }}')"
+                                        title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <code class="small">{{ entry.ip_address or 'N/A' }}</code>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Sample entries for demonstration -->
+                    <tr>
+                        <td><small class="text-muted">2024-01-15 10:30:15</small></td>
+                        <td><span class="badge bg-secondary">123456789</span></td>
+                        <td><span class="badge bg-success"><i class="fas fa-sign-in-alt me-1"></i>Login</span></td>
+                        <td><code class="small">admin_dashboard</code></td>
+                        <td><button class="btn btn-sm btn-outline-info" onclick="showDetails('{}')"><i class="fas fa-eye"></i></button></td>
+                        <td><code class="small">192.168.1.100</code></td>
+                    </tr>
+                    <tr>
+                        <td><small class="text-muted">2024-01-15 10:25:42</small></td>
+                        <td><span class="badge bg-secondary">987654321</span></td>
+                        <td><span class="badge bg-primary"><i class="fas fa-user-plus me-1"></i>Create User</span></td>
+                        <td><code class="small">user_management</code></td>
+                        <td><button class="btn btn-sm btn-outline-info" onclick="showDetails('{}')"><i class="fas fa-eye"></i></button></td>
+                        <td><code class="small">192.168.1.101</code></td>
+                    </tr>
+                    <tr>
+                        <td><small class="text-muted">2024-01-15 10:20:18</small></td>
+                        <td><span class="text-muted">System</span></td>
+                        <td><span class="badge bg-info"><i class="fas fa-chart-line me-1"></i>Signal Process</span></td>
+                        <td><code class="small">signal_service</code></td>
+                        <td><button class="btn btn-sm btn-outline-info" onclick="showDetails('{}')"><i class="fas fa-eye"></i></button></td>
+                        <td><code class="small">127.0.0.1</code></td>
+                    </tr>
+                    <tr>
+                        <td><small class="text-muted">2024-01-15 10:15:33</small></td>
+                        <td><span class="badge bg-secondary">555666777</span></td>
+                        <td><span class="badge bg-warning"><i class="fas fa-exchange-alt me-1"></i>Trade Execute</span></td>
+                        <td><code class="small">trading_engine</code></td>
+                        <td><button class="btn btn-sm btn-outline-info" onclick="showDetails('{}')"><i class="fas fa-eye"></i></button></td>
+                        <td><code class="small">192.168.1.102</code></td>
+                    </tr>
+                    <tr>
+                        <td><small class="text-muted">2024-01-15 10:10:05</small></td>
+                        <td><span class="badge bg-secondary">111222333</span></td>
+                        <td><span class="badge bg-secondary"><i class="fas fa-cogs me-1"></i>Config Change</span></td>
+                        <td><code class="small">system_config</code></td>
+                        <td><button class="btn btn-sm btn-outline-info" onclick="showDetails('{}')"><i class="fas fa-eye"></i></button></td>
+                        <td><code class="small">192.168.1.103</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_entries > per_page %}
+        <nav aria-label="Audit log pagination" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?admin_id={{ admin.telegram_id }}&page={{ page - 1 }}{% if user_filter %}&user_filter={{ user_filter }}{% endif %}{% if action_filter %}&action_filter={{ action_filter }}{% endif %}">
+                        Previous
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in range(max(1, page - 2), min((total_entries + per_page - 1) // per_page + 1, page + 3)) %}
+                <li class="page-item {% if page_num == page %}active{% endif %}">
+                    <a class="page-link" href="?admin_id={{ admin.telegram_id }}&page={{ page_num }}{% if user_filter %}&user_filter={{ user_filter }}{% endif %}{% if action_filter %}&action_filter={{ action_filter }}{% endif %}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% endfor %}
+
+                {% if page < (total_entries + per_page - 1) // per_page %}
+                <li class="page-item">
+                    <a class="page-link" href="?admin_id={{ admin.telegram_id }}&page={{ page + 1 }}{% if user_filter %}&user_filter={{ user_filter }}{% endif %}{% if action_filter %}&action_filter={{ action_filter }}{% endif %}">
+                        Next
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Entry Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detailsContent" class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshLogs() {
+    location.reload();
+}
+
+function exportLogs() {
+    showToast('Export functionality coming soon', 'info');
+}
+
+function clearLogs() {
+    if (!confirm('Are you sure you want to clear all audit logs? This action cannot be undone.')) {
+        return;
+    }
+
+    showToast('Clear logs functionality coming soon', 'info');
+}
+
+function clearFilters() {
+    document.querySelector('input[name="user_filter"]').value = '';
+    document.querySelector('select[name="action_filter"]').value = '';
+    document.querySelector('input[name="date_from"]').value = '';
+    document.querySelector('input[name="date_to"]').value = '';
+}
+
+function showDetails(detailsJson) {
+    try {
+        const details = JSON.parse(detailsJson);
+        const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+        document.getElementById('detailsContent').textContent = JSON.stringify(details, null, 2);
+        modal.show();
+    } catch (error) {
+        console.error('Error parsing details:', error);
+        showToast('Error displaying details', 'error');
+    }
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

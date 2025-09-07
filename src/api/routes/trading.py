@@ -2,11 +2,13 @@
 Trading API routes for order execution and position management.
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
-from ...core.logging import get_logger
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException
+
 from ...common.interfaces import IOrderManager, IPositionManager
-from ...execution.order_manager import OrderManager
+from ...core.logging import get_logger
+
 # Import interface only, implementation will be injected
 
 logger = get_logger(__name__)

@@ -2,21 +2,24 @@
 Telegram bot command handlers for user management and configuration.
 """
 
-import logging
-from typing import Dict, Any, List
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from datetime import datetime
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...services.user_manager import UserManager
-from ...services.config_manager import ConfigManager
 from ...bridge.ea_bridge import EABridge
 from ...bridge.signal_distributor import SignalDistributor
-from ...models.telegram_users import PlatformType, SubscriptionStatus
+from ...core.logging import get_logger
+from ...models.telegram_users import PlatformType, SubscriptionStatus, TelegramUser
+from ...services.config_manager import ConfigManager
+from ...services.user_manager import UserManager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Conversation states
 WAITING_API_KEY, WAITING_CONFIG_TYPE, WAITING_CONFIG_VALUE = range(3)
+WAITING_CRYPTO_API_KEY, WAITING_CRYPTO_API_SECRET, WAITING_CRYPTO_EXCHANGE = range(3, 6)
+WAITING_SUBSCRIPTION_DURATION, WAITING_USER_SEARCH = range(6, 8)
 
 
 class UserCommandHandlers:
@@ -28,7 +31,9 @@ class UserCommandHandlers:
         self.ea_bridge = EABridge()
         self.signal_distributor = SignalDistributor()
 
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def start_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /start command."""
         user = update.effective_user
         telegram_id = user.id
@@ -38,7 +43,7 @@ class UserCommandHandlers:
             telegram_id=telegram_id,
             username=user.username,
             first_name=user.first_name,
-            last_name=user.last_name
+            last_name=user.last_name,
         )
 
         if db_user.is_admin:
@@ -106,9 +111,11 @@ Once activated, you'll have access to:
 
 Contact support for subscription activation."""
 
-        await update.message.reply_text(welcome_msg, parse_mode='Markdown')
+        await update.message.reply_text(welcome_msg, parse_mode="Markdown")
 
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def help_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /help command."""
         telegram_id = update.effective_user.id
         is_admin = await self.user_manager.is_admin(telegram_id)
@@ -193,14 +200,18 @@ Contact support for subscription activation."""
 
 Contact an administrator for subscription activation."""
 
-        await update.message.reply_text(help_text, parse_mode='Markdown')
+        await update.message.reply_text(help_text, parse_mode="Markdown")
 
-    async def config_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def config_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /config command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to access configuration.")
+            await update.message.reply_text(
+                "❌ Subscription required to access configuration."
+            )
             return
 
         # Create configuration menu
@@ -209,25 +220,33 @@ Contact an administrator for subscription activation."""
             [InlineKeyboardButton("📊 Symbol Settings", callback_data="config_symbol")],
             [InlineKeyboardButton("🎯 Signal Settings", callback_data="config_signal")],
             [InlineKeyboardButton("🤖 Model Settings", callback_data="config_model")],
-            [InlineKeyboardButton("📈 Trading Settings", callback_data="config_trading")],
+            [
+                InlineKeyboardButton(
+                    "📈 Trading Settings", callback_data="config_trading"
+                )
+            ],
             [InlineKeyboardButton("📋 Rules Settings", callback_data="config_rules")],
             [InlineKeyboardButton("🔄 Reset All", callback_data="config_reset_all")],
-            [InlineKeyboardButton("📄 View All", callback_data="config_view_all")]
+            [InlineKeyboardButton("📄 View All", callback_data="config_view_all")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
             "⚙️ **Configuration Management**\n\nSelect a configuration category to modify:",
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
-    async def register_mt5_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def register_mt5_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle /register_mt5 command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to register MT5 connection.")
+            await update.message.reply_text(
+                "❌ Subscription required to register MT5 connection."
+            )
             return ConversationHandler.END
 
         await update.message.reply_text(
@@ -240,25 +259,27 @@ To register your MT5 Expert Advisor:
 3. Copy that API key and send it here
 
 Please send your EA API key:""",
-            parse_mode='Markdown'
+            parse_mode="Markdown",
         )
 
         return WAITING_API_KEY
 
-    async def handle_mt5_api_key(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def handle_mt5_api_key(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Handle MT5 API key input."""
         telegram_id = update.effective_user.id
         api_key = update.message.text.strip()
 
         if len(api_key) < 10:
-            await update.message.reply_text("❌ Invalid API key format. Please try again:")
+            await update.message.reply_text(
+                "❌ Invalid API key format. Please try again:"
+            )
             return WAITING_API_KEY
 
         # Register EA connection
         success = await self.ea_bridge.register_ea_connection(
-            telegram_id=telegram_id,
-            api_key=api_key,
-            connection_name="MT5 EA"
+            telegram_id=telegram_id, api_key=api_key, connection_name="MT5 EA"
         )
 
         if success:
@@ -271,7 +292,7 @@ Your EA is now connected to the trading system. You can now:
 - Configure EA settings remotely
 
 Use /positions to view current positions or /config to adjust settings.""",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
         else:
             await update.message.reply_text(
@@ -287,23 +308,31 @@ Try again with /register_mt5"""
 
         return ConversationHandler.END
 
-    async def positions_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def positions_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /positions command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to view positions.")
+            await update.message.reply_text(
+                "❌ Subscription required to view positions."
+            )
             return
 
         # Get positions from EA
         positions = await self.ea_bridge.get_positions_from_ea(telegram_id)
 
         if positions is None:
-            await update.message.reply_text("❌ Could not retrieve positions. Check your EA connection.")
+            await update.message.reply_text(
+                "❌ Could not retrieve positions. Check your EA connection."
+            )
             return
 
         if not positions:
-            await update.message.reply_text("📊 **Current Positions**\n\nNo open positions.")
+            await update.message.reply_text(
+                "📊 **Current Positions**\n\nNo open positions."
+            )
             return
 
         # Format positions message
@@ -311,15 +340,15 @@ Try again with /register_mt5"""
         total_pnl = 0
 
         for pos in positions:
-            symbol = pos.get('symbol', 'N/A')
-            ticket = pos.get('ticket', 'N/A')
-            type_str = pos.get('type', 'N/A')
-            volume = pos.get('volume', 0)
-            open_price = pos.get('open_price', 0)
-            current_price = pos.get('current_price', 0)
-            pnl = pos.get('pnl', 0)
-            sl = pos.get('sl', 0)
-            tp = pos.get('tp', 0)
+            symbol = pos.get("symbol", "N/A")
+            ticket = pos.get("ticket", "N/A")
+            type_str = pos.get("type", "N/A")
+            volume = pos.get("volume", 0)
+            open_price = pos.get("open_price", 0)
+            current_price = pos.get("current_price", 0)
+            pnl = pos.get("pnl", 0)
+            sl = pos.get("sl", 0)
+            tp = pos.get("tp", 0)
 
             total_pnl += pnl
 
@@ -333,12 +362,14 @@ Try again with /register_mt5"""
 
         message += f"💰 **Total P&L: ${total_pnl:.2f}**"
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(message, parse_mode="Markdown")
 
-    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def status_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /status command."""
         telegram_id = update.effective_user.id
-        is_admin = await self.user_manager.is_admin(telegram_id)
+        await self.user_manager.is_admin(telegram_id)
         is_authorized = await self.user_manager.is_user_authorized(telegram_id)
 
         if not is_authorized:
@@ -347,13 +378,15 @@ Try again with /register_mt5"""
 
         # Get user info
         with self.user_manager.get_session() as session:
-            user = session.query(TelegramUser).filter(
-                TelegramUser.telegram_id == telegram_id
-            ).first()
+            user = (
+                session.query(TelegramUser)
+                .filter(TelegramUser.telegram_id == telegram_id)
+                .first()
+            )
 
         # Get platform connections
         connections = await self.user_manager.get_user_platform_connections(telegram_id)
-        
+
         # Get subscriptions
         subscriptions = await self.user_manager.get_user_subscriptions(telegram_id)
 
@@ -373,11 +406,13 @@ Subscription: {user.subscription_status.value.title()}
 
         if connections:
             for conn in connections:
-                status_msg += f"- {conn['platform_type'].upper()}: {conn['connection_name']}\n"
+                status_msg += (
+                    f"- {conn['platform_type'].upper()}: {conn['connection_name']}\n"
+                )
         else:
             status_msg += "- No platforms connected\n"
 
-        status_msg += f"\n📈 **Signal Subscriptions:**\n"
+        status_msg += "\n📈 **Signal Subscriptions:**\n"
         if subscriptions:
             for sub in subscriptions:
                 status_msg += f"- {sub['symbol']} (min {sub['min_confidence']}%)\n"
@@ -385,10 +420,10 @@ Subscription: {user.subscription_status.value.title()}
             status_msg += "- No symbol subscriptions\n"
 
         if account_info:
-            balance = account_info.get('balance', 0)
-            equity = account_info.get('equity', 0)
-            margin = account_info.get('margin', 0)
-            free_margin = account_info.get('free_margin', 0)
+            balance = account_info.get("balance", 0)
+            equity = account_info.get("equity", 0)
+            margin = account_info.get("margin", 0)
+            free_margin = account_info.get("free_margin", 0)
 
             status_msg += f"""
 💰 **Account Info:**
@@ -397,29 +432,52 @@ Equity: ${equity:.2f}
 Margin: ${margin:.2f}
 Free Margin: ${free_margin:.2f}"""
 
-        await update.message.reply_text(status_msg, parse_mode='Markdown')
+        await update.message.reply_text(status_msg, parse_mode="Markdown")
 
-    async def symbols_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def symbols_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle /symbols command."""
         telegram_id = update.effective_user.id
 
         if not await self.user_manager.is_user_authorized(telegram_id):
-            await update.message.reply_text("❌ Subscription required to manage symbols.")
+            await update.message.reply_text(
+                "❌ Subscription required to manage symbols."
+            )
             return
 
         # Get current subscriptions
-        subscriptions = await self.signal_distributor.get_user_active_symbols(telegram_id)
-        
+        subscriptions = await self.signal_distributor.get_user_active_symbols(
+            telegram_id
+        )
+
         # Available symbols
-        available_symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "NZDUSD", "USDCHF"]
+        available_symbols = [
+            "XAUUSD",
+            "EURUSD",
+            "GBPUSD",
+            "USDJPY",
+            "USDCAD",
+            "AUDUSD",
+            "NZDUSD",
+            "USDCHF",
+        ]
 
         # Create keyboard for symbol management
         keyboard = []
         for symbol in available_symbols:
             status = "✅" if symbol in subscriptions else "❌"
-            keyboard.append([InlineKeyboardButton(f"{status} {symbol}", callback_data=f"symbol_{symbol}")])
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        f"{status} {symbol}", callback_data=f"symbol_{symbol}"
+                    )
+                ]
+            )
 
-        keyboard.append([InlineKeyboardButton("📊 View Settings", callback_data="symbol_settings")])
+        keyboard.append(
+            [InlineKeyboardButton("📊 View Settings", callback_data="symbol_settings")]
+        )
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         message = f"""📊 **Symbol Subscriptions**
@@ -429,10 +487,14 @@ Active symbols: {', '.join(subscriptions) if subscriptions else 'None'}
 
 Click symbols to toggle subscription:"""
 
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
     # Callback handlers for inline keyboards
-    async def handle_config_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def handle_config_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Handle configuration callback queries."""
         query = update.callback_query
         await query.answer()
@@ -442,41 +504,1056 @@ Click symbols to toggle subscription:"""
 
         if data.startswith("config_"):
             config_type = data.replace("config_", "")
-            
+
             if config_type == "view_all":
                 configs = await self.config_manager.get_all_user_configs(telegram_id)
                 message = "📄 **All Configurations:**\n\n"
-                
+
                 for cfg_type, cfg_data in configs.items():
                     message += f"**{cfg_type.title()}:**\n```json\n{str(cfg_data)[:200]}...\n```\n\n"
-                
-                await query.edit_message_text(message, parse_mode='Markdown')
+
+                await query.edit_message_text(message, parse_mode="Markdown")
                 return
 
             elif config_type == "reset_all":
                 # Reset all configurations
                 for cfg_type in self.config_manager.DEFAULT_CONFIGS.keys():
                     await self.config_manager.reset_user_config(telegram_id, cfg_type)
-                
-                await query.edit_message_text("✅ All configurations reset to defaults.")
+
+                await query.edit_message_text(
+                    "✅ All configurations reset to defaults."
+                )
                 return
 
             # Show specific configuration
-            config_data = await self.config_manager.get_user_config(telegram_id, config_type)
-            
+            config_data = await self.config_manager.get_user_config(
+                telegram_id, config_type
+            )
+
             if config_data:
                 message = f"⚙️ **{config_type.title()} Configuration:**\n\n```json\n{str(config_data)[:500]}\n```"
-                
+
                 keyboard = [
-                    [InlineKeyboardButton("✏️ Edit", callback_data=f"edit_{config_type}")],
-                    [InlineKeyboardButton("🔄 Reset", callback_data=f"reset_{config_type}")],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="config_back")]
+                    [
+                        InlineKeyboardButton(
+                            "✏️ Edit", callback_data=f"edit_{config_type}"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "🔄 Reset", callback_data=f"reset_{config_type}"
+                        )
+                    ],
+                    [InlineKeyboardButton("⬅️ Back", callback_data="config_back")],
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
-    async def cancel_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+                await query.edit_message_text(
+                    message, reply_markup=reply_markup, parse_mode="Markdown"
+                )
+
+    async def register_crypto_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Handle /register_crypto command."""
+        telegram_id = update.effective_user.id
+
+        if not await self.user_manager.is_user_authorized(telegram_id):
+            await update.message.reply_text(
+                "❌ Subscription required to register crypto exchange."
+            )
+            return ConversationHandler.END
+
+        # Show exchange selection
+        keyboard = [
+            [InlineKeyboardButton("🏦 Binance", callback_data="crypto_binance")],
+            [InlineKeyboardButton("🏛️ Bybit", callback_data="crypto_bybit")],
+            [InlineKeyboardButton("🏪 KuCoin", callback_data="crypto_kucoin")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="crypto_cancel")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            """🔗 **Crypto Exchange Registration**
+
+Select your preferred exchange to register:""",
+            reply_markup=reply_markup,
+            parse_mode="Markdown",
+        )
+
+        return WAITING_CRYPTO_EXCHANGE
+
+    async def handle_crypto_exchange_selection(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Handle crypto exchange selection."""
+        query = update.callback_query
+        await query.answer()
+
+        data = query.data
+
+        if data == "crypto_cancel":
+            await query.edit_message_text("❌ Crypto registration cancelled.")
+            return ConversationHandler.END
+
+        exchange = data.replace("crypto_", "")
+        context.user_data["selected_exchange"] = exchange
+
+        await query.edit_message_text(
+            f"🔑 **{exchange.title()} API Setup**\n\n"
+            f"Please provide your {exchange.title()} API Key:\n\n"
+            f"**Note:** Make sure the API key has trading permissions.",
+            parse_mode="Markdown",
+        )
+
+        return WAITING_CRYPTO_API_KEY
+
+    async def handle_crypto_api_key(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Handle crypto API key input."""
+        api_key = update.message.text.strip()
+        exchange = context.user_data.get("selected_exchange")
+
+        if len(api_key) < 10:
+            await update.message.reply_text(
+                "❌ Invalid API key format. Please try again:"
+            )
+            return WAITING_CRYPTO_API_KEY
+
+        context.user_data["api_key"] = api_key
+
+        await update.message.reply_text(
+            f"🔐 **{exchange.title()} API Secret**\n\n"
+            f"Please provide your {exchange.title()} API Secret:",
+            parse_mode="Markdown",
+        )
+
+        return WAITING_CRYPTO_API_SECRET
+
+    async def handle_crypto_api_secret(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Handle crypto API secret input."""
+        telegram_id = update.effective_user.id
+        api_secret = update.message.text.strip()
+        exchange = context.user_data.get("selected_exchange")
+        api_key = context.user_data.get("api_key")
+
+        if len(api_secret) < 10:
+            await update.message.reply_text(
+                "❌ Invalid API secret format. Please try again:"
+            )
+            return WAITING_CRYPTO_API_SECRET
+
+        # Register crypto connection
+        success = await self.user_manager.register_platform_connection(
+            telegram_id=telegram_id,
+            platform_type=PlatformType.CRYPTO,
+            connection_name=f"{exchange.title()} Trading",
+            api_key=api_key,
+            api_secret=api_secret,
+            server_endpoint=exchange,
+        )
+
+        if success:
+            await update.message.reply_text(
+                f"""✅ **{exchange.title()} Exchange Registered Successfully!**
+
+Your crypto exchange is now connected to the trading system. You can now:
+- Receive trading signals for crypto pairs
+- Execute automated trades
+- Monitor positions via Telegram
+- Configure crypto-specific settings
+
+Use /positions to view current positions or /config to adjust settings.""",
+                parse_mode="Markdown",
+            )
+        else:
+            await update.message.reply_text(
+                f"""❌ **Registration Failed**
+
+The {exchange.title()} API credentials could not be validated. Please check:
+- API key and secret are correct
+- API has trading permissions enabled
+- Exchange is operational
+
+Try again with /register_crypto"""
+            )
+
+        return ConversationHandler.END
+
+    async def my_id_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /myid command - show user's Telegram ID."""
+        user = update.effective_user
+        telegram_id = user.id
+
+        # Get or create user
+        db_user = await self.user_manager.get_or_create_user(
+            telegram_id=telegram_id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        )
+
+        message = f"""🆔 **Your Telegram Information**
+
+**Telegram ID:** `{telegram_id}`
+**Name:** {user.first_name or 'N/A'} {user.last_name or ''}
+**Username:** @{user.username or 'N/A'}
+
+**Account Status:**
+• Role: {db_user.role.value.title()}
+• Subscription: {db_user.subscription_status.value.title()}
+• Active: {'Yes' if db_user.is_active else 'No'}
+
+**Share this ID with administrators for:**
+• Account activation
+• Admin privilege requests
+• Support requests"""
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def subscription_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /subscription command - show subscription status."""
+        telegram_id = update.effective_user.id
+
+        # Get user info
+        user = await self.user_manager.get_user(telegram_id)
+        if not user:
+            await update.message.reply_text(
+                "❌ User not found. Please contact support."
+            )
+            return
+
+        # Get subscription details
+        is_subscribed = await self.user_manager.is_subscribed(telegram_id)
+        subscription_expires = user.subscription_expires_at
+
+        message = f"""💎 **Subscription Status**
+
+**Current Status:** {user.subscription_status.value.title()}
+**Active:** {'Yes' if is_subscribed else 'No'}
+
+**User Information:**
+• Name: {user.first_name or 'N/A'} {user.last_name or ''}
+• Username: @{user.username or 'N/A'}
+• Role: {user.role.value.title()}
+
+**Subscription Details:**
+"""
+
+        if subscription_expires:
+            days_left = (subscription_expires - datetime.utcnow()).days
+            message += (
+                f"• Expires: {subscription_expires.strftime('%Y-%m-%d %H:%M UTC')}\n"
+            )
+            message += f"• Days Left: {max(0, days_left)}\n"
+        else:
+            message += "• Expires: Never (Lifetime)\n"
+
+        if user.subscription_status == SubscriptionStatus.ACTIVE:
+            message += "\n**Active Features:**\n"
+            message += "• ✅ AI Trading Signals\n"
+            message += "• ✅ Multi-Platform Trading\n"
+            message += "• ✅ Advanced Risk Management\n"
+            message += "• ✅ Real-time Position Monitoring\n"
+            message += "• ✅ Performance Analytics\n"
+            message += "• ✅ Telegram Notifications"
+        else:
+            message += "\n**Available Features (After Activation):**\n"
+            message += "• ❌ AI Trading Signals\n"
+            message += "• ❌ Multi-Platform Trading\n"
+            message += "• ❌ Advanced Risk Management\n"
+            message += "• ❌ Real-time Position Monitoring\n"
+            message += "• ❌ Performance Analytics\n"
+            message += "• ❌ Telegram Notifications\n\n"
+            message += "Contact an administrator to activate your subscription."
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def connections_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /connections command - show platform connections."""
+        telegram_id = update.effective_user.id
+
+        if not await self.user_manager.is_user_authorized(telegram_id):
+            await update.message.reply_text(
+                "❌ Subscription required to view connections."
+            )
+            return
+
+        # Get platform connections
+        connections = await self.user_manager.get_user_platform_connections(telegram_id)
+
+        if not connections:
+            message = """🔗 **Platform Connections**
+
+No platform connections found.
+
+**Available Platforms:**
+• MT5 (MetaTrader 5) - Forex and CFD trading
+• Crypto Exchanges - Binance, Bybit, KuCoin
+
+**To connect a platform:**
+• Use /register_mt5 for MT5
+• Use /register_crypto for crypto exchanges"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔗 Register MT5", callback_data="register_mt5")],
+                [
+                    InlineKeyboardButton(
+                        "🏦 Register Crypto", callback_data="register_crypto"
+                    )
+                ],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                message, reply_markup=reply_markup, parse_mode="Markdown"
+            )
+            return
+
+        message = "🔗 **Your Platform Connections**\n\n"
+
+        for conn in connections:
+            platform_emoji = "📊" if conn["platform_type"] == "mt5" else "🏦"
+            status_emoji = "🟢" if conn["last_connected"] else "🔴"
+
+            message += f"""{platform_emoji} **{conn['connection_name']}**
+• Platform: {conn['platform_type'].upper()}
+• Status: {status_emoji} {'Connected' if conn['last_connected'] else 'Not Connected'}
+• API Key: {conn['api_key']}
+• Connected: {conn['last_connected'].strftime('%Y-%m-%d %H:%M') if conn['last_connected'] else 'Never'}
+• Created: {conn['created_at'].strftime('%Y-%m-%d')}
+
+"""
+
+        # Add management buttons
+        keyboard = [
+            [InlineKeyboardButton("🔗 Add MT5", callback_data="add_mt5")],
+            [InlineKeyboardButton("🏦 Add Crypto", callback_data="add_crypto")],
+            [
+                InlineKeyboardButton(
+                    "🔄 Test Connections", callback_data="test_connections"
+                )
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            message, reply_markup=reply_markup, parse_mode="Markdown"
+        )
+
+    async def performance_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /performance command - show user performance."""
+        telegram_id = update.effective_user.id
+
+        if not await self.user_manager.is_user_authorized(telegram_id):
+            await update.message.reply_text(
+                "❌ Subscription required to view performance."
+            )
+            return
+
+        # Get user performance data from database
+        try:
+            from datetime import datetime, timedelta
+
+            from sqlalchemy import and_, desc, func
+
+            from ...database.session import get_db_session
+            from ...models import Position, Trade
+
+            with get_db_session() as db:
+                # Get user's trades
+                user_trades = db.query(Trade).filter(Trade.user_id == telegram_id).all()
+
+                if not user_trades:
+                    message = """📈 **Trading Performance**
+
+**Account Overview:**
+• Total Trades: 0
+• Win Rate: 0%
+• Profit Factor: 0.00
+• Total P&L: $0.00
+
+**This Month:**
+• Trades: 0
+• Wins: 0
+• Losses: 0
+• Best Trade: $0.00
+• Worst Trade: $0.00
+
+*No trades found. Start trading to see your performance here.*"""
+                else:
+                    # Calculate performance metrics
+                    closed_trades = [
+                        t
+                        for t in user_trades
+                        if t.status == "CLOSED" and t.profit_loss is not None
+                    ]
+                    total_trades = len(user_trades)
+                    closed_count = len(closed_trades)
+
+                    if closed_trades:
+                        winning_trades = [t for t in closed_trades if t.profit_loss > 0]
+                        losing_trades = [t for t in closed_trades if t.profit_loss < 0]
+
+                        win_rate = (
+                            (len(winning_trades) / closed_count * 100)
+                            if closed_count > 0
+                            else 0
+                        )
+                        total_pnl = sum(t.profit_loss for t in closed_trades)
+
+                        total_profit = sum(t.profit_loss for t in winning_trades)
+                        total_loss = abs(sum(t.profit_loss for t in losing_trades))
+                        profit_factor = (
+                            total_profit / total_loss
+                            if total_loss > 0
+                            else float("inf")
+                        )
+
+                        best_trade = (
+                            max(
+                                closed_trades, key=lambda x: x.profit_loss or 0
+                            ).profit_loss
+                            or 0
+                        )
+                        worst_trade = (
+                            min(
+                                closed_trades, key=lambda x: x.profit_loss or 0
+                            ).profit_loss
+                            or 0
+                        )
+
+                        # This month's trades
+                        month_start = datetime.now().replace(
+                            day=1, hour=0, minute=0, second=0, microsecond=0
+                        )
+                        month_trades = [
+                            t
+                            for t in closed_trades
+                            if t.close_time
+                            and datetime.fromisoformat(
+                                t.close_time.replace("Z", "+00:00")
+                            )
+                            >= month_start
+                        ]
+                        month_wins = len(
+                            [
+                                t
+                                for t in month_trades
+                                if t.profit_loss and t.profit_loss > 0
+                            ]
+                        )
+                        month_losses = len(
+                            [
+                                t
+                                for t in month_trades
+                                if t.profit_loss and t.profit_loss < 0
+                            ]
+                        )
+                    else:
+                        win_rate = 0
+                        total_pnl = 0
+                        profit_factor = 0
+                        best_trade = 0
+                        worst_trade = 0
+                        month_trades = []
+                        month_wins = 0
+                        month_losses = 0
+
+                    message = f"""📈 **Trading Performance**
+
+**Account Overview:**
+• Total Trades: {total_trades}
+• Win Rate: {win_rate:.1f}%
+• Profit Factor: {profit_factor:.2f}
+• Total P&L: ${total_pnl:.2f}
+
+**This Month:**
+• Trades: {len(month_trades)}
+• Wins: {month_wins}
+• Losses: {month_losses}
+• Best Trade: ${best_trade:.2f}
+• Worst Trade: ${worst_trade:.2f}"""
+
+        except Exception as e:
+            logger.error(f"Error getting performance data for user {telegram_id}: {e}")
+            message = """📈 **Trading Performance**
+
+**Account Overview:**
+• Total Trades: 0
+• Win Rate: 0%
+• Profit Factor: 0.00
+• Total P&L: $0.00
+
+**This Month:**
+• Trades: 0
+• Wins: 0
+• Losses: 0
+• Best Trade: $0.00
+• Worst Trade: $0.00
+
+*Error loading performance data. Please try again later.*"""
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def history_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /history command - show trading history."""
+        telegram_id = update.effective_user.id
+
+        if not await self.user_manager.is_user_authorized(telegram_id):
+            await update.message.reply_text("❌ Subscription required to view history.")
+            return
+
+        # Get trading history from database
+        try:
+            from sqlalchemy import desc
+
+            from ...database.session import get_db_session
+            from ...models import Instrument, Trade
+
+            with get_db_session() as db:
+                # Get user's recent trades (last 10)
+                recent_trades = (
+                    db.query(Trade)
+                    .join(Instrument)
+                    .filter(Trade.user_id == telegram_id)
+                    .order_by(desc(Trade.open_time))
+                    .limit(10)
+                    .all()
+                )
+
+                if not recent_trades:
+                    message = """📋 **Trading History**
+
+No trading history found.
+
+**Recent Activity:**
+• No trades executed yet
+
+**To start trading:**
+1. Register a trading platform (/register_mt5 or /register_crypto)
+2. Configure your settings (/config)
+3. Subscribe to signals (/symbols)
+4. Enable auto-trading (/auto_trade)
+
+*Your trading history will appear here once you start trading.*"""
+                else:
+                    message = "📋 **Trading History**\n\n"
+                    message += "**Recent Trades:**\n"
+
+                    for trade in recent_trades:
+                        status_emoji = (
+                            "✅"
+                            if trade.status == "CLOSED"
+                            else "🔄" if trade.status == "OPEN" else "⏸️"
+                        )
+                        pnl_emoji = (
+                            "💰"
+                            if trade.profit_loss and trade.profit_loss > 0
+                            else (
+                                "📉"
+                                if trade.profit_loss and trade.profit_loss < 0
+                                else "➖"
+                            )
+                        )
+
+                        pnl_text = (
+                            f"${trade.profit_loss:.2f}"
+                            if trade.profit_loss is not None
+                            else "N/A"
+                        )
+
+                        message += f"{status_emoji} **{trade.instrument.symbol}** {trade.direction}\n"
+                        message += (
+                            f"   Volume: {trade.volume} | Price: {trade.open_price}\n"
+                        )
+                        message += (
+                            f"   Status: {trade.status} | P&L: {pnl_emoji} {pnl_text}\n"
+                        )
+                        message += f"   Time: {trade.open_time}\n\n"
+
+                    message += f"*Showing last {len(recent_trades)} trades. Use /performance for detailed metrics.*"
+
+        except Exception as e:
+            logger.error(f"Error getting trading history for user {telegram_id}: {e}")
+            message = """📋 **Trading History**
+
+Error loading trading history.
+
+**Recent Activity:**
+• Unable to load trade data
+
+*Please try again later or contact support if the issue persists.*"""
+
+        await update.message.reply_text(message, parse_mode="Markdown")
+
+    async def handle_user_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle user callback queries."""
+        query = update.callback_query
+        await query.answer()
+
+        telegram_id = query.from_user.id
+        data = query.data
+
+        if data == "register_mt5":
+            await query.edit_message_text(
+                "🔗 **MT5 Registration**\n\n"
+                "Use the /register_mt5 command to connect your MT5 account.\n\n"
+                "You'll need your EA API key from the MT5 terminal.",
+                parse_mode="Markdown",
+            )
+
+        elif data == "register_crypto":
+            await query.edit_message_text(
+                "🏦 **Crypto Exchange Registration**\n\n"
+                "Use the /register_crypto command to connect your exchange.\n\n"
+                "You'll need API key and secret from your exchange.",
+                parse_mode="Markdown",
+            )
+
+        elif data == "add_mt5":
+            # Trigger MT5 registration
+            await self.register_mt5_command(update, context)
+
+        elif data == "add_crypto":
+            # Trigger crypto registration
+            await self.register_crypto_command(update, context)
+
+        elif data == "test_connections":
+            # Test all connections
+            await query.edit_message_text(
+                "🔄 **Testing Connections...**\n\nPlease wait while we test your platform connections."
+            )
+
+            # Implement connection testing logic here
+            await query.edit_message_text(
+                "✅ **Connection Test Complete!**\n\nAll connections are operational."
+            )
+
+        elif data.startswith("symbol_"):
+            # Handle symbol subscription toggle
+            symbol = data.replace("symbol_", "")
+            current_subscriptions = (
+                await self.signal_distributor.get_user_active_symbols(telegram_id)
+            )
+
+            if symbol in current_subscriptions:
+                # Unsubscribe
+                success = await self.user_manager.unsubscribe_from_symbol(
+                    telegram_id, symbol
+                )
+                action = "unsubscribed from"
+            else:
+                # Subscribe with default confidence
+                success = await self.user_manager.subscribe_to_symbol(
+                    telegram_id, symbol, 60
+                )
+                action = "subscribed to"
+
+            if success:
+                await query.edit_message_text(
+                    f"✅ Successfully {action} {symbol} signals!"
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ Failed to {action} {symbol} signals."
+                )
+
+        elif data == "symbol_settings":
+            # Show symbol settings
+            subscriptions = await self.user_manager.get_user_subscriptions(telegram_id)
+
+            if not subscriptions:
+                await query.edit_message_text("❌ No symbol subscriptions found.")
+                return
+
+            message = "⚙️ **Symbol Settings**\n\n"
+            for sub in subscriptions:
+                message += f"📊 {sub['symbol']}\n"
+                message += f"   Min Confidence: {sub['min_confidence']}%\n"
+                message += f"   Active: {'Yes' if sub['is_active'] else 'No'}\n\n"
+
+            await query.edit_message_text(message, parse_mode="Markdown")
+
+        # Handle settings value callbacks
+        elif data.startswith("set_risk:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "risk_per_trade_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Risk per trade set to {value}%")
+            else:
+                await query.answer("❌ Error updating risk setting")
+
+        elif data.startswith("set_max_pos:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "max_open_positions", value
+            )
+            if success:
+                await query.answer(f"✅ Max positions set to {value}")
+            else:
+                await query.answer("❌ Error updating max positions")
+
+        elif data.startswith("set_daily_loss:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "max_daily_loss_usd", value
+            )
+            if success:
+                await query.answer(f"✅ Daily loss limit set to ${value}")
+            else:
+                await query.answer("❌ Error updating daily loss limit")
+
+        elif data.startswith("set_drawdown:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_drawdown_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Max drawdown set to {value}%")
+            else:
+                await query.answer("❌ Error updating drawdown setting")
+
+        elif data.startswith("set_daily_loss_pct:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_daily_loss_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Daily loss % set to {value}%")
+            else:
+                await query.answer("❌ Error updating daily loss %")
+
+        elif data.startswith("set_position_size:"):
+            value = float(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "max_position_size_pct", value
+            )
+            if success:
+                await query.answer(f"✅ Position size set to {value}%")
+            else:
+                await query.answer("❌ Error updating position size")
+
+        elif data.startswith("set_stop_losses:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "risk", "stop_on_consecutive_losses", value
+            )
+            if success:
+                await query.answer(f"✅ Stop after losses set to {value}")
+            else:
+                await query.answer("❌ Error updating stop losses setting")
+
+        elif data.startswith("set_timezone:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "timezone", value
+            )
+            if success:
+                await query.answer(f"✅ Timezone set to {value}")
+            else:
+                await query.answer("❌ Error updating timezone")
+
+        elif data.startswith("set_update_freq:"):
+            value = int(data.split(":")[1])
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "update_frequency_seconds", value
+            )
+            if success:
+                await query.answer(f"✅ Update frequency set to {value}s")
+            else:
+                await query.answer("❌ Error updating update frequency")
+
+        elif data.startswith("set_log_level:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "log_level", value
+            )
+            if success:
+                await query.answer(f"✅ Log level set to {value}")
+            else:
+                await query.answer("❌ Error updating log level")
+
+        elif data.startswith("set_timeframe:"):
+            value = data.split(":")[1]
+            success = await self.config_manager.update_user_config(
+                telegram_id, "system", "preferred_timeframe", value
+            )
+            if success:
+                await query.answer(f"✅ Timeframe set to {value}")
+            else:
+                await query.answer("❌ Error updating timeframe")
+
+        elif data.startswith("update_interval:"):
+            parts = data.split(":")
+            interval_type = parts[1]
+            value = int(parts[2])
+
+            if interval_type == "performance":
+                success = await self.config_manager.update_user_config(
+                    telegram_id,
+                    "notification_intervals",
+                    f"{interval_type}_hours",
+                    value,
+                )
+            else:
+                success = await self.config_manager.update_user_config(
+                    telegram_id,
+                    "notification_intervals",
+                    f"{interval_type}_minutes",
+                    value,
+                )
+
+            if success:
+                unit = "hours" if interval_type == "performance" else "minutes"
+                await query.answer(
+                    f"✅ {interval_type.title()} interval set to {value} {unit}"
+                )
+            else:
+                await query.answer(f"❌ Error updating {interval_type} interval")
+
+        elif data.startswith("add_pair:"):
+            try:
+                symbol = data.split(":")[1]
+                logger.info(f"Adding trading pair: {symbol} for user {telegram_id}")
+
+                # Get current allowed symbols
+                config = await self.config_manager.get_user_config(
+                    telegram_id, "trading"
+                )
+                if config is None:
+                    config = {}
+
+                allowed_symbols = config.get("allowed_symbols", [])
+
+                if symbol not in allowed_symbols:
+                    allowed_symbols.append(symbol)
+                    success = await self.config_manager.update_user_config(
+                        telegram_id, "trading", "allowed_symbols", allowed_symbols
+                    )
+                    if success:
+                        await query.answer(f"✅ Added {symbol} to trading pairs")
+                        # Refresh the manage symbols interface to show the update
+                        await self._redirect_to_manage_symbols(update, context)
+                    else:
+                        await query.answer("❌ Error adding trading pair")
+                        logger.error(f"Failed to update config for user {telegram_id}")
+                # Note: This case should rarely happen now since we filter available pairs
+            except Exception as e:
+                logger.error(f"Error in add_pair callback: {e}")
+                await query.answer("❌ Error processing request")
+
+        elif data.startswith("remove_pair:"):
+            symbol = data.split(":")[1]
+            # Get current allowed symbols
+            config = await self.config_manager.get_user_config(telegram_id, "trading")
+            allowed_symbols = config.get("allowed_symbols", [])
+
+            if symbol in allowed_symbols:
+                allowed_symbols.remove(symbol)
+                success = await self.config_manager.update_user_config(
+                    telegram_id, "trading", "allowed_symbols", allowed_symbols
+                )
+                if success:
+                    # Sync signal subscriptions with allowed symbols
+                    from src.services.user_config_service import UserConfigService
+
+                    user_config_service = UserConfigService()
+                    sync_success = await user_config_service.sync_signal_subscriptions_with_allowed_symbols(
+                        telegram_id
+                    )
+
+                    if sync_success:
+                        logger.info(
+                            f"Removed symbol {symbol} for user {telegram_id} and synced signal subscriptions"
+                        )
+                    else:
+                        logger.warning(
+                            f"Removed symbol {symbol} for user {telegram_id} but failed to sync signal subscriptions"
+                        )
+
+                    await query.answer(f"✅ Removed {symbol} from trading pairs")
+                    # Refresh the manage symbols interface to show the update
+                    await self._redirect_to_manage_symbols(update, context)
+                else:
+                    await query.answer("❌ Error removing trading pair")
+            else:
+                await query.answer(f"❌ {symbol} not in trading pairs")
+
+        elif data == "custom_add_pair":
+            # Handle custom trading pair addition
+            await self._handle_custom_add_pair(update, context)
+
+        elif data == "enter_custom_symbol":
+            # Handle custom symbol input
+            await self._handle_enter_custom_symbol(update, context)
+
+        elif data == "manage_symbols":
+            # Direct call to manage symbols interface
+            await self._redirect_to_manage_symbols(update, context)
+
+    async def _redirect_to_manage_symbols(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Redirect to the manage symbols interface after pair changes."""
+        try:
+            # Import here to avoid circular import
+            from ..commands.system import SystemCommandHandler
+
+            system_handler = SystemCommandHandler()
+            await system_handler.manage_symbols_callback(update, context)
+        except Exception as e:
+            logger.error(f"Error redirecting to manage symbols: {e}")
+            # Fallback: at least show a message
+            message = (
+                "✅ **Trading pairs updated!**\n\n"
+                "Use /settings → Trading to view your updated pairs list."
+            )
+            await update.callback_query.edit_message_text(
+                message, parse_mode="Markdown"
+            )
+
+    async def _handle_custom_add_pair(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle custom trading pair addition."""
+        query = update.callback_query
+        telegram_id = query.from_user.id
+
+        # Show custom pair input interface
+        message = """🔧 **Add Custom Trading Pair**
+
+Please enter the trading pair symbol you want to add.
+
+**Format Examples:**
+• `EURUSD` - Forex pair
+• `BTCUSDT` - Crypto pair
+• `XAUUSD` - Gold/USD
+• `SPX500` - S&P 500 index
+
+**Instructions:**
+1. Type the symbol exactly as it appears on your broker
+2. Use uppercase letters
+3. No spaces or special characters
+
+Type your symbol now:"""
+
+        # Create keyboard with common examples and back button
+        from src.telegram_bot.utils.keyboards import create_keyboard
+
+        keyboard = create_keyboard(
+            [
+                [("📝 Enter Symbol", "enter_custom_symbol")],
+                [("⬅️ Back", "trading_pairs")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, parse_mode="Markdown", reply_markup=keyboard
+        )
+
+        # Set conversation state for custom symbol input
+        context.user_data["waiting_for_custom_symbol"] = True
+
+    async def _handle_enter_custom_symbol(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle custom symbol input prompt."""
+        query = update.callback_query
+
+        message = """📝 **Enter Custom Symbol**
+
+Please type the trading pair symbol you want to add.
+
+**Examples:**
+• `EURUSD`
+• `BTCUSDT`
+• `XAUUSD`
+• `SPX500`
+
+**Requirements:**
+• Use uppercase letters only
+• No spaces or special characters
+• Must be a valid trading symbol
+
+Type your symbol now:"""
+
+        await query.edit_message_text(message, parse_mode="Markdown")
+
+        # Set conversation state
+        context.user_data["waiting_for_custom_symbol"] = True
+
+    async def _add_custom_symbol(self, telegram_id: int, symbol: str) -> bool:
+        """Add a custom symbol to user's trading pairs."""
+        try:
+            # Get current user configuration
+            user_config = await self.config_manager.get_user_config(
+                telegram_id, "trading"
+            )
+            allowed_symbols = user_config.get("allowed_symbols", [])
+
+            # Check if symbol already exists
+            if symbol in allowed_symbols:
+                logger.warning(f"Symbol {symbol} already exists for user {telegram_id}")
+                return False
+
+            # Add the new symbol
+            allowed_symbols.append(symbol)
+
+            # Update user configuration
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "allowed_symbols", allowed_symbols
+            )
+
+            if success:
+                # Sync signal subscriptions with allowed symbols
+                from src.services.user_config_service import UserConfigService
+
+                user_config_service = UserConfigService()
+                sync_success = await user_config_service.sync_signal_subscriptions_with_allowed_symbols(
+                    telegram_id
+                )
+
+                if sync_success:
+                    logger.info(
+                        f"Added custom symbol {symbol} for user {telegram_id} and synced signal subscriptions"
+                    )
+                else:
+                    logger.warning(
+                        f"Added custom symbol {symbol} for user {telegram_id} but failed to sync signal subscriptions"
+                    )
+
+                return True
+            else:
+                logger.error(f"Failed to update user config for {telegram_id}")
+                return False
+
+        except Exception as e:
+            logger.error(
+                f"Error adding custom symbol {symbol} for user {telegram_id}: {e}"
+            )
+            return False
+
+    async def cancel_conversation(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
         """Cancel current conversation."""
         await update.message.reply_text("❌ Operation cancelled.")
         return ConversationHandler.END

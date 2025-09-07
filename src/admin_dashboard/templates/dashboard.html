@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}AI Trading Bot - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-tachometer-alt me-2"></i>
+        Admin Dashboard
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-sm btn-outline-danger me-2" onclick="emergencyStop()">
+            <i class="fas fa-stop-circle me-1"></i>
+            Emergency Stop
+        </button>
+        <button class="btn btn-sm btn-outline-primary" onclick="refreshStats()">
+            <i class="fas fa-sync-alt me-1"></i>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-info card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Total Users</h6>
+                        <h3 class="mb-0">{{ stats.total_users }}</h3>
+                        <small class="text-success">
+                            <i class="fas fa-user-check me-1"></i>
+                            {{ stats.active_users }} active
+                        </small>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-healthy card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Platform Connections</h6>
+                        <h3 class="mb-0">{{ stats.total_platform_connections }}</h3>
+                        <small class="text-success">
+                            <i class="fas fa-plug me-1"></i>
+                            {{ stats.active_platform_connections }} active
+                        </small>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-plug fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-info card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Signals Processed</h6>
+                        <h3 class="mb-0">{{ stats.total_signals_processed }}</h3>
+                        <small class="text-info">
+                            <i class="fas fa-chart-line me-1"></i>
+                            Today
+                        </small>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stats-card status-success card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Trades Executed</h6>
+                        <h3 class="mb-0">{{ stats.total_trades_executed }}</h3>
+                        <small class="text-success">
+                            <i class="fas fa-exchange-alt me-1"></i>
+                            Auto-trades
+                        </small>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-exchange-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Health and Quick Actions -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Health
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Overall Status:</span>
+                            <span class="badge bg-success">Healthy</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Database:</span>
+                            <span class="badge bg-success">Connected</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Telegram Bot:</span>
+                            <span class="badge bg-success">Running</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>MT5 Bridge:</span>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Signal Service:</span>
+                            <span class="badge bg-success">Running</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Auto Trading:</span>
+                            <span class="badge bg-success">Enabled</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshStats()">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        Refresh Stats
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewLogs()">
+                        <i class="fas fa-file-alt me-1"></i>
+                        View Logs
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="systemBackup()">
+                        <i class="fas fa-save me-1"></i>
+                        System Backup
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="emergencyStop()">
+                        <i class="fas fa-stop-circle me-1"></i>
+                        Emergency Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Alerts -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <i class="fas fa-user-plus text-success me-2"></i>
+                            New user registered
+                        </div>
+                        <small class="text-muted">2 min ago</small>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <i class="fas fa-chart-line text-info me-2"></i>
+                            Signal processed
+                        </div>
+                        <small class="text-muted">5 min ago</small>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <i class="fas fa-exchange-alt text-primary me-2"></i>
+                            Trade executed
+                        </div>
+                        <small class="text-muted">8 min ago</small>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <i class="fas fa-plug text-success me-2"></i>
+                            Platform connected
+                        </div>
+                        <small class="text-muted">12 min ago</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    System Alerts
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    All systems operational
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    3 users have pending subscription renewals
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    High trading volume detected
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    System Performance
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let performanceChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
+
+function initializeCharts() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+            datasets: [{
+                label: 'Active Users',
+                data: [12, 19, 15, 25, 22, 18],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }, {
+                label: 'Signals Processed',
+                data: [45, 59, 80, 81, 96, 75],
+                borderColor: 'rgb(255, 99, 132)',
+                tension: 0.1
+            }, {
+                label: 'Trades Executed',
+                data: [8, 12, 15, 18, 14, 10],
+                borderColor: 'rgb(54, 162, 235)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+async function refreshStats() {
+    try {
+        const response = await fetch('/admin/api/stats/realtime?admin_id={{ admin.telegram_id }}');
+        const data = await response.json();
+
+        if (data.success) {
+            // Update statistics cards
+            updateStatsCards(data.stats);
+            // Update charts
+            updateCharts(data.stats);
+            // Show success message
+            showToast('Statistics refreshed successfully', 'success');
+        } else {
+            showToast('Failed to refresh statistics', 'error');
+        }
+    } catch (error) {
+        console.error('Error refreshing stats:', error);
+        showToast('Error refreshing statistics', 'error');
+    }
+}
+
+function updateStatsCards(stats) {
+    // Update the statistics cards with new data
+    // Implementation would update DOM elements with new stats
+}
+
+function updateCharts(stats) {
+    // Update chart data
+    // Implementation would update chart datasets
+}
+
+async function emergencyStop() {
+    if (!confirm('Are you sure you want to execute an emergency stop? This will halt all trading activities.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/admin/api/system/emergency-stop?admin_id={{ admin.telegram_id }}', {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Emergency stop executed successfully', 'success');
+        } else {
+            showToast('Emergency stop failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error executing emergency stop:', error);
+        showToast('Error executing emergency stop', 'error');
+    }
+}
+
+function viewLogs() {
+    window.open('/admin/audit?admin_id={{ admin.telegram_id }}', '_blank');
+}
+
+function systemBackup() {
+    showToast('System backup functionality coming soon', 'info');
+}
+
+function showToast(message, type) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

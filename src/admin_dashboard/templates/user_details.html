@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}User Details - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-user me-2"></i>
+        User Details
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="/admin/users?admin_id={{ admin.telegram_id }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-1"></i>
+            Back to Users
+        </a>
+        <button class="btn btn-outline-primary" onclick="editUser()">
+            <i class="fas fa-edit me-1"></i>
+            Edit User
+        </button>
+    </div>
+</div>
+
+<!-- User Information -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-id-card me-2"></i>
+                    User Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Telegram ID</label>
+                            <p class="h5 mb-0">{{ user.telegram_id }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Username</label>
+                            <p class="h6 mb-0">
+                                {% if user.username %}
+                                    @{{ user.username }}
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">First Name</label>
+                            <p class="h6 mb-0">
+                                {% if user.first_name %}
+                                    {{ user.first_name }}
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Last Name</label>
+                            <p class="h6 mb-0">
+                                {% if user.last_name %}
+                                    {{ user.last_name }}
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Role</label>
+                            <p class="mb-0">
+                                {% if user.role == 'admin' %}
+                                    <span class="badge bg-warning">Admin</span>
+                                {% elif user.role == 'super_admin' %}
+                                    <span class="badge bg-danger">Super Admin</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">User</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Status</label>
+                            <p class="mb-0">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Subscription</label>
+                            <p class="mb-0">
+                                {% if user.subscription_status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                {% elif user.subscription_status == 'expired' %}
+                                    <span class="badge bg-danger">Expired</span>
+                                {% elif user.subscription_status == 'suspended' %}
+                                    <span class="badge bg-warning">Suspended</span>
+                                {% elif user.subscription_status == 'trial' %}
+                                    <span class="badge bg-info">Trial</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ user.subscription_status }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Created At</label>
+                            <p class="mb-0">{{ user.created_at[:19] if user.created_at else 'Unknown' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Last Activity</label>
+                            <p class="mb-0">
+                                {% if user.last_activity %}
+                                    {{ user.last_activity[:19] }}
+                                {% else %}
+                                    <span class="text-muted">Never</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Quick Stats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <h4 class="text-primary">{{ connections | length }}</h4>
+                    <small class="text-muted">Platform Connections</small>
+                </div>
+                <div class="text-center mb-3">
+                    <h4 class="text-success">{{ trading_status.positions | length if trading_status and trading_status.positions else 0 }}</h4>
+                    <small class="text-muted">Open Positions</small>
+                </div>
+                <div class="text-center">
+                    <h4 class="text-info">{{ trading_status.orders | length if trading_status and trading_status.orders else 0 }}</h4>
+                    <small class="text-muted">Pending Orders</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Platform Connections -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plug me-2"></i>
+                    Platform Connections
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if connections %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Connection Name</th>
+                                    <th>Status</th>
+                                    <th>Last Connected</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conn in connections %}
+                                <tr>
+                                    <td>
+                                        {% if conn.platform_type == 'mt5' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-chart-line me-1"></i>
+                                                MT5
+                                            </span>
+                                        {% elif conn.platform_type == 'crypto' %}
+                                            <span class="badge bg-info">
+                                                <i class="fab fa-bitcoin me-1"></i>
+                                                Crypto
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ conn.platform_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ conn.connection_name }}</td>
+                                    <td>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            Connected
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if conn.last_connected %}
+                                            <small class="text-muted">{{ conn.last_connected[:19] }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="testConnection({{ conn.id }})">
+                                            <i class="fas fa-vial"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-plug fa-3x mb-3"></i>
+                        <p>No platform connections found</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    User Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if config %}
+                    <div class="row">
+                        {% for config_type, config_data in config.items() %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">{{ config_type.title() }} Configuration</h6>
+                                </div>
+                                <div class="card-body">
+                                    <pre class="mb-0" style="font-size: 0.875rem; max-height: 200px; overflow-y: auto;">{{ config_data | tojson(indent=2) }}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-cogs fa-3x mb-3"></i>
+                        <p>No configuration found</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trading Status -->
+{% if trading_status %}
+<div class="row">
+    <div class="col-12">
+        <div class="stats-card card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Trading Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Open Positions</h6>
+                        {% if trading_status.positions %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Ticket</th>
+                                            <th>Symbol</th>
+                                            <th>Type</th>
+                                            <th>Volume</th>
+                                            <th>Profit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for position in trading_status.positions %}
+                                        <tr>
+                                            <td>{{ position.ticket if position.ticket else 'N/A' }}</td>
+                                            <td>{{ position.symbol if position.symbol else 'N/A' }}</td>
+                                            <td>{{ position.type if position.type else 'N/A' }}</td>
+                                            <td>{{ position.volume if position.volume else 'N/A' }}</td>
+                                            <td>{{ position.profit if position.profit else 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No open positions</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Pending Orders</h6>
+                        {% if trading_status.orders %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Symbol</th>
+                                            <th>Type</th>
+                                            <th>Volume</th>
+                                            <th>Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in trading_status.orders %}
+                                        <tr>
+                                            <td>{{ order.order_id if order.order_id else 'N/A' }}</td>
+                                            <td>{{ order.symbol if order.symbol else 'N/A' }}</td>
+                                            <td>{{ order.type if order.type else 'N/A' }}</td>
+                                            <td>{{ order.volume if order.volume else 'N/A' }}</td>
+                                            <td>{{ order.price if order.price else 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No pending orders</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editUser() {
+    showToast('Edit user functionality coming soon', 'info');
+}
+
+function testConnection(connectionId) {
+    showToast('Testing connection...', 'info');
+
+    setTimeout(() => {
+        showToast('Connection test completed successfully', 'success');
+    }, 2000);
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

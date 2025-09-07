@@ -1,9 +1,9 @@
 """Utility functions for easy access to notification features."""
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from ..notifications.manager import NotificationManager
 from ..utils.constants import NotificationPriority
-
 
 # Global notification manager instance
 _notification_manager: Optional[NotificationManager] = None
@@ -33,9 +33,9 @@ async def send_trade_notification(symbol: str, action: str, details: Dict[str, A
 
 
 async def send_quick_notification(
-    message: str, 
+    message: str,
     notification_type: str = "info",
-    priority: NotificationPriority = NotificationPriority.MEDIUM
+    priority: NotificationPriority = NotificationPriority.MEDIUM,
 ):
     """Send a quick notification with minimal setup."""
     if _notification_manager:
@@ -43,7 +43,7 @@ async def send_quick_notification(
             message,
             notification_type=notification_type,
             priority=priority,
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
 
@@ -52,7 +52,7 @@ async def send_system_alert(message: str):
     await send_quick_notification(
         f"🔧 *System Alert*\n\n{message}",
         notification_type="system",
-        priority=NotificationPriority.HIGH
+        priority=NotificationPriority.HIGH,
     )
 
 
@@ -62,7 +62,7 @@ async def send_error_alert(message: str, error: Optional[Exception] = None):
     await send_quick_notification(
         f"❌ *Error Alert*\n\n{message}{error_detail}",
         notification_type="error",
-        priority=NotificationPriority.HIGH
+        priority=NotificationPriority.HIGH,
     )
 
 

@@ -2,16 +2,15 @@
 Order Bridge for sending orders from Python to MT5 EA.
 """
 
-import asyncio
 import json
-import logging
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
+from typing import Dict
+
 import aiohttp
 import websockets
 
-from ..core.logging import get_logger
 from ..core.config import BridgeConfig
+from ..core.logging import get_logger
 from ..models.orders import Order
 from ..models.signals import Signal
 
@@ -23,7 +22,7 @@ class OrderBridge:
 
     def __init__(self, config: BridgeConfig):
         self.config = config
-        self.websocket_url = f"ws://127.0.0.1:8000/ws/orders"
+        self.websocket_url = "ws://127.0.0.1:8000/ws/orders"
         self.http_url = "http://127.0.0.1:8000/api/v1/orders"
         self.connected = False
         self.websocket = None
