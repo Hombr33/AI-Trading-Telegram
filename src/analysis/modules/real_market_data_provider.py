@@ -5,6 +5,7 @@ This replaces the fake data generation with real market information.
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -316,16 +317,51 @@ class RealMarketDataProvider:
     async def _fetch_market_news(self) -> Optional[str]:
         """Fetch real market news."""
         try:
-            # For now, we'll provide a placeholder
-            # In production, you'd integrate with a real news API
+            # Try to fetch from external news API if configured
+            news_api_key = os.getenv("NEWS_API_KEY")
+            if news_api_key:
+                try:
+                    import aiohttp
+
+                    async with aiohttp.ClientSession() as session:
+                        url = f"https://newsapi.org/v2/everything"
+                        params = {
+                            "q": "forex trading OR currency market OR central bank",
+                            "apiKey": news_api_key,
+                            "language": "en",
+                            "sortBy": "publishedAt",
+                            "pageSize": 5,
+                        }
+
+                        async with session.get(url, params=params) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                articles = data.get("articles", [])
+
+                                if articles:
+                                    news_text = "📰 MARKET NEWS & SENTIMENT:\n\n"
+                                    for article in articles[:3]:
+                                        title = article.get("title", "")
+                                        source = article.get("source", {}).get(
+                                            "name", ""
+                                        )
+                                        news_text += f"📰 {title}\n"
+                                        news_text += f"   Source: {source}\n\n"
+
+                                    return news_text
+                except Exception as e:
+                    logger.warning(f"Failed to fetch news from API: {e}")
+
+            # Fallback to placeholder with configuration info
             return """
 📰 MARKET NEWS & SENTIMENT:
 📊 Current Market Sentiment: Neutral to Bullish
 🌍 Global Markets: Mixed performance across regions
 💼 Key Focus: Inflation data, central bank policies
-⚠️  Note: For live news, integrate with professional news APIs
-   - Reuters, Bloomberg, or MarketAux for real-time news
-   - Economic calendar APIs for scheduled events"""
+
+⚠️  Note: For live news, configure NEWS_API_KEY environment variable
+   - Get API key from https://newsapi.org/
+   - Or integrate with Reuters, Bloomberg, or MarketAux APIs"""
 
         except Exception as e:
             logger.error(f"Error fetching market news: {e}")
@@ -334,18 +370,66 @@ class RealMarketDataProvider:
     async def _fetch_economic_events(self) -> Optional[str]:
         """Fetch real economic calendar events."""
         try:
-            # For now, we'll provide a placeholder
-            # In production, you'd integrate with TradingEconomics or similar
+            # Try to fetch from external economic calendar API if configured
+            economic_api_key = os.getenv("ECONOMIC_CALENDAR_API_KEY")
+            if economic_api_key:
+                try:
+                    from datetime import datetime, timedelta
+
+                    import aiohttp
+
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+                    async with aiohttp.ClientSession() as session:
+                        url = f"https://api.tradingeconomics.com/calendar"
+                        params = {
+                            "c": economic_api_key,
+                            "d1": today,
+                            "d2": tomorrow,
+                            "importance": "high,medium",
+                        }
+
+                        async with session.get(url, params=params) as response:
+                            if response.status == 200:
+                                data = await response.json()
+
+                                if data:
+                                    events_text = "📅 ECONOMIC CALENDAR:\n\n"
+                                    events_text += "🗓️  Today's Key Events:\n"
+
+                                    for event in data[:5]:  # Show top 5 events
+                                        country = event.get("Country", "")
+                                        event_name = event.get("Event", "")
+                                        importance = event.get("Importance", "")
+                                        time = event.get("DateTime", "")
+
+                                        importance_emoji = (
+                                            "🔴"
+                                            if importance == "High"
+                                            else (
+                                                "🟡" if importance == "Medium" else "🟢"
+                                            )
+                                        )
+                                        events_text += f"{importance_emoji} {country}: {event_name}\n"
+                                        if time:
+                                            events_text += f"   Time: {time}\n"
+
+                                    return events_text
+                except Exception as e:
+                    logger.warning(f"Failed to fetch economic calendar from API: {e}")
+
+            # Fallback to placeholder with configuration info
             return """
 📅 ECONOMIC CALENDAR:
 🗓️  Today's Key Events:
    - No major economic releases scheduled
    - Central bank speakers: None
    - Market holidays: None
-⚠️  Note: For live economic calendar, integrate with:
-   - TradingEconomics API
-   - Investing.com API
-   - Bloomberg Economic Calendar"""
+
+⚠️  Note: For live economic calendar, configure ECONOMIC_CALENDAR_API_KEY
+   - Get API key from https://tradingeconomics.com/api/
+   - Or integrate with other economic calendar APIs"""
 
         except Exception as e:
             logger.error(f"Error fetching economic events: {e}")
@@ -366,16 +450,79 @@ class RealMarketDataProvider:
     ) -> str:
         """Get economic calendar events."""
         try:
-            # For now, return placeholder
-            # In production, integrate with real economic calendar API
+            # Try to fetch from external economic calendar API if configured
+            economic_api_key = os.getenv("ECONOMIC_CALENDAR_API_KEY")
+            if economic_api_key:
+                try:
+                    from datetime import datetime, timedelta
+
+                    import aiohttp
+
+                    # Calculate date range based on timeframe
+                    if timeframe.upper() == "TODAY":
+                        start_date = datetime.now().strftime("%Y-%m-%d")
+                        end_date = start_date
+                    elif timeframe.upper() == "WEEK":
+                        start_date = datetime.now().strftime("%Y-%m-%d")
+                        end_date = (datetime.now() + timedelta(days=7)).strftime(
+                            "%Y-%m-%d"
+                        )
+                    else:
+                        start_date = datetime.now().strftime("%Y-%m-%d")
+                        end_date = (datetime.now() + timedelta(days=1)).strftime(
+                            "%Y-%m-%d"
+                        )
+
+                    async with aiohttp.ClientSession() as session:
+                        url = f"https://api.tradingeconomics.com/calendar"
+                        params = {
+                            "c": economic_api_key,
+                            "d1": start_date,
+                            "d2": end_date,
+                            "importance": impact_level.lower(),
+                        }
+
+                        async with session.get(url, params=params) as response:
+                            if response.status == 200:
+                                data = await response.json()
+
+                                if data:
+                                    events_text = (
+                                        f"📅 ECONOMIC CALENDAR ({timeframe.upper()})\n"
+                                    )
+                                    events_text += (
+                                        f"🎯 Impact Level: {impact_level.upper()}\n\n"
+                                    )
+
+                                    for event in data[:10]:  # Show top 10 events
+                                        country = event.get("Country", "")
+                                        event_name = event.get("Event", "")
+                                        importance = event.get("Importance", "")
+                                        time = event.get("DateTime", "")
+
+                                        importance_emoji = (
+                                            "🔴"
+                                            if importance == "High"
+                                            else (
+                                                "🟡" if importance == "Medium" else "🟢"
+                                            )
+                                        )
+                                        events_text += f"{importance_emoji} {country}: {event_name}\n"
+                                        if time:
+                                            events_text += f"   Time: {time}\n"
+
+                                    return events_text
+                except Exception as e:
+                    logger.warning(f"Failed to fetch economic calendar from API: {e}")
+
+            # Fallback to placeholder with configuration info
             return f"""
 📅 ECONOMIC CALENDAR ({timeframe.upper()})
 🎯 Impact Level: {impact_level.upper()}
 
-⚠️  Note: This is a placeholder. For real economic calendar data:
-   - Integrate with TradingEconomics API
-   - Use Investing.com Economic Calendar
-   - Connect to Bloomberg Economic Calendar
+⚠️  Note: For live economic calendar, configure ECONOMIC_CALENDAR_API_KEY
+   - Get API key from https://tradingeconomics.com/api/
+   - Or integrate with other economic calendar APIs
 
 Current Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"""
 

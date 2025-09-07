@@ -158,9 +158,41 @@ class AutoTradingService(IAutoTradingService):
     async def _process_automatic_signals(self):
         """Process signals from the signal generation service."""
         try:
-            # This is a placeholder - in a real implementation, you would
-            # integrate with the signal generation service to get new signals
-            pass
+            # Check if signal generation service is available
+            if hasattr(self, "signal_service") and self.signal_service:
+                # Get latest signals from the service
+                signals = await self.signal_service.get_latest_signals()
+
+                for signal in signals:
+                    if signal.get("auto_execute", False):
+                        await self._execute_signal(signal)
+            else:
+                # Fallback: check for signals in database
+                from sqlalchemy import desc
+
+                from src.database.session import get_db_session
+                from src.models import Signal
+
+                with get_db_session() as db:
+                    # Get latest active signals
+                    latest_signals = (
+                        db.query(Signal)
+                        .filter(Signal.is_active == True)
+                        .order_by(desc(Signal.created_at))
+                        .limit(5)
+                        .all()
+                    )
+
+                    for signal in latest_signals:
+                        signal_data = {
+                            "symbol": signal.symbol,
+                            "bias": signal.bias,
+                            "setups": signal.setups or [],
+                            "confidence": signal.confidence,
+                            "auto_execute": True,
+                        }
+                        await self._execute_signal(signal_data)
+
         except Exception as e:
             logger.error(f"Error processing automatic signals: {e}")
 
@@ -405,10 +437,72 @@ class AutoTradingService(IAutoTradingService):
     async def _apply_trade_management(self, symbol: str, trade_info: Dict[str, Any]):
         """Apply trade management rules (trailing stops, etc.)."""
         try:
-            # This is a placeholder for trade management logic
-            # In a real implementation, you would apply trailing stops,
-            # partial closures, breakeven moves, etc.
-            pass
+            if not self.platform_manager:
+                return
+
+            # Get position manager for trade management
+            position_manager = self.platform_manager.get_position_manager()
+            if not position_manager:
+                return
+
+            # Get current positions for the symbol
+            positions = await position_manager.get_positions()
+            symbol_positions = [p for p in positions if p.get("symbol") == symbol]
+
+            for position in symbol_positions:
+                # Apply trailing stop if profit target reached
+                current_price = position.get("current_price", 0)
+                open_price = position.get("open_price", 0)
+                stop_loss = position.get("stop_loss", 0)
+                take_profit = position.get("take_profit", 0)
+
+                if current_price and open_price and stop_loss:
+                    # Check if we should move to breakeven (1R profit)
+                    if position.get("direction") == "BUY":
+                        profit_1r = open_price + (open_price - stop_loss)
+                        if current_price >= profit_1r and stop_loss < open_price:
+                            # Move stop loss to breakeven
+                            await position_manager.modify_position(
+                                position.get("id"), stop_loss=open_price
+                            )
+                            logger.info(f"Moved {symbol} stop loss to breakeven")
+
+                    elif position.get("direction") == "SELL":
+                        profit_1r = open_price - (stop_loss - open_price)
+                        if current_price <= profit_1r and stop_loss > open_price:
+                            # Move stop loss to breakeven
+                            await position_manager.modify_position(
+                                position.get("id"), stop_loss=open_price
+                            )
+                            logger.info(f"Moved {symbol} stop loss to breakeven")
+
+                    # Apply trailing stop (simplified implementation)
+                    if take_profit and current_price:
+                        if position.get("direction") == "BUY":
+                            # Trail stop loss up as price moves up
+                            new_stop = (
+                                current_price - (current_price - open_price) * 0.5
+                            )
+                            if new_stop > stop_loss:
+                                await position_manager.modify_position(
+                                    position.get("id"), stop_loss=new_stop
+                                )
+                                logger.info(
+                                    f"Applied trailing stop for {symbol}: {new_stop}"
+                                )
+
+                        elif position.get("direction") == "SELL":
+                            # Trail stop loss down as price moves down
+                            new_stop = (
+                                current_price + (open_price - current_price) * 0.5
+                            )
+                            if new_stop < stop_loss:
+                                await position_manager.modify_position(
+                                    position.get("id"), stop_loss=new_stop
+                                )
+                                logger.info(
+                                    f"Applied trailing stop for {symbol}: {new_stop}"
+                                )
 
         except Exception as e:
             logger.error(f"Error applying trade management for {symbol}: {e}")

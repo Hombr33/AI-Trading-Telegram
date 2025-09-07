@@ -222,6 +222,8 @@ class CallbackRouter:
             "crypto_cancel",
             # Trading settings callbacks
             "manage_symbols",
+            "custom_add_pair",
+            "enter_custom_symbol",
             "edit_risk_percent",
             "edit_max_positions",
             "edit_daily_loss",

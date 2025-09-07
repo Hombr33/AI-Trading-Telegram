@@ -7,14 +7,14 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..bridge.ea_bridge import EABridge
-from ..common.interfaces import IOrderManager, OrderSide, OrderType
-from ..core.error_handler import with_error_handling
-from ..core.logging import get_logger
-from ..execution.multi_user_position_manager import MultiUserPositionManager
-from ..models.orders import Order
-from ..services.config_manager import ConfigManager
-from ..services.user_manager import UserManager
+from src.bridge.ea_bridge import EABridge
+from src.common.interfaces import IOrderManager, OrderSide, OrderType
+from src.core.error_handler import with_error_handling
+from src.core.logging import get_logger
+from src.execution.multi_user_position_manager import MultiUserPositionManager
+from src.models.orders import Order
+from src.services.config_manager import ConfigManager
+from src.services.user_manager import UserManager
 
 logger = get_logger(__name__)
 
@@ -108,8 +108,23 @@ class MultiUserOrderManager(IOrderManager):
         """Get users that have active EA connections."""
         try:
             # Query database for users with active platform connections
-            # This is a simplified version - in production you'd query the actual database
-            return []  # Placeholder
+            from src.database.session import get_db_session
+            from src.models import PlatformConnection, TelegramUser
+
+            with get_db_session() as db:
+                # Get users with active MT5 connections
+                active_users = (
+                    db.query(TelegramUser)
+                    .join(PlatformConnection)
+                    .filter(
+                        PlatformConnection.platform_type == "mt5",
+                        PlatformConnection.is_active == True,
+                        TelegramUser.subscription_status == "active",
+                    )
+                    .all()
+                )
+
+                return [user.telegram_id for user in active_users]
         except Exception as e:
             logger.error(f"Failed to get users with EA connections: {e}")
             return []

@@ -335,3 +335,97 @@ class UserConfigService:
 
         except Exception as e:
             return False, f"Validation error: {str(e)}"
+
+    async def sync_signal_subscriptions_with_allowed_symbols(
+        self, telegram_id: int
+    ) -> bool:
+        """Sync signal subscriptions with user's allowed symbols configuration.
+
+        Args:
+            telegram_id: Telegram user ID
+
+        Returns:
+            True if sync was successful, False otherwise
+        """
+        try:
+            from ..models.telegram_users import SignalSubscription, TelegramUser
+
+            session = SessionLocal()
+            try:
+                # Get user
+                user = (
+                    session.query(TelegramUser)
+                    .filter(TelegramUser.telegram_id == telegram_id)
+                    .first()
+                )
+
+                if not user:
+                    logger.error(f"User not found for telegram_id: {telegram_id}")
+                    return False
+
+                # Get user's allowed symbols from trading configuration
+                trading_config = (
+                    session.query(UserConfiguration)
+                    .filter(
+                        UserConfiguration.user_id == user.id,
+                        UserConfiguration.config_type == "trading",
+                        UserConfiguration.is_active == True,
+                    )
+                    .first()
+                )
+
+                if not trading_config:
+                    logger.warning(f"No trading config found for user {telegram_id}")
+                    return False
+
+                allowed_symbols = trading_config.config_data.get("allowed_symbols", [])
+                logger.info(
+                    f"Syncing signal subscriptions for user {telegram_id} with allowed symbols: {allowed_symbols}"
+                )
+
+                # Get current signal subscriptions
+                current_subscriptions = (
+                    session.query(SignalSubscription)
+                    .filter(SignalSubscription.user_id == user.id)
+                    .all()
+                )
+
+                current_symbols = {sub.symbol for sub in current_subscriptions}
+                allowed_symbols_set = set(allowed_symbols)
+
+                # Remove subscriptions for symbols not in allowed list
+                for subscription in current_subscriptions:
+                    if subscription.symbol not in allowed_symbols_set:
+                        logger.info(
+                            f"Removing signal subscription for {subscription.symbol} (not in allowed symbols)"
+                        )
+                        session.delete(subscription)
+
+                # Add subscriptions for symbols in allowed list but not subscribed
+                for symbol in allowed_symbols:
+                    if symbol not in current_symbols:
+                        logger.info(f"Adding signal subscription for {symbol}")
+                        new_subscription = SignalSubscription(
+                            user_id=user.id,
+                            symbol=symbol,
+                            is_active=True,
+                            min_confidence=60,  # Default confidence
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow(),
+                        )
+                        session.add(new_subscription)
+
+                session.commit()
+                logger.info(
+                    f"Successfully synced signal subscriptions for user {telegram_id}"
+                )
+                return True
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(
+                f"Error syncing signal subscriptions for user {telegram_id}: {e}"
+            )
+            return False

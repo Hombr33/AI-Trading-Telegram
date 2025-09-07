@@ -862,8 +862,21 @@ No platform connections found.
             )
             return
 
-        # Get user performance data (placeholder - implement actual performance tracking)
-        message = """📈 **Trading Performance**
+        # Get user performance data from database
+        try:
+            from datetime import datetime, timedelta
+
+            from sqlalchemy import and_, desc, func
+
+            from ...database.session import get_db_session
+            from ...models import Position, Trade
+
+            with get_db_session() as db:
+                # Get user's trades
+                user_trades = db.query(Trade).filter(Trade.user_id == telegram_id).all()
+
+                if not user_trades:
+                    message = """📈 **Trading Performance**
 
 **Account Overview:**
 • Total Trades: 0
@@ -878,12 +891,119 @@ No platform connections found.
 • Best Trade: $0.00
 • Worst Trade: $0.00
 
-**Risk Metrics:**
-• Max Drawdown: 0%
-• Daily Drawdown: 0%
-• Sharpe Ratio: 0.00
+*No trades found. Start trading to see your performance here.*"""
+                else:
+                    # Calculate performance metrics
+                    closed_trades = [
+                        t
+                        for t in user_trades
+                        if t.status == "CLOSED" and t.profit_loss is not None
+                    ]
+                    total_trades = len(user_trades)
+                    closed_count = len(closed_trades)
 
-*Performance tracking will be available after your first trades.*"""
+                    if closed_trades:
+                        winning_trades = [t for t in closed_trades if t.profit_loss > 0]
+                        losing_trades = [t for t in closed_trades if t.profit_loss < 0]
+
+                        win_rate = (
+                            (len(winning_trades) / closed_count * 100)
+                            if closed_count > 0
+                            else 0
+                        )
+                        total_pnl = sum(t.profit_loss for t in closed_trades)
+
+                        total_profit = sum(t.profit_loss for t in winning_trades)
+                        total_loss = abs(sum(t.profit_loss for t in losing_trades))
+                        profit_factor = (
+                            total_profit / total_loss
+                            if total_loss > 0
+                            else float("inf")
+                        )
+
+                        best_trade = (
+                            max(
+                                closed_trades, key=lambda x: x.profit_loss or 0
+                            ).profit_loss
+                            or 0
+                        )
+                        worst_trade = (
+                            min(
+                                closed_trades, key=lambda x: x.profit_loss or 0
+                            ).profit_loss
+                            or 0
+                        )
+
+                        # This month's trades
+                        month_start = datetime.now().replace(
+                            day=1, hour=0, minute=0, second=0, microsecond=0
+                        )
+                        month_trades = [
+                            t
+                            for t in closed_trades
+                            if t.close_time
+                            and datetime.fromisoformat(
+                                t.close_time.replace("Z", "+00:00")
+                            )
+                            >= month_start
+                        ]
+                        month_wins = len(
+                            [
+                                t
+                                for t in month_trades
+                                if t.profit_loss and t.profit_loss > 0
+                            ]
+                        )
+                        month_losses = len(
+                            [
+                                t
+                                for t in month_trades
+                                if t.profit_loss and t.profit_loss < 0
+                            ]
+                        )
+                    else:
+                        win_rate = 0
+                        total_pnl = 0
+                        profit_factor = 0
+                        best_trade = 0
+                        worst_trade = 0
+                        month_trades = []
+                        month_wins = 0
+                        month_losses = 0
+
+                    message = f"""📈 **Trading Performance**
+
+**Account Overview:**
+• Total Trades: {total_trades}
+• Win Rate: {win_rate:.1f}%
+• Profit Factor: {profit_factor:.2f}
+• Total P&L: ${total_pnl:.2f}
+
+**This Month:**
+• Trades: {len(month_trades)}
+• Wins: {month_wins}
+• Losses: {month_losses}
+• Best Trade: ${best_trade:.2f}
+• Worst Trade: ${worst_trade:.2f}"""
+
+        except Exception as e:
+            logger.error(f"Error getting performance data for user {telegram_id}: {e}")
+            message = """📈 **Trading Performance**
+
+**Account Overview:**
+• Total Trades: 0
+• Win Rate: 0%
+• Profit Factor: 0.00
+• Total P&L: $0.00
+
+**This Month:**
+• Trades: 0
+• Wins: 0
+• Losses: 0
+• Best Trade: $0.00
+• Worst Trade: $0.00
+
+*Error loading performance data. Please try again later.*"""
 
         await update.message.reply_text(message, parse_mode="Markdown")
 
@@ -897,8 +1017,26 @@ No platform connections found.
             await update.message.reply_text("❌ Subscription required to view history.")
             return
 
-        # Get trading history (placeholder - implement actual history tracking)
-        message = """📋 **Trading History**
+        # Get trading history from database
+        try:
+            from sqlalchemy import desc
+
+            from ...database.session import get_db_session
+            from ...models import Instrument, Trade
+
+            with get_db_session() as db:
+                # Get user's recent trades (last 10)
+                recent_trades = (
+                    db.query(Trade)
+                    .join(Instrument)
+                    .filter(Trade.user_id == telegram_id)
+                    .order_by(desc(Trade.open_time))
+                    .limit(10)
+                    .all()
+                )
+
+                if not recent_trades:
+                    message = """📋 **Trading History**
 
 No trading history found.
 
@@ -912,6 +1050,53 @@ No trading history found.
 4. Enable auto-trading (/auto_trade)
 
 *Your trading history will appear here once you start trading.*"""
+                else:
+                    message = "📋 **Trading History**\n\n"
+                    message += "**Recent Trades:**\n"
+
+                    for trade in recent_trades:
+                        status_emoji = (
+                            "✅"
+                            if trade.status == "CLOSED"
+                            else "🔄" if trade.status == "OPEN" else "⏸️"
+                        )
+                        pnl_emoji = (
+                            "💰"
+                            if trade.profit_loss and trade.profit_loss > 0
+                            else (
+                                "📉"
+                                if trade.profit_loss and trade.profit_loss < 0
+                                else "➖"
+                            )
+                        )
+
+                        pnl_text = (
+                            f"${trade.profit_loss:.2f}"
+                            if trade.profit_loss is not None
+                            else "N/A"
+                        )
+
+                        message += f"{status_emoji} **{trade.instrument.symbol}** {trade.direction}\n"
+                        message += (
+                            f"   Volume: {trade.volume} | Price: {trade.open_price}\n"
+                        )
+                        message += (
+                            f"   Status: {trade.status} | P&L: {pnl_emoji} {pnl_text}\n"
+                        )
+                        message += f"   Time: {trade.open_time}\n\n"
+
+                    message += f"*Showing last {len(recent_trades)} trades. Use /performance for detailed metrics.*"
+
+        except Exception as e:
+            logger.error(f"Error getting trading history for user {telegram_id}: {e}")
+            message = """📋 **Trading History**
+
+Error loading trading history.
+
+**Recent Activity:**
+• Unable to load trade data
+
+*Please try again later or contact support if the issue persists.*"""
 
         await update.message.reply_text(message, parse_mode="Markdown")
 
@@ -1187,6 +1372,23 @@ No trading history found.
                     telegram_id, "trading", "allowed_symbols", allowed_symbols
                 )
                 if success:
+                    # Sync signal subscriptions with allowed symbols
+                    from src.services.user_config_service import UserConfigService
+
+                    user_config_service = UserConfigService()
+                    sync_success = await user_config_service.sync_signal_subscriptions_with_allowed_symbols(
+                        telegram_id
+                    )
+
+                    if sync_success:
+                        logger.info(
+                            f"Removed symbol {symbol} for user {telegram_id} and synced signal subscriptions"
+                        )
+                    else:
+                        logger.warning(
+                            f"Removed symbol {symbol} for user {telegram_id} but failed to sync signal subscriptions"
+                        )
+
                     await query.answer(f"✅ Removed {symbol} from trading pairs")
                     # Refresh the manage symbols interface to show the update
                     await self._redirect_to_manage_symbols(update, context)
@@ -1194,6 +1396,14 @@ No trading history found.
                     await query.answer("❌ Error removing trading pair")
             else:
                 await query.answer(f"❌ {symbol} not in trading pairs")
+
+        elif data == "custom_add_pair":
+            # Handle custom trading pair addition
+            await self._handle_custom_add_pair(update, context)
+
+        elif data == "enter_custom_symbol":
+            # Handle custom symbol input
+            await self._handle_enter_custom_symbol(update, context)
 
         elif data == "manage_symbols":
             # Direct call to manage symbols interface
@@ -1219,6 +1429,127 @@ No trading history found.
             await update.callback_query.edit_message_text(
                 message, parse_mode="Markdown"
             )
+
+    async def _handle_custom_add_pair(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle custom trading pair addition."""
+        query = update.callback_query
+        telegram_id = query.from_user.id
+
+        # Show custom pair input interface
+        message = """🔧 **Add Custom Trading Pair**
+
+Please enter the trading pair symbol you want to add.
+
+**Format Examples:**
+• `EURUSD` - Forex pair
+• `BTCUSDT` - Crypto pair
+• `XAUUSD` - Gold/USD
+• `SPX500` - S&P 500 index
+
+**Instructions:**
+1. Type the symbol exactly as it appears on your broker
+2. Use uppercase letters
+3. No spaces or special characters
+
+Type your symbol now:"""
+
+        # Create keyboard with common examples and back button
+        from src.telegram_bot.utils.keyboards import create_keyboard
+
+        keyboard = create_keyboard(
+            [
+                [("📝 Enter Symbol", "enter_custom_symbol")],
+                [("⬅️ Back", "trading_pairs")],
+            ]
+        )
+
+        await query.edit_message_text(
+            message, parse_mode="Markdown", reply_markup=keyboard
+        )
+
+        # Set conversation state for custom symbol input
+        context.user_data["waiting_for_custom_symbol"] = True
+
+    async def _handle_enter_custom_symbol(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """Handle custom symbol input prompt."""
+        query = update.callback_query
+
+        message = """📝 **Enter Custom Symbol**
+
+Please type the trading pair symbol you want to add.
+
+**Examples:**
+• `EURUSD`
+• `BTCUSDT`
+• `XAUUSD`
+• `SPX500`
+
+**Requirements:**
+• Use uppercase letters only
+• No spaces or special characters
+• Must be a valid trading symbol
+
+Type your symbol now:"""
+
+        await query.edit_message_text(message, parse_mode="Markdown")
+
+        # Set conversation state
+        context.user_data["waiting_for_custom_symbol"] = True
+
+    async def _add_custom_symbol(self, telegram_id: int, symbol: str) -> bool:
+        """Add a custom symbol to user's trading pairs."""
+        try:
+            # Get current user configuration
+            user_config = await self.config_manager.get_user_config(
+                telegram_id, "trading"
+            )
+            allowed_symbols = user_config.get("allowed_symbols", [])
+
+            # Check if symbol already exists
+            if symbol in allowed_symbols:
+                logger.warning(f"Symbol {symbol} already exists for user {telegram_id}")
+                return False
+
+            # Add the new symbol
+            allowed_symbols.append(symbol)
+
+            # Update user configuration
+            success = await self.config_manager.update_user_config(
+                telegram_id, "trading", "allowed_symbols", allowed_symbols
+            )
+
+            if success:
+                # Sync signal subscriptions with allowed symbols
+                from src.services.user_config_service import UserConfigService
+
+                user_config_service = UserConfigService()
+                sync_success = await user_config_service.sync_signal_subscriptions_with_allowed_symbols(
+                    telegram_id
+                )
+
+                if sync_success:
+                    logger.info(
+                        f"Added custom symbol {symbol} for user {telegram_id} and synced signal subscriptions"
+                    )
+                else:
+                    logger.warning(
+                        f"Added custom symbol {symbol} for user {telegram_id} but failed to sync signal subscriptions"
+                    )
+
+                return True
+            else:
+                logger.error(f"Failed to update user config for {telegram_id}")
+                return False
+
+        except Exception as e:
+            logger.error(
+                f"Error adding custom symbol {symbol} for user {telegram_id}: {e}"
+            )
+            return False
 
     async def cancel_conversation(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

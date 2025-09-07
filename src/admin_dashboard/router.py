@@ -388,18 +388,34 @@ async def audit_logs(
 ):
     """Audit logs page."""
     try:
-        # For now, return a placeholder since audit logging might not be fully implemented
-        audit_entries = [
-            {
-                "id": 1,
-                "timestamp": datetime.utcnow().isoformat(),
-                "user_id": admin["telegram_id"],
-                "action": "login",
-                "resource": "admin_dashboard",
-                "details": {"ip": "127.0.0.1"},
-                "ip_address": "127.0.0.1",
-            }
-        ]
+        # Get audit entries from database
+        from ...database.session import get_db_session
+        from ...models import Audit
+
+        with get_db_session() as db:
+            query = db.query(Audit)
+
+            # Apply filters
+            if user_filter:
+                query = query.filter(Audit.user_id == user_filter)
+            if action_filter:
+                query = query.filter(Audit.action.ilike(f"%{action_filter}%"))
+
+            # Get recent audit entries
+            audit_records = query.order_by(Audit.timestamp.desc()).limit(100).all()
+
+            audit_entries = [
+                {
+                    "id": record.id,
+                    "timestamp": record.timestamp.isoformat(),
+                    "user_id": record.user_id,
+                    "action": record.action,
+                    "resource": record.resource,
+                    "details": record.changes or {},
+                    "ip_address": "127.0.0.1",
+                }
+                for record in audit_records
+            ]
 
         return templates.TemplateResponse(
             "audit.html",

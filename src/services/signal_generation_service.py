@@ -204,21 +204,21 @@ class SignalGenerationService(ISignalGenerationService):
     async def generate_signals(
         self, symbols: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
-        """Generate signals for the specified symbols or all configured pairs.
+        """Generate signals for the specified symbols or symbols that users are allowed to trade.
 
         Args:
-            symbols: Optional list of symbols to analyze. If None, all configured pairs will be used.
+            symbols: Optional list of symbols to analyze. If None, symbols that users are allowed to trade will be used.
 
         Returns:
             List of generated signals
         """
         signals = []
         try:
-            # Get all trading pairs if symbols not specified
+            # Get symbols that users are allowed to trade if symbols not specified
             if symbols is None:
-                symbols = (
-                    config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
-                )
+                logger.info("Getting allowed symbols from user configurations...")
+                symbols = await self._get_allowed_symbols()
+                logger.info(f"Retrieved {len(symbols)} allowed symbols: {symbols}")
 
             logger.info(f"Generating signals for {len(symbols)} pairs")
 
@@ -247,6 +247,57 @@ class SignalGenerationService(ISignalGenerationService):
         except Exception as e:
             logger.error(f"Error in signal generation: {e}")
             return signals
+
+    async def _get_allowed_symbols(self) -> List[str]:
+        """Get all symbols that users are allowed to trade."""
+        try:
+            from src.database.session import get_db_session
+            from src.models.telegram_users import TelegramUser, UserConfiguration
+
+            with get_db_session() as db:
+                # Get all active users
+                active_users = (
+                    db.query(TelegramUser)
+                    .filter(TelegramUser.subscription_status == "ACTIVE")
+                    .all()
+                )
+
+                allowed_symbols = set()
+
+                # Get allowed symbols from each user's configuration
+                for user in active_users:
+                    trading_config = (
+                        db.query(UserConfiguration)
+                        .filter(
+                            UserConfiguration.user_id == user.id,
+                            UserConfiguration.config_type == "trading",
+                            UserConfiguration.is_active == True,
+                        )
+                        .first()
+                    )
+
+                    if trading_config:
+                        user_allowed_symbols = trading_config.config_data.get(
+                            "allowed_symbols", []
+                        )
+                        allowed_symbols.update(user_allowed_symbols)
+
+                # If no users have specific allowed symbols, fall back to default config
+                if not allowed_symbols:
+                    allowed_symbols = set(
+                        config.auto_trading.forex_pairs
+                        + config.auto_trading.crypto_pairs
+                    )
+
+                logger.info(
+                    f"Found {len(allowed_symbols)} allowed symbols: {sorted(allowed_symbols)}"
+                )
+                return sorted(list(allowed_symbols))
+
+        except Exception as e:
+            logger.error(f"Error getting allowed symbols: {e}")
+            # Fall back to default symbols
+            return config.auto_trading.forex_pairs + config.auto_trading.crypto_pairs
 
     async def _generate_signals(self):
         """Internal method for the signal generation loop."""
@@ -1089,20 +1140,73 @@ class SignalGenerationService(ISignalGenerationService):
             from src.telegram_bot.notifications.trading import send_signal_notification
 
             config_manager = ConfigManager()
+            symbol = signal.get("symbol", "")
+            confidence = signal.get("confidence", 0)
 
-            # Get all registered users
-            users = await config_manager.get_all_users()
+            # Get users subscribed to this specific symbol
+            try:
+                from src.database.session import get_db_session
+                from src.models.telegram_users import SignalSubscription, TelegramUser
+
+                with get_db_session() as db:
+                    # Get users who are subscribed to this symbol with sufficient confidence
+                    subscribed_users = (
+                        db.query(TelegramUser)
+                        .join(
+                            SignalSubscription,
+                            TelegramUser.id == SignalSubscription.user_id,
+                        )
+                        .filter(
+                            TelegramUser.subscription_status == "ACTIVE",
+                            SignalSubscription.symbol == symbol,
+                            SignalSubscription.is_active == True,
+                            SignalSubscription.min_confidence <= confidence,
+                        )
+                        .all()
+                    )
+
+                    user_ids = [user.telegram_id for user in subscribed_users]
+                    logger.info(
+                        f"Found {len(user_ids)} users subscribed to {symbol} signals"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Could not get subscribed users from database: {e}")
+                user_ids = []
 
             # Check each user's permission to receive signals
-            for telegram_id in users:
-                can_receive = await config_manager.check_signal_permission(telegram_id)
-                if can_receive:
+            for telegram_id in user_ids:
+                try:
+                    can_receive = await config_manager.check_signal_permission(
+                        telegram_id
+                    )
+                    if not can_receive:
+                        logger.debug(
+                            f"Signal blocked for user {telegram_id} (permission denied)"
+                        )
+                        continue
+
+                    # Check if symbol is in user's allowed symbols
+                    from src.services.user_config_service import UserConfigService
+
+                    user_config_service = UserConfigService()
+                    user_config = await user_config_service.get_user_config(telegram_id)
+                    allowed_symbols = user_config.get("trading", {}).get(
+                        "allowed_symbols", []
+                    )
+                    if symbol not in allowed_symbols:
+                        logger.info(
+                            f"Signal blocked for user {telegram_id}: symbol {symbol} not in allowed symbols {allowed_symbols}"
+                        )
+                        continue
+
                     # User can receive signals - send notification
                     await send_signal_notification(signal, telegram_id=telegram_id)
-                    logger.debug(f"Signal sent to user {telegram_id}")
-                else:
-                    logger.debug(
-                        f"Signal blocked for user {telegram_id} (permission denied)"
+                    logger.info(f"Signal sent to user {telegram_id} for {symbol}")
+
+                except Exception as e:
+                    logger.warning(
+                        f"Error checking permissions for user {telegram_id}: {e}"
                     )
 
         except Exception as e:

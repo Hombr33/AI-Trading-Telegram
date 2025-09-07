@@ -88,6 +88,12 @@ config_manager: ConfigManager = None
 # Global shutdown flag
 shutdown_event = asyncio.Event()
 
+# Global list to track background tasks
+background_tasks = []
+
+# Global flag for immediate shutdown
+force_shutdown = False
+
 
 async def monitor_shutdown_request():
     """Monitor for shutdown requests from system manager."""
@@ -107,6 +113,28 @@ async def monitor_shutdown_request():
         logger.error(f"Error in shutdown monitor: {e}")
 
 
+def signal_handler(signum, frame):
+    """Handle shutdown signals with immediate force shutdown."""
+    global force_shutdown
+    print(f"\n🛑 Received signal {signum}. Force shutting down...")
+    force_shutdown = True
+    shutdown_event.set()
+
+    # Force exit after a very short delay
+    import threading
+
+    def force_exit():
+        import time
+
+        time.sleep(1)  # Wait only 1 second
+        print("⚠️ Force exiting...")
+        os._exit(1)
+
+    # Start force exit timer in background
+    exit_thread = threading.Thread(target=force_exit, daemon=True)
+    exit_thread.start()
+
+
 async def shutdown_handler(sig, loop):
     """Graceful shutdown handler for signals."""
     logger.info(f"Received exit signal {sig.name}...")
@@ -123,7 +151,8 @@ async def shutdown_handler(sig, loop):
     if tasks:
         try:
             await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True), timeout=10.0
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=2.0,  # Reduced timeout
             )
         except asyncio.TimeoutError:
             logger.warning("Some tasks did not complete cancellation in time")
@@ -136,7 +165,11 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     global telegram_bot, start_time, socketio_bridge, platform_manager, order_manager, position_manager, trailing_manager, signal_generation_service, auto_trading_service, multi_user_service, mt5_bridge_service, user_manager, config_manager
 
-    # Let uvicorn handle signal processing - no custom signal handlers needed
+    # Set up signal handlers for proper Ctrl+C handling
+    import signal
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     # Record startup time
     start_time = datetime.now(timezone.utc)
@@ -272,6 +305,9 @@ async def lifespan(app: FastAPI):
         position_task = asyncio.create_task(position_manager.start())
         trailing_task = asyncio.create_task(trailing_manager.start())
 
+        # Track background tasks for proper shutdown
+        background_tasks.extend([position_task, trailing_task])
+
         # 4. Start MT5 connection in background (non-blocking)
         async def connect_mt5_background():
             """Connect to MT5 in the background without blocking startup."""
@@ -279,7 +315,7 @@ async def lifespan(app: FastAPI):
                 logger.info("Connecting to MT5 in background...")
                 # Get MT5 executor from platform manager
                 mt5_executor = (
-                    platform_manager.get_platform("mt5") if platform_manager else None
+                    platform_manager.get_executor("mt5") if platform_manager else None
                 )
                 if mt5_executor and hasattr(mt5_executor, "connect"):
                     if await mt5_executor.connect():
@@ -300,6 +336,10 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Error connecting to MT5: {e}, continuing with mock mode")
                 logger.debug("MT5 connection exception details", exc_info=True)
+
+        # Start MT5 connection task and track it
+        mt5_task = asyncio.create_task(connect_mt5_background())
+        background_tasks.append(mt5_task)
 
         # 4. Start multi-user service (includes Telegram bot)
         logger.info("Starting multi-user service...")
@@ -348,11 +388,20 @@ async def lifespan(app: FastAPI):
         }
         print_status_table(status_data)
 
-        # Wait for shutdown event
+        # Wait for shutdown event with timeout to prevent hanging
         try:
-            await shutdown_event.wait()
+            await asyncio.wait_for(shutdown_event.wait(), timeout=None)
         except asyncio.CancelledError:
             logger.info("Lifespan cancelled")
+        except asyncio.TimeoutError:
+            logger.info("Shutdown event timeout")
+
+        # Check for force shutdown
+        if force_shutdown:
+            logger.info("Force shutdown requested, exiting immediately")
+            # Still need to yield to satisfy the context manager
+            yield
+            return
 
         yield
 
@@ -369,6 +418,31 @@ async def lifespan(app: FastAPI):
         logger.info(f"Shutting down AI Trading Bot... (reason: {shutdown_reason})")
 
         try:
+            # Cancel all background tasks first
+            logger.info("Cancelling background tasks...")
+            for task in background_tasks:
+                if not task.done():
+                    task.cancel()
+
+            # Wait for tasks to complete cancellation with very short timeout
+            if background_tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*background_tasks, return_exceptions=True),
+                        timeout=1.0,  # Very short timeout for immediate shutdown
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Background tasks did not cancel in time - forcing shutdown"
+                    )
+                except Exception as e:
+                    logger.error(f"Error cancelling background tasks: {e}")
+
+            # If force shutdown, skip all other cleanup
+            if force_shutdown:
+                logger.info("Force shutdown - skipping detailed cleanup")
+                return
+
             # Cancel shutdown monitor task
             if "shutdown_monitor_task" in locals():
                 shutdown_monitor_task.cancel()
@@ -425,7 +499,7 @@ async def lifespan(app: FastAPI):
                 logger.info("Stopping legacy Telegram bot...")
                 try:
                     # Use a shorter timeout to prevent hanging
-                    await asyncio.wait_for(telegram_bot.stop(), timeout=5.0)
+                    await asyncio.wait_for(telegram_bot.stop(), timeout=2.0)
                     logger.info("Legacy Telegram bot stopped successfully")
                 except (asyncio.TimeoutError, asyncio.CancelledError):
                     logger.info("Legacy Telegram bot shutdown completed")

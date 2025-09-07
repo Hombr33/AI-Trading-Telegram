@@ -496,13 +496,50 @@ class MultiUserService:
     ) -> float:
         """Calculate recommended position size based on risk."""
         try:
-            # This is a simplified calculation - in production, you'd want more sophisticated position sizing
-            # based on account balance, risk tolerance, etc.
-            base_position = 0.01  # Base position size
+            # Get signal setups for position sizing calculation
+            setups = signal_data.get("setups", [])
+            if not setups:
+                logger.warning("No setups found in signal data for position sizing")
+                return 0.01  # Default fallback
 
-            # Adjust based on risk-reward ratio
+            # Use the first setup for calculation
+            setup = setups[0]
+            entry_zone = setup.get("entry_zone", [0, 0])
+            stop_loss = setup.get("sl", 0)
+
+            # Calculate average entry price from entry zone
+            if isinstance(entry_zone, list) and len(entry_zone) >= 2:
+                avg_entry_price = (entry_zone[0] + entry_zone[1]) / 2
+            else:
+                avg_entry_price = float(entry_zone) if entry_zone else 0
+
+            # Calculate position size based on risk amount and stop loss distance
+            if stop_loss and avg_entry_price > 0:
+                stop_loss_distance = abs(avg_entry_price - stop_loss)
+
+                if stop_loss_distance > 0:
+                    # Position size = Risk amount / Stop loss distance
+                    position_size = risk_amount / stop_loss_distance
+
+                    # Apply reasonable limits
+                    min_position = 0.01
+                    max_position = 10.0
+                    position_size = max(min_position, min(position_size, max_position))
+
+                    # Round to 2 decimal places for standard lots
+                    position_size = round(position_size, 2)
+
+                    logger.info(
+                        f"Calculated position size: {position_size} "
+                        f"(risk: {risk_amount:.2f}, SL distance: {stop_loss_distance:.5f})"
+                    )
+
+                    return position_size
+
+            # Fallback calculation based on risk-reward ratio
             risk_metrics = signal_data.get("risk_metrics", {})
             rr_ratio = risk_metrics.get("risk_reward_ratio", 1.5)
+            base_position = 0.01
 
             if rr_ratio >= 2.0:
                 return base_position * 1.2  # Increase position for better RR
@@ -511,7 +548,8 @@ class MultiUserService:
             else:
                 return base_position * 0.8  # Reduce position for poor RR
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error calculating position size: {e}")
             return 0.01
 
     async def _process_immediate_signals(self) -> None:
@@ -922,12 +960,69 @@ class MultiUserService:
         trading_config: Dict[str, Any],
     ) -> float:
         """Calculate crypto trade quantity based on risk management."""
-        # This is a simplified calculation - in production, you'd want more sophisticated position sizing
-        trading_config.get("risk_per_trade_pct", 2.0) / 100
-        default_quantity = 0.01  # Default small quantity
+        try:
+            # Get risk parameters from trading config
+            risk_per_trade_pct = trading_config.get("risk_per_trade_pct", 2.0)
+            max_position_size = trading_config.get("max_position_size", 10.0)
+            min_position_size = trading_config.get("min_position_size", 0.01)
 
-        # TODO: Implement proper position sizing based on account balance and risk
-        return default_quantity
+            # Get account balance (this would come from the exchange API in production)
+            # For now, we'll use a default balance or get it from user config
+            account_balance = trading_config.get("account_balance", 1000.0)
+
+            # Calculate risk amount in USD
+            risk_amount = account_balance * (risk_per_trade_pct / 100)
+
+            # Get signal data for position sizing
+            setups = signal_data.get("setups", [])
+            if not setups:
+                logger.warning(f"No setups found in signal data for user {telegram_id}")
+                return min_position_size
+
+            # Use the first setup for calculation
+            setup = setups[0]
+            entry_price = setup.get("entry_zone", [0, 0])
+            stop_loss = setup.get("sl", 0)
+
+            # Calculate entry price (use middle of entry zone)
+            if isinstance(entry_price, list) and len(entry_price) >= 2:
+                avg_entry_price = (entry_price[0] + entry_price[1]) / 2
+            else:
+                avg_entry_price = float(entry_price) if entry_price else 0
+
+            # Calculate stop loss distance
+            if stop_loss and avg_entry_price > 0:
+                stop_loss_distance = abs(avg_entry_price - stop_loss)
+
+                # Calculate position size based on risk
+                # Position size = Risk amount / Stop loss distance
+                if stop_loss_distance > 0:
+                    position_size = risk_amount / stop_loss_distance
+
+                    # Apply position size limits
+                    position_size = max(
+                        min_position_size, min(position_size, max_position_size)
+                    )
+
+                    # Round to appropriate decimal places (crypto typically 4-8 decimals)
+                    position_size = round(position_size, 6)
+
+                    logger.info(
+                        f"Calculated position size for user {telegram_id}: "
+                        f"{position_size} (risk: {risk_amount:.2f}, SL distance: {stop_loss_distance:.6f})"
+                    )
+
+                    return position_size
+
+            # Fallback to default if calculation fails
+            logger.warning(
+                f"Position sizing calculation failed for user {telegram_id}, using default"
+            )
+            return min_position_size
+
+        except Exception as e:
+            logger.error(f"Error calculating position size for user {telegram_id}: {e}")
+            return trading_config.get("min_position_size", 0.01)
 
     async def _monitor_positions(self) -> None:
         """Monitor positions across all users."""
